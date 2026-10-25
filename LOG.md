@@ -111,3 +111,7 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 - Checked `notes/fw-disasm.md` against the vendor sources: halmac register names, 8822B PSD engine
   (0x910/0xf44), 8822C IQK read-out (0x1b38) hold. Correction: the 8822C (JGR3) PSD branch assigns no
   registers in this vendor tree. Summary in FINDINGS §3; the note is committed with its [V]/[I] tags.
+
+## 2026-10-25 12:20 — coord channel; visualization paused
+- Added coord/ (one-writer message files + mkdir locks) and tools/coord.sh for the parallel opencode session.
+- Started an offline visualization tool (tools/viz_capture.py); the response was stopped by a safety classifier mid-write. Partial file deleted, not retried. Claude session paused.
