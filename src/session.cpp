@@ -39,8 +39,20 @@ void Session::open(const OpenOpts &o) {
     int rc = LIBUSB_ERROR_NOT_FOUND;
     for (ssize_t i = 0; i < n && rc == LIBUSB_ERROR_NOT_FOUND; i++) {
       libusb_device_descriptor d{};
-      if (libusb_get_device_descriptor(list[i], &d) == 0 && d.idVendor == o.vid && d.idProduct == o.pid)
-        rc = libusb_open(list[i], &h);
+      if (libusb_get_device_descriptor(list[i], &d) != 0 || d.idVendor != o.vid || d.idProduct != o.pid)
+        continue;
+      if (o.bus >= 0 && libusb_get_bus_number(list[i]) != o.bus)
+        continue;
+      if (!o.port.empty()) {
+        uint8_t ports[8];
+        const int np = libusb_get_port_numbers(list[i], ports, sizeof ports);
+        std::string p;
+        for (int k = 0; k < np; k++)
+          p += (k ? "." : "") + std::to_string(ports[k]);
+        if (p != o.port)
+          continue;
+      }
+      rc = libusb_open(list[i], &h);
     }
     if (list)
       libusb_free_device_list(list, 1);

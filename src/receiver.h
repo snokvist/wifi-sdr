@@ -72,6 +72,8 @@ struct RxStatus {
   int channel = 0, width = 20;
   double centre_hz = 0, fs = 0;
   std::string error;     // last fault (cleared on a clean run start)
+  uint32_t gen = 0, cfg = 0; // run / settings generation of the current stream (as in BankMeta)
+  bool running = false;  // the worker is alive (false after Lost/Error ended it, or stop())
 };
 
 class Receiver {
@@ -82,13 +84,16 @@ public:
   Receiver &operator=(const Receiver &) = delete;
 
   // Blocking (~5 s bring-up). Throws OpenError (not found / permission / busy) or runtime_error.
-  void open(uint16_t pid, const RxSettings &initial = {});
+  // bus/port pick one of several identical adapters (port path as "1" or "1.2"; -1/"" = any).
+  void open(uint16_t pid, const RxSettings &initial = {}, int bus = -1, const std::string &port = {});
   void close(); // stop + release the adapter
   bool is_open() const { return _open; }
   RxCaps caps() const { return _caps; }
 
   void start(BankSink sink); // worker thread; no-op if running
   void stop();               // joins the worker
+  // Takes effect between stream runs. A change that leaves the hardware as it is (e.g. a frequency
+  // inside the same 5 MHz synthesizer step) is recorded without restarting the stream.
   void set(const RxSettings &s);
   RxSettings settings() const;
   RxStatus status() const;

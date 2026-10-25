@@ -22,6 +22,8 @@ int main(int argc, char **argv) {
   RxSettings set;
   set.rate_sel = 5;
   double seconds = 10, retune = 0;
+  int bus = -1;
+  std::string port;
   for (int i = 1; i < argc; i++) {
     std::string k = argv[i];
     const char *v = i + 1 < argc ? argv[i + 1] : "0";
@@ -31,6 +33,8 @@ int main(int argc, char **argv) {
     else if (k == "--seconds") seconds = std::strtod(v, nullptr), i++;
     else if (k == "--retune") retune = std::strtod(v, nullptr), i++;
     else if (k == "--agc") set.agc = true;
+    else if (k == "--bus") bus = std::atoi(v), i++;
+    else if (k == "--port") port = v, i++;
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return 2; }
   }
   if (!pid) {
@@ -39,7 +43,7 @@ int main(int argc, char **argv) {
   }
   Receiver rx(std::make_shared<Logger>());
   try {
-    rx.open(pid, set);
+    rx.open(pid, set, bus, port);
   } catch (const OpenError &e) {
     std::printf("{\"ev\":\"open\",\"ok\":0,\"kind\":%d,\"error\":\"%s\"}\n", static_cast<int>(e.kind), e.what());
     return 3;

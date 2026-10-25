@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <tuple>
 
 #include "ChannelFreq.h"
 #include "stream88xx.h"
@@ -60,7 +61,7 @@ void Receiver::set_state(RxState s, const std::string &err) {
     _st.error = err;
 }
 
-void Receiver::open(uint16_t pid, const RxSettings &initial) {
+void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std::string &port) {
   close();
   {
     std::lock_guard<std::mutex> l(_m);
@@ -73,6 +74,8 @@ void Receiver::open(uint16_t pid, const RxSettings &initial) {
     throw std::invalid_argument("rate_sel must be 1..5");
   OpenOpts o;
   o.pid = pid;
+  o.bus = bus;
+  o.port = port;
   o.bw = width_of(initial, cu);
   o.channel = channel_for(initial.freq, o.bw);
   o.thermal_track = false; // no host register traffic while streaming
@@ -120,6 +123,10 @@ void Receiver::start(BankSink sink) {
   if (_worker.joinable())
     return;
   _sink = std::move(sink);
+  {
+    std::lock_guard<std::mutex> l(_m);
+    _st.running = true;
+  }
   _active = true;
   _restart = false;
   _worker = std::thread([this] { worker(); });
@@ -138,9 +145,17 @@ void Receiver::stop() {
 void Receiver::set(const RxSettings &s) {
   {
     std::lock_guard<std::mutex> l(_m);
-    _set = s;
-    _set.rate_sel = std::clamp(_set.rate_sel, _caps.min_rate_sel, 5);
-    _set.gain_db = std::clamp(_set.gain_db, 0.0, _caps.gain_max);
+    RxSettings n = s;
+    n.rate_sel = std::clamp(n.rate_sel, _caps.min_rate_sel, 5);
+    n.gain_db = std::clamp(n.gain_db, 0.0, _caps.gain_max);
+    const auto hw = [&](const RxSettings &x) {
+      const int w = width_of(x, _caps.cu);
+      return std::make_tuple(channel_for(x.freq, w), w, x.rate_sel, x.agc, x.agc ? 0 : igi_for(x.gain_db, _caps.cu));
+    };
+    const bool same_hw = hw(n) == hw(_set);
+    _set = n;
+    if (same_hw)
+      return; // nothing for the chip to do: keep streaming
     _last_change = clk::now();
     _cfg++;
   }
@@ -158,6 +173,13 @@ RxStatus Receiver::status() const {
 }
 
 void Receiver::worker() {
+  struct Done { // the worker ends (stop, Lost, Error): say so in the status
+    Receiver *r;
+    ~Done() {
+      std::lock_guard<std::mutex> l(r->_m);
+      r->_st.running = false;
+    }
+  } done{this};
   uint64_t seq = 0;
   int consecutive_faults = 0;
   while (_active) {
@@ -224,6 +246,8 @@ void Receiver::worker() {
       _st.width = width;
       _st.centre_hz = centre;
       _st.fs = fs;
+      _st.gen = gen;
+      _st.cfg = cfg;
       _st.state = RxState::Streaming;
     }
     bool clean_start = false;

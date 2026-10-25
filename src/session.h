@@ -19,6 +19,8 @@ namespace wsdr {
 struct OpenOpts {
   uint16_t vid = 0x0bda;
   uint16_t pid = 0;   // required
+  int bus = -1;       // optional: only the adapter on this USB bus ...
+  std::string port;   // ... and port path ("1", "1.2"); empty = any
   int channel = 36;
   int bw = 20;        // 20 / 40 / 80
   bool reset = true;  // libusb_reset_device before claim (devourer default)
