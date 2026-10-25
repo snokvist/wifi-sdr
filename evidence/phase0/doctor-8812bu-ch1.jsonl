@@ -1,0 +1,10 @@
+{"ev":"adapter.caps","supported":1,"chip":"RTL8822B","names":"RTL8822BU/RTL8812BU","chip_id":"0x0a","gen":"jaguar2","variant":"C8822B","transport":"usb","tx_chains":2,"rx_chains":2,"n_ss":2,"stbc":1,"ldpc":1,"sgi":1,"bw_max":80,"bw":[5,10,20,40,80],"txpwr_max":63,"txpwr_step_qdb":2,"txpwr_step_measured":1,"txpwr_min_qdb":-126,"txpwr_max_qdb":126,"txpwr_rate_diffs":1,"txpwr_rate_diffs_hw":1,"txpwr_rate_diffs_measured":1,"tune_2g4":[2412,2484],"tune_5g":[5080,6165],"char_2g4":[2412,2484],"char_5g":[5180,5825],"ldpc_rx_ht":1,"ldpc_rx_vht":1,"ldpc_rx_flag":1,"vht_2g4":1,"per_pkt_txpwr":1,"per_pkt_txpwr_steps":6,"per_pkt_txpwr_step_qdb":0,"per_pkt_txpwr_min_qdb":-44,"per_pkt_txpwr_max_qdb":24,"per_pkt_txpwr_measured":1,"narrowband":1,"fastretune":1,"ack_responder":1,"station_mode":1,"tx_retry_limit":1,"tx_no_agg":0,"he_er_su":0,"per_chain_rssi":1,"hw_rx_tsf":1,"hw_beacon_txtsf":1,"tsf_write":1,"tbtt_follows_tsf":0,"xtal_cap_max":63,"xtal_cap_default":37}
+
+== adapter doctor ==
+bring-up:        yes
+efuse MAC:       40:a5:ef:51:56:61
+efuse stability: 4 reads, 0 mismatched, 0 bad-id (last id 0x8129)
+fw boot:         checksum yes, MCU ready yes
+rx smoke:        1899 ok / 636 corrupt in 8 s
+verdict:         HEALTHY
+{"ev":"doctor.verdict","verdict":"HEALTHY","reasons":"0x0","efuse_reads":4,"efuse_mismatch":0,"efuse_bad_id":0,"efuse_id":"0x8129","fw_attempted":1,"fw_ready":1,"rx_ok":1899,"rx_crc":636,"init":1}

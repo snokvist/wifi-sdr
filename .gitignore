@@ -1,0 +1,9 @@
+# Vendor firmware / driver files: extracted locally, never redistributed (see vendor/README in FINDINGS.md)
+vendor/
+# Third-party reference clones (re-clone with tools/fetch_refs.sh)
+ref/
+# Raw IQ captures are large; evidence/ holds the small derived artifacts (plots, json, sha256)
+captures/
+build/
+*.o
+__pycache__/
