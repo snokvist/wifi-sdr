@@ -26,6 +26,7 @@ tools/coord.sh locks                           # who holds what
 |---|---|
 | `8812bu` | open the RTL8812BU (0bda:b812) at all. Only one process can claim it, and chip state is shared. |
 | `8812cu` | open the RTL8812CU (0bda:c812) at all. |
+| `mt7612u` | open the MT7612U (0e8d:7612) at all. |
 | `rtw88-guard` | run `tools/rtw88_guard.sh on/off`, or modprobe/rmmod the rtw88 or 88x2cu drivers. |
 | `git` | `git add` / `git commit` in ~/wifi-sdr. Stage only your own files, and release right after. |
 
