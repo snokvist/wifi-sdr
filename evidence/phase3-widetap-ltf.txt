@@ -1,0 +1,20 @@
+L-LTF pairs found after mixing each offset to DC, +-9 MHz low-pass, resampling to 20 MS/s (tools/tapscan_ltf.py,
+thresh 0.6). Hits at 20 MHz channel centres only; offsets that are not channel centres and conj(x) are the controls.
+CFO of every hit is +80..+100 kHz (our crystal vs the APs, as in Phase 1). Fixed gain --igi 0x30 --nocca.
+format: offset_MHz: hits / conj-hits
+
+BW80 --channel 36 (LO 5210 MHz; 5180/5200/5220/5240 at -30/-10/+10/+30)
+  dma 0, vendor BW80 DFIR, rate_sel 0 (80 MS/s), 399 snaps   -30: 17/0  -20: 0/0  -10: 14/0  +0: 0/0  +10: 18/0  +20: 0/0  +30: 11/0
+  dma 0, devourer DFIR (BW20), rate_sel 0, 199 snaps         -30: 1/0  -10: 0/0  +0: 0/0  +10: 1/0  +30: 0/0
+  dma 11 path A, 160 MS/s, 399 snaps                         -50: 0/0  -40: 0/0  -30: 13/0  -20: 0/0  -10: 10/0  +0: 0/0  +10: 9/0  +20: 0/0  +30: 3/0  +40: 0/0  +50: 0/0
+  dma 11 path B, 160 MS/s, 399 snaps                         -30: 12/0  -10: 7/0  +0: 0/0  +10: 6/0  +30: 8/0
+
+BW40 --channel 36 (LO 5190 MHz; 5180/5200 at -10/+10)
+  dma 0, vendor BW40 DFIR, rate_sel 1 (40 MS/s), 399 snaps   -10: 36/0  +0: 0/0  +10: 20/0
+  dma 0, devourer DFIR (BW20), rate_sel 1, 199 snaps         -10: 4/0  +0: 0/0  +10: 0/0
+  dma 11 path A, 160 MS/s, 299 snaps                         -30: 0/0  -20: 0/0  -10: 5/0  +0: 0/0  +10: 3/0  +20: 0/0  +30: 0/0
+
+BW80 --channel 42 (centre ch48, LO 5240 MHz; channel centres at -20/0/+20 here)
+  dma 0, vendor BW80 DFIR, rate_sel 0, 299 snaps             -30: 0/0  -20: 6/0  -10: 0/0  +0: 4/0  +10: 0/0  +20: 1/0  +30: 0/0
+  dma 0, devourer DFIR, rate_sel 0, 299 snaps                -30: 0/0  -20: 0/0  -10: 0/0  +0: 5/0  +10: 0/0  +20: 0/0  +30: 0/0
+

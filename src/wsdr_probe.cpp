@@ -24,7 +24,20 @@
 //   wsdr_probe stream --pid 0xb812 [--rate 5] [--seconds 10] [--out PREFIX] [--synthetic] [--guard-us 20]
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A.
+//   LA options (ring/snap/latime/stream/tapscan): --rate N --dbg 0xNNN --dma N --igi N --nocca --dfir 20|40|80
+//       (--dfir: vendor RX DFIR for that width; with --bw 80 --dfir 80 --rate 0 the dma-0 tap is a genuine 80 MS/s,
+//       ~76 MHz band; --bw 40 --dfir 40 --rate 1 gives 40 MS/s / ~40 MHz. Note --channel is the PRIMARY 20 MHz
+//       channel: the centre is ch+2 at --bw 40 and ch+6 at --bw 80.)
+//   wsdr_probe dbgscan --pid 0xb812 [--lo 0x0] [--hi 0xfff] [--reads 8]
+//       BB dbg-port survey: for each 0x8fc selector, read the dbg-port value (0xfa0) N times and report
+//       how many distinct values and which bits toggled. 0x8fc/0x198c are restored afterwards.
+//   wsdr_probe tapscan --pid 0xb812 --plan FILE --dump PREFIX [LA options as for snap]
+//       One session, many LA configs. Each plan line: `label [dbg=N] [dma=N] [rate=N] [w=ADDR/MASK/VAL]...`
+//       (w= are BB/MAC 32-bit masked writes applied after the LA config, restored after the entry).
+//       Per entry: two contiguous snapshots; PREFIX-label.u64 = snapshot 0 unrolled (raw u64 words);
+//       `count=N` appends N-2 further snapshots (16384 words each) for burst hunting.
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
@@ -89,6 +102,8 @@ struct Args {
   bool synthetic = false; // stream: host-filled banks, LA stopped
   int guard_us = 20;      // stream
   std::string out;        // stream: output prefix
+  std::string plan;       // tapscan: plan file
+  int lo = 0, hi = 0xfff; // dbgscan: selector range
 };
 
 unsigned long num(const char *s) { return std::strtoul(s, nullptr, 0); }
@@ -108,6 +123,11 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--no-thermal") a.open.thermal_track = false;
     else if (k == "--rate") { a.la.rate_sel = static_cast<int>(num(v())); a.rate_given = true; }
     else if (k == "--dbg") a.la.dbg_port = static_cast<uint32_t>(num(v()));
+    else if (k == "--dma") a.la.dma_type = static_cast<int>(num(v()));
+    else if (k == "--dfir") a.la.dfir = static_cast<int>(num(v()));
+    else if (k == "--plan") a.plan = v();
+    else if (k == "--lo") a.lo = static_cast<int>(num(v()));
+    else if (k == "--hi") a.hi = static_cast<int>(num(v()));
     else if (k == "--cck") a.la.cck_off = num(v()) == 0;
     else if (k == "--filter") a.la.filter_rx = num(v()) != 0;
     else if (k == "--dbgclk") a.la.dbgport_clk = num(v()) != 0;
@@ -611,6 +631,161 @@ int cmd_regs(Session &s, const Args &a) {
   return 0;
 }
 
+// BB dbg-port survey (phydm_dbg_port_dump-style): 0x8fc = selector, value at 0xfa0.
+int cmd_dbgscan(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  const uint32_t s8fc = r.r32(0x08FC), s198c = r.r32(0x198C), s8f8 = r.r32(0x08F8);
+  int rc = 0;
+  try {
+    r.m32(0x198C, 0x7, 0x7);
+    r.m32(0x08F8, 0x3C00000u, 0);
+    const int n = std::clamp(a.reads, 2, 64);
+    for (int sel = a.lo; sel <= a.hi; sel++) {
+      r.w32(0x08FC, static_cast<uint32_t>(sel));
+      std::vector<uint32_t> v(static_cast<size_t>(n));
+      for (auto &x : v)
+        x = r.r32(0x0FA0);
+      uint32_t tog = 0;
+      for (auto x : v)
+        tog |= x ^ v[0];
+      std::vector<uint32_t> u = v;
+      std::sort(u.begin(), u.end());
+      const size_t distinct = static_cast<size_t>(std::unique(u.begin(), u.end()) - u.begin());
+      std::printf("{\"ev\":\"dbg\",\"sel\":\"0x%03x\",\"v0\":\"0x%08x\",\"distinct\":%zu,\"toggle\":\"0x%08x\"}\n", sel,
+                  v[0], distinct, tog);
+    }
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "dbgscan: %s\n", e.what());
+    rc = 1;
+  }
+  try {
+    r.w32(0x08FC, s8fc);
+    r.w32(0x198C, s198c);
+    r.w32(0x08F8, s8f8);
+  } catch (...) {
+  }
+  std::printf("{\"ev\":\"dbgscan.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
+struct PlanEntry {
+  std::string label;
+  LaRingCfg la;
+  int count = 1;                          // snapshots appended to the dump
+  std::vector<std::array<uint32_t, 3>> w; // addr, mask, val
+};
+
+// Many LA configurations in one session (no per-config ~1 s bring-up).
+int cmd_tapscan(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  if (a.plan.empty() || a.dump.empty())
+    throw std::runtime_error("tapscan needs --plan FILE and --dump PREFIX");
+  std::vector<PlanEntry> plan;
+  if (FILE *f = std::fopen(a.plan.c_str(), "r")) {
+    char line[1024];
+    while (std::fgets(line, sizeof line, f)) {
+      std::string l = line;
+      if (const size_t h = l.find('#'); h != std::string::npos)
+        l.resize(h);
+      PlanEntry e;
+      e.la = a.la;
+      size_t pos = 0;
+      while (pos < l.size()) {
+        const size_t b = l.find_first_not_of(" \t\r\n", pos);
+        if (b == std::string::npos)
+          break;
+        const size_t en = l.find_first_of(" \t\r\n", b);
+        const std::string tok = l.substr(b, en == std::string::npos ? std::string::npos : en - b);
+        pos = en == std::string::npos ? l.size() : en;
+        const size_t eq = tok.find('=');
+        if (e.label.empty() && eq == std::string::npos) { e.label = tok; continue; }
+        const std::string k = tok.substr(0, eq), val = eq == std::string::npos ? "" : tok.substr(eq + 1);
+        if (k == "dbg") e.la.dbg_port = static_cast<uint32_t>(num(val.c_str()));
+        else if (k == "dma") e.la.dma_type = static_cast<int>(num(val.c_str()));
+        else if (k == "rate") e.la.rate_sel = static_cast<int>(num(val.c_str()));
+        else if (k == "count") e.count = std::max(1, static_cast<int>(num(val.c_str())));
+        else if (k == "w") {
+          const size_t s1 = val.find('/'), s2 = val.find('/', s1 + 1);
+          if (s1 == std::string::npos || s2 == std::string::npos)
+            throw std::runtime_error("bad w= " + val);
+          e.w.push_back({static_cast<uint32_t>(num(val.substr(0, s1).c_str())),
+                         static_cast<uint32_t>(num(val.substr(s1 + 1, s2 - s1 - 1).c_str())),
+                         static_cast<uint32_t>(num(val.substr(s2 + 1).c_str()))});
+        } else
+          throw std::runtime_error("bad plan token " + tok);
+      }
+      if (!e.label.empty())
+        plan.push_back(e);
+    }
+    std::fclose(f);
+  } else {
+    throw std::runtime_error("cannot read " + a.plan);
+  }
+  La8822b la(r);
+  la.snapshot();
+  std::map<uint32_t, uint32_t> orig; // extra-write originals, restored after every entry
+  for (auto &e : plan)
+    for (auto &w : e.w)
+      if (!orig.count(w[0]))
+        orig[w[0]] = r.r32(static_cast<uint16_t>(w[0]));
+  int rc = 0;
+  const size_t n = La8822b::kRingBytes / 8;
+  try {
+    for (auto &e : plan) {
+      la.configure(e.la);
+      for (auto &w : e.w)
+        r.m32(static_cast<uint16_t>(w[0]), w[1], w[2]);
+      std::vector<uint64_t> out0, out1, raw0, raw1;
+      const SnapInfo s0 = la.snap(out0, static_cast<unsigned>(a.settle_ms) * 1000u, &raw0);
+      const SnapInfo s1 = la.snap(out1, 2000u, &raw1);
+      size_t same = 0, adj = 0, adj64 = 0;
+      for (size_t i = 0; i < n; i++)
+        same += raw0[i] == raw1[i];
+      for (size_t i = 1; i < out0.size(); i++) {
+        adj += (out0[i] & 0xFFFFFF) == (out0[i - 1] & 0xFFFFFF);
+        adj64 += out0[i] == out0[i - 1];
+      }
+      std::vector<uint64_t> u = out0;
+      std::sort(u.begin(), u.end());
+      const size_t distinct = static_cast<size_t>(std::unique(u.begin(), u.end()) - u.begin());
+      uint64_t tog = 0;
+      for (auto x : out0)
+        tog |= x ^ (out0.empty() ? 0 : out0[0]);
+      std::printf("{\"ev\":\"tap\",\"label\":\"%s\",\"dbg\":\"0x%03x\",\"dma\":%d,\"rate\":%d,\"done\":%d,\"done1\":%d,"
+                  "\"wrap\":%d,\"samples\":%zu,\"same_raw\":%.4f,\"adj24\":%.4f,\"adj64\":%.4f,\"distinct\":%zu,"
+                  "\"toggle\":\"0x%016" PRIx64 "\",\"r95c\":\"0x%08x\",\"r8fc\":\"0x%08x\",\"r8f8\":\"0x%08x\","
+                  "\"r948\":\"0x%08x\",\"r94c\":\"0x%08x\",\"rc20\":\"0x%08x\",\"r8ac\":\"0x%08x\",\"r8c4\":\"0x%08x\"}\n",
+                  e.label.c_str(), e.la.dbg_port, e.la.dma_type, e.la.rate_sel, s0.done ? 1 : 0, s1.done ? 1 : 0,
+                  s0.wrap ? 1 : 0, s0.samples, double(same) / n, out0.empty() ? 0.0 : double(adj) / out0.size(),
+                  out0.empty() ? 0.0 : double(adj64) / out0.size(), distinct, tog, r.r32(0x095C), r.r32(0x08FC),
+                  r.r32(0x08F8), r.r32(0x0948), r.r32(0x094C), r.r32(0x0C20), r.r32(0x08AC), r.r32(0x08C4));
+      std::fflush(stdout);
+      if (!out0.empty())
+        if (FILE *f = std::fopen((a.dump + "-" + e.label + ".u64").c_str(), "wb")) {
+          std::fwrite(out0.data(), 8, out0.size(), f);
+          for (int k = 2; k < e.count; k++) { // extra snapshots (snapshot 1 is the freshness check)
+            la.snap(out1, 2000u);
+            std::fwrite(out1.data(), 8, out1.size(), f);
+          }
+          std::fclose(f);
+        }
+      for (auto it = orig.rbegin(); it != orig.rend(); ++it)
+        r.w32(static_cast<uint16_t>(it->first), it->second);
+    }
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "tapscan: %s\n", e.what());
+    rc = 1;
+  }
+  for (auto it = orig.rbegin(); it != orig.rend(); ++it)
+    try {
+      r.w32(static_cast<uint16_t>(it->first), it->second);
+    } catch (...) {
+    }
+  la.restore();
+  std::printf("{\"ev\":\"tapscan.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
 std::atomic<bool> g_stop{false};
 
 int cmd_stream(Session &s, const Args &a) {
@@ -693,7 +868,7 @@ int main(int argc, char **argv) {
   Args a;
   if (!parse(argc, argv, a)) {
     std::fprintf(stderr,
-                 "usage: wsdr_probe ring|snap|marker|c2h|c2hbench|latime|stream|regs --pid 0xNNNN [options] "
+                 "usage: wsdr_probe ring|snap|marker|c2h|c2hbench|latime|stream|regs|dbgscan|tapscan --pid 0xNNNN [options] "
                  "(see source header)\n");
     return 2;
   }
@@ -725,6 +900,15 @@ int main(int argc, char **argv) {
     return cmd_stream(s, a);
   if (a.cmd == "regs")
     return cmd_regs(s, a);
+  try {
+    if (a.cmd == "dbgscan")
+      return cmd_dbgscan(s, a);
+    if (a.cmd == "tapscan")
+      return cmd_tapscan(s, a);
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "%s: %s\n", a.cmd.c_str(), e.what());
+    return 1;
+  }
   std::fprintf(stderr, "unknown command %s\n", a.cmd.c_str());
   return 2;
 }

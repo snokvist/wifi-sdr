@@ -23,6 +23,9 @@ struct LaRingCfg {
   int igi = -1;              // >= 0: pin the initial gain index, 0xc50[6:0] / 0xe50[6:0] (paths A/B)
   bool ofdm_off = false;     // 0x808[29] = 0: OFDM block off. MEASURED: freezes the LA writer — do not use
   bool no_cca = false;       // 0x838[1] = 1: OFDM RX CCA off (phydm_stop_ic_trx) -> no AGC events
+  int dfir = 0;              // 20/40/80: RX DFIR as vendor phydm_rxdfirpar_by_bw_8822b (0x948/0x94c/0xc20/0xe20);
+                             // 0 = leave. devourer always writes the BW20 set, which limits dma 0/1 to ~+-10 MHz
+                             // (and doubles every sample at rate_sel 0) at every channel width. MEASURED.
 };
 
 struct SnapInfo {

@@ -1,0 +1,54 @@
+dma_type (0x95c[11:8]) survey, BW80 --channel 36, vendor BW80 DFIR, rate_sel 0, dbg 0x880, --igi 0x30 --nocca (one snapshot each).
+toggle = OR of (word ^ word0) over the snapshot; same-addr = identical fraction vs a 2nd snapshot (live << 0.95).
+Decode column: MEASURED for 0/1 (Phase 1) and 11 (L-LTF + latime below); others are INFERRED from bit statistics
+(sign-extension runs, field rms, A/B correlation) and the floor shape only.
+
+dma  0: toggle 0x0000000000ffffff distinct 10833 adj64 0.0002 same-addr 0.0001 | path A I[11:0] Q[23:12], 80 MS/s, post-DFIR | floor -6/-10 dB [-37.0, 38.0]/[-38.6, 39.2]
+dma  1: toggle 0x0000000000ffffff distinct  9332 adj64 0.0002 same-addr 0.0001 | live 24-bit I/Q, post-DFIR (devourer: path B, paired with dbg 0xa80); path not verified here | floor -6/-10 dB [-37.2, 37.2]/[-39.1, 38.9]
+dma  2: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static (0) 
+dma  3: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static (0) 
+dma  4: toggle 0x0000ffffffffffff distinct 16381 adj64 0.0000 same-addr 0.0000 | inferred: A 12+12 [23:0] + B 12+12 [47:24], 80 MS/s, post-DFIR | A rms 51 -10 dB [-38.8, 39.2]; B rms 39 -10 dB [-38.9, 39.2]
+dma  5: toggle 0x0000ffffffffffff distinct 16383 adj64 0.0000 same-addr 0.0000 | inferred: as 4 (A/B 12+12), ordering/source differs | A rms 74 -10 dB [-38.6, 39.2]; B rms 61 -10 dB [-38.8, 38.3]
+dma  6: toggle 0x000000ffffffffff distinct 16211 adj64 0.0000 same-addr 0.0000 | inferred: A 10+10 [19:0] + B 10+10 [39:20], post-DFIR | A rms 14 -10 dB [-38.8, 39.1]; B rms 12 -10 dB [-38.6, 38.6]
+dma  7: toggle 0x000000ffffffffff distinct 15990 adj64 0.0000 same-addr 0.0000 | inferred: as 6 | A rms 12 -10 dB [-38.9, 39.4]; B rms 10 -10 dB [-38.8, 38.9]
+dma  8: toggle 0x00000000000fffff distinct  1823 adj64 0.0016 same-addr 0.0016 | inferred: one path 10+10 [19:0], post-DFIR | rms 11 -10 dB [-39.1, 39.1]
+dma  9: toggle 0x00000000000fffff distinct  1476 adj64 0.0027 same-addr 0.0014 | inferred: other path 10+10 | rms 10 -10 dB [-39.2, 39.2]
+dma 10: toggle 0x00000000ffffffff distinct 13573 adj64 0.0000 same-addr 0.0000 | inferred: A int8 I,Q [15:0] + B int8 I,Q [31:16], 80 MS/s, pre-DFIR (flat to Nyquist) 
+dma 11: toggle 0xffffffffffffffff distinct 16383 adj64 0.0000 same-addr 0.0000 | MEASURED: raw ADC, int8, 2 samples/word, 2 paths -> 160 MS/s per path, pre-DFIR (see below) 
+dma 12: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static 
+dma 13: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static 
+dma 14: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static 
+dma 15: toggle 0x0000000000000000 distinct     1 adj64 0.9999 same-addr 1.0000 | static 
+dbg 0xa80 + dma 1: toggle 0x0000000000ffffff adj64 0.0001 (live, same 24-bit bus)
+
+== dma 11 (raw ADC) detail ==
+Layout: per path 4 bytes = (I1,Q1,I0,Q0) little-endian int8: time order is bytes[2,3] then bytes[0,1]; path A = bytes 0-3,
+path B = bytes 4-7. Evidence: corr(A0[n],A1[n]) 0.74 and corr(A0[n],A1[n+1]) 0.74 but corr(A0[n+1],A1[n]) 0.31,
+i.e. A1[n] sits between A0[n-1] and A0[n]; interleaved that way the 160 MS/s stream has lag-1 correlation 0.74 and
+a smooth analog-filter floor; L-LTFs are found at the right channel offsets on both paths (phase3-widetap-ltf.txt).
+latime (CPU-timed arm->trigger, --dma 11, BW80): rate_sel 0 writes 80.0 Mword/s (positions after 1000 vs 2000 us differ
+by 14450 words, expected 14464) -> 160 MS/s per path; rate_sel 1 writes 40 Mword/s (7255 vs 7232).
+  {"ev":"latime","rate":0,"fs":80000000,"d_us":1000,"magic":"0x1a7e0001","done":1,"arm_write_us":0,"elapsed_us":1000,"r7c0":"0xf8b700e9","stopped":1,"wrap":1,"pos":14519,"expect_mod":14464.0,"err_samples":-55.0,"lat_us":-0.69}
+  {"ev":"latime","rate":0,"fs":80000000,"d_us":2000,"magic":"0x1a7e0001","done":1,"arm_write_us":0,"elapsed_us":2000,"r7c0":"0xf12900e9","stopped":1,"wrap":1,"pos":12585,"expect_mod":12544.0,"err_samples":-41.0,"lat_us":-0.51}
+  {"ev":"latime","rate":1,"fs":40000000,"d_us":1000,"magic":"0x1a7e0001","done":1,"arm_write_us":0,"elapsed_us":1000,"r7c0":"0xdc4e00e9","stopped":1,"wrap":1,"pos":7246,"expect_mod":7232.0,"err_samples":-14.0,"lat_us":-0.35}
+  {"ev":"latime","rate":1,"fs":40000000,"d_us":2000,"magic":"0x1a7e0001","done":1,"arm_write_us":1,"elapsed_us":2000,"r7c0":"0xf8a500e9","stopped":1,"wrap":1,"pos":14501,"expect_mod":14464.0,"err_samples":-37.0,"lat_us":-0.93}
+rate_sel 1/2 with dma 11 keep the two in-word samples 160 MS/s-adjacent (corr 0.75) but skip words (word-to-word
+corr drops to ~0.35): sample selection, not a usable lower rate. Floor of dma 11 (path A / path B) per RF width:
+  BW80 a8x2: rms 18.6 LSB floor -3 dB [-36.56, 38.12] -6 dB [-40.0, 41.25] -10 dB [-43.75, 45.0] MHz; +-50 MHz [-16.0, -15.2] dB, +-70 MHz [-24.2, -23.9] dB
+  BW80 b8x2: rms 13.0 LSB floor -3 dB [-36.88, 37.19] -6 dB [-40.0, 40.31] -10 dB [-43.75, 44.06] MHz; +-50 MHz [-15.9, -15.9] dB, +-70 MHz [-22.3, -22.0] dB
+  BW40 a8x2: rms 17.2 LSB floor -3 dB [-18.44, 18.75] -6 dB [-21.25, 21.25] -10 dB [-23.75, 23.75] MHz; +-50 MHz [-24.7, -24.7] dB, +-70 MHz [-24.8, -24.8] dB
+  BW40 b8x2: rms 10.4 LSB floor -3 dB [-18.44, 18.12] -6 dB [-20.94, 20.62] -10 dB [-23.44, 23.12] MHz; +-50 MHz [-23.0, -23.0] dB, +-70 MHz [-23.1, -23.1] dB
+  BW20 a8x2: rms 15.3 LSB floor -3 dB [-9.69, 9.69] -6 dB [-11.25, 11.25] -10 dB [-12.5, 12.81] MHz; +-50 MHz [-24.5, -24.5] dB, +-70 MHz [-24.5, -24.5] dB
+  BW20 b8x2: rms 9.4 LSB floor -3 dB [-9.69, 9.38] -6 dB [-11.25, 10.94] -10 dB [-12.5, 12.5] MHz; +-50 MHz [-23.1, -23.2] dB, +-70 MHz [-23.3, -23.3] dB
+-> dma 11 does not depend on the DFIR (same floor with devourer and vendor DFIR) and follows the RF/analog width:
+   the analog filter set by RF18[11:10] is the real band limit, the ADC runs at 160 MS/s at every width.
+
+== 0x8fc selector scan with dma 0 (BW80 --channel 36, devourer DFIR, rate_sel 0) ==
+0x800-0x8ff and 0xa00-0xaff (512 selectors): all live, all carry the same 24-bit IQ bus: adj-dup 0.5000..0.5009,
+floor -10 dB edge ~+-11..13 MHz for all (3 outliers 0x85f/0x8a3/0xabf caught an on-air frame: rms 417-447, edges skewed).
+Only the upper word bits change with the selector (e.g. 0xa00/0xa01/0xa0b set bit 61). -> with dma 0 the 0x8fc
+selector does NOT choose the sampled IQ; it is a fixed path-A post-DFIR bus. (0x0 vs 0x880 identical is the same fact.)
+Register-level dbg-port survey (0x8fc = 0x000..0xfff, 8 reads of 0xfa0 each): 35 selectors change between reads:
+  0x028:0x00000300, 0x038:0x00000300, 0x048:0x00000300, 0x0b8:0x00000300, 0x0f8:0x00000300, 0x200:0x7fffffff, 0x201:0x7ff00000, 0x202:0xffffffff, 0x203:0x7ff00000, 0x20b:0x000fffff, 0x20c:0x00703c07, 0x210:0x00fff000, 0x211:0x00fff000, 0x232:0x00030007, 0x233:0x0000000f, 0x236:0x001a03ff, 0x237:0x001a000f, 0x271:0x0000f007, 0x272:0x0001f00f, 0x273:0x00ffffff, 0x274:0x00ffffff, 0x276:0x00003c0f, 0x277:0x00003c0f, 0x280:0x00ffffff, 0x282:0x00ffffff, 0x283:0x00ffffff, 0x284:0x00ffffff, 0x285:0x00ffffff, 0x286:0x00ffffff, 0x287:0x00ffffff, 0x288:0x00ffffff, 0x293:0x00fff007, 0x294:0x00ffffff, 0xe04:0x00003c07, 0xe05:0x00001c0f
+0x880 itself is static at 0xfa0. dma 10/11 captured with selectors 0x000, 0x880, 0x200-0x294 (live ones) showed the same
+bit-level statistics (toggle mask, int8 sign-extension pattern, field rms) for every selector: no selector dependence seen.

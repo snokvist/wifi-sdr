@@ -1,0 +1,81 @@
+LA wide-tap research, 8812BU (8822B cut 3) on USB3, fixed gain --igi 0x30 --nocca, path A unless noted.
+Tool: wsdr_probe tapscan (one session per width); analysis tools/tapscan_psd.py (median Welch PSD, 512 bins,
+~1.5 MHz smoothing, ref = median |f|<4 MHz; edges = first bin below ref-6/-10 dB walking out from DC).
+adj-dup = fraction of words whose low 24 bits equal the previous word's (0.5 = every sample doubled).
+same-addr = fraction of ring words identical between two snapshots (liveness; frozen >= 0.95).
+NOTE: wsdr --channel is devourer's PRIMARY 20 MHz channel; centre = ch+2 (BW40) / ch+6 (BW80).
+
+== A. devourer DFIR (always the BW20 values) vs vendor phydm_rxdfirpar_by_bw_8822b, --channel 36 (centre 42 / 38 / 36) ==
+vendor BW80: 0x948[29:28]=2 0x94c[29:28]=1 0xc20[31]=0 0xe20[31]=0; BW40: 1/0/0/0; BW20: 2/2/1/1 (= devourer for every width)
+BW80 sig_base_r0            dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0002 | floor -6 dB [-11.25, 10.78] -10 dB [-12.81, 11.56] MHz | +-30 MHz [-11.5, -9.0] dB
+BW80 sig_d80_r0             dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0001 same-addr 0.0001 | floor -6 dB [-37.19, 37.81] -10 dB [-38.91, 39.38] MHz | +-30 MHz [-5.6, -4.7] dB
+BW80 sig_d40_r1             dma  0 rate_sel 1 0x948 0x9c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   40 MS/s adj-dup 0.0002 same-addr 0.0001 | floor -6 dB [-19.92, 19.92] -10 dB [None, None] MHz | +-30 MHz None dB
+BW40 sig_base_r1            dma  0 rate_sel 1 0x948 0xac000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   40 MS/s adj-dup 0.0002 same-addr 0.0001 | floor -6 dB [-10.7, 10.86] -10 dB [-11.41, 11.48] MHz | +-30 MHz None dB
+BW40 sig_d40_r1             dma  0 rate_sel 1 0x948 0x9c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   40 MS/s adj-dup 0.0002 same-addr 0.0000 | floor -6 dB [-19.38, 19.3] -10 dB [None, None] MHz | +-30 MHz None dB
+BW40 d40_r0                 dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5000 same-addr 0.0000 | floor -6 dB [-16.56, 17.81] -10 dB [-33.59, 30.0] MHz | +-30 MHz [-7.3, -10.0] dB
+BW40 d80_r0                 dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5001 same-addr 0.0002 | floor -6 dB [-21.41, 23.44] -10 dB [-33.75, 31.41] MHz | +-30 MHz [-5.6, -8.6] dB
+BW20 base_r1                dma  0 rate_sel 1 0x948 0xac000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   40 MS/s adj-dup 0.0011 same-addr 0.0007 | floor -6 dB [-10.08, 10.0] -10 dB [-10.7, 10.78] MHz | +-30 MHz None dB
+BW20 d40_r1                 dma  0 rate_sel 1 0x948 0x9c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   40 MS/s adj-dup 0.0017 same-addr 0.0002 | floor -6 dB [-10.31, 10.23] -10 dB [-11.02, 11.09] MHz | +-30 MHz None dB
+BW20 d80_r0                 dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5004 same-addr 0.0004 | floor -6 dB [-10.78, 10.94] -10 dB [-12.03, 12.34] MHz | +-30 MHz [-11.3, -11.8] dB
+BW20 base_r0                dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5008 same-addr 0.0002 | floor -6 dB [-9.84, 10.0] -10 dB [-10.62, 10.78] MHz | +-30 MHz [-14.4, -15.0] dB
+
+== B. DFIR register matrix at BW80 (--channel 42 -> centre 48), rate_sel 0, dma 0, dbg 0x880 ==
+label mAB_cC: 0x948[29:28]=A, 0x94c[29:28]=B, 0xc20[31]=0xe20[31]=C. Every c=1 row is doubled (adj-dup 0.5) and ~+-10 MHz.
+m00_c0_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5004 same-addr 0.0000 | floor -6 dB [-9.84, 10.16] -10 dB [-10.31, 10.47] MHz | +-30 MHz [-13.7, -15.7] dB
+m01_c0_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0001 | floor -6 dB [-12.66, 12.81] -10 dB [-14.06, 14.38] MHz | +-30 MHz [-12.9, -12.8] dB
+m02_c0_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x20000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5012 same-addr 0.0001 | floor -6 dB [-4.06, 4.38] -10 dB [-5.62, 6.25] MHz | +-30 MHz [-23.1, -22.4] dB
+m03_c0_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x30000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5011 same-addr 0.0002 | floor -6 dB [-4.69, 4.69] -10 dB [-6.41, 6.72] MHz | +-30 MHz [-21.9, -22.1] dB
+m10_c0_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x00000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0009 same-addr 0.0004 | floor -6 dB [-19.84, 20.0] -10 dB [-20.31, 20.62] MHz | +-30 MHz [-39.7, -39.3] dB
+m11_c0_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5001 same-addr 0.0002 | floor -6 dB [-19.22, 19.38] -10 dB [-30.47, 30.47] MHz | +-30 MHz [-8.9, -8.9] dB
+m12_c0_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x20000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0033 same-addr 0.0003 | floor -6 dB [-8.28, 8.44] -10 dB [-11.41, 11.88] MHz | +-30 MHz [-31.3, -31.2] dB
+m13_c0_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x30000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0027 same-addr 0.0004 | floor -6 dB [-7.97, 7.81] -10 dB [-11.25, 11.72] MHz | +-30 MHz [-31.2, -31.1] dB
+m20_c0_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x00000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0003 same-addr 0.0002 | floor -6 dB [-20.31, 20.47] -10 dB [-20.78, 20.94] MHz | +-30 MHz [-36.5, -36.5] dB
+m21_c0_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0000 same-addr 0.0000 | floor -6 dB [-37.03, 37.66] -10 dB [-38.75, 39.22] MHz | +-30 MHz [-5.8, -5.6] dB
+m22_c0_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x20000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5001 same-addr 0.0000 | floor -6 dB [-27.81, 28.28] -10 dB [-30.94, 30.62] MHz | +-30 MHz [-8.5, -9.0] dB
+m23_c0_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x30000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0001 same-addr 0.0000 | floor -6 dB [-11.88, 12.03] -10 dB [-31.25, 32.66] MHz | +-30 MHz [-9.0, -7.3] dB
+m30_c0_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x00000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0003 same-addr 0.0001 | floor -6 dB [-20.16, 20.47] -10 dB [-20.62, 20.94] MHz | +-30 MHz [-37.3, -36.7] dB
+m31_c0_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x10000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0001 same-addr 0.0001 | floor -6 dB [-37.97, 38.91] -10 dB [None, None] MHz | +-30 MHz [-4.8, -4.6] dB
+m32_c0_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x20000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0000 same-addr 0.0001 | floor -6 dB [-35.47, 39.22] -10 dB [None, None] MHz | +-30 MHz [-2.6, -2.7] dB
+m33_c0_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x30000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.0001 same-addr 0.0000 | floor -6 dB [-34.38, 36.25] -10 dB [None, None] MHz | +-30 MHz [-3.5, -3.0] dB
+m00_c1_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x00000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0001 | floor -6 dB [-9.69, 9.84] -10 dB [-10.0, 10.31] MHz | +-30 MHz [-15.6, -18.0] dB
+m01_c1_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x10000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5010 same-addr 0.0001 | floor -6 dB [-9.06, 9.22] -10 dB [-10.62, 10.94] MHz | +-30 MHz [-15.7, -16.3] dB
+m02_c1_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5012 same-addr 0.0002 | floor -6 dB [-4.53, 4.38] -10 dB [-6.25, 5.78] MHz | +-30 MHz [-26.3, -26.6] dB
+m03_c1_r0              dma  0 rate_sel 0 0x948 0x8c000000 0x94c 0x30000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5011 same-addr 0.0001 | floor -6 dB [-4.38, 4.38] -10 dB [-6.56, 6.56] MHz | +-30 MHz [-24.9, -25.8] dB
+m10_c1_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x00000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5003 same-addr 0.0002 | floor -6 dB [-10.78, 10.94] -10 dB [-11.56, 11.72] MHz | +-30 MHz [-11.6, -12.3] dB
+m11_c1_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x10000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5004 same-addr 0.0002 | floor -6 dB [-10.62, 10.78] -10 dB [-11.56, 11.88] MHz | +-30 MHz [-12.6, -12.5] dB
+m12_c1_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5004 same-addr 0.0006 | floor -6 dB [-7.81, 7.81] -10 dB [-9.53, 9.53] MHz | +-30 MHz [-20.1, -19.7] dB
+m13_c1_r0              dma  0 rate_sel 0 0x948 0x9c000000 0x94c 0x30000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5010 same-addr 0.0003 | floor -6 dB [-7.66, 7.97] -10 dB [-9.53, 9.84] MHz | +-30 MHz [-19.4, -19.9] dB
+m20_c1_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x00000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5005 same-addr 0.0001 | floor -6 dB [-10.78, 11.25] -10 dB [-11.72, 11.88] MHz | +-30 MHz [-11.1, -11.6] dB
+m21_c1_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x10000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5001 same-addr 0.0002 | floor -6 dB [-10.78, 10.78] -10 dB [-11.41, 11.56] MHz | +-30 MHz [-11.1, -11.6] dB
+m22_c1_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0001 | floor -6 dB [-10.94, 10.94] -10 dB [-11.41, 11.56] MHz | +-30 MHz [-11.2, -10.8] dB
+m23_c1_r0              dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x30000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5003 same-addr 0.0002 | floor -6 dB [-9.53, 9.69] -10 dB [-10.62, 10.78] MHz | +-30 MHz [-15.2, -15.1] dB
+m30_c1_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x00000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5004 same-addr 0.0005 | floor -6 dB [-10.94, 11.09] -10 dB [-11.56, 11.72] MHz | +-30 MHz [-11.7, -11.4] dB
+m31_c1_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x10000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0003 | floor -6 dB [-10.47, 10.78] -10 dB [-11.41, 11.56] MHz | +-30 MHz [-11.9, -12.6] dB
+m32_c1_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x20000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5002 same-addr 0.0000 | floor -6 dB [-10.47, 10.62] -10 dB [-11.25, 11.25] MHz | +-30 MHz [-12.1, -12.3] dB
+m33_c1_r0              dma  0 rate_sel 0 0x948 0xbc000000 0x94c 0x30000083 0xc20 0xc0020103 | fs   80 MS/s adj-dup 0.5001 same-addr 0.0002 | floor -6 dB [-10.31, 10.47] -10 dB [-11.25, 11.41] MHz | +-30 MHz [-12.6, -12.9] dB
+c20only(948=2,94c=2)   dma  0 rate_sel 0 0x948 0xac000000 0x94c 0x20000083 0xc20 0x40020103 | fs   80 MS/s adj-dup 0.5000 same-addr 0.0001 | floor -6 dB [-27.66, 28.75] -10 dB [-31.25, 31.72] MHz | +-30 MHz [-8.9, -8.2] dB
+
+Floor flatness (|f|<30 MHz, 15-bin smoothing): m21 (vendor BW80) -5.7..+1.2 dB, m31 -4.4..+1.5, m32 -4.3..+0.4,
+m33 -4.6..+0.4; dma 11 raw ADC (no DFIR) -0.9..+0.9 dB apart from a narrow spur. -> the ~5 dB ripple is the DFIR stage.
+
+== C. --dfir option (src/la88xx: LaRingCfg::dfir), wsdr_probe ring, --channel 36 --igi 0x30 --nocca ==
+bw 80 rate 0 dfir 80:
+{"ev":"ring.stats","k":0,"rms":50.9,"dc_i":-20.7,"dc_q":7.9,"adj_dup":0.0001,"zero":0.0000,"hi_distinct":1,}
+{"ev":"ring.stats","k":1,"rms":50.8,"dc_i":-20.5,"dc_q":7.1,"adj_dup":0.0001,"zero":0.0001,"hi_distinct":1,}
+{"ev":"ring.fresh","pair":"0-1","identical":0.0000,"verdict":"LIVE"}
+{"ev":"ring.done","alive":1}
+bw 80 rate 0 dfir 0:
+{"ev":"ring.stats","k":0,"rms":74.1,"dc_i":-21.4,"dc_q":7.5,"adj_dup":0.4620,"zero":0.0002,"hi_distinct":1,}
+{"ev":"ring.stats","k":1,"rms":27.4,"dc_i":-21.0,"dc_q":7.3,"adj_dup":0.4646,"zero":0.0001,"hi_distinct":1,}
+{"ev":"ring.fresh","pair":"0-1","identical":0.0005,"verdict":"LIVE"}
+{"ev":"ring.done","alive":1}
+bw 40 rate 1 dfir 40:
+{"ev":"ring.stats","k":0,"rms":39.0,"dc_i":-17.1,"dc_q":6.6,"adj_dup":0.0001,"zero":0.0002,"hi_distinct":1,}
+{"ev":"ring.stats","k":1,"rms":41.1,"dc_i":-17.2,"dc_q":6.6,"adj_dup":0.0002,"zero":0.0001,"hi_distinct":1,}
+{"ev":"ring.fresh","pair":"0-1","identical":0.0001,"verdict":"LIVE"}
+{"ev":"ring.done","alive":1}
+bw 40 rate 1 dfir 0:
+{"ev":"ring.stats","k":0,"rms":32.7,"dc_i":-18.0,"dc_q":5.9,"adj_dup":0.0002,"zero":0.0003,"hi_distinct":1,}
+{"ev":"ring.stats","k":1,"rms":35.4,"dc_i":-18.0,"dc_q":5.9,"adj_dup":0.0001,"zero":0.0001,"hi_distinct":1,}
+{"ev":"ring.fresh","pair":"0-1","identical":0.0002,"verdict":"LIVE"}
+{"ev":"ring.done","alive":1}

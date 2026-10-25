@@ -24,6 +24,7 @@ const std::pair<uint16_t, int> kTouched[] = {
     {0x198C, 4}, // [2:0] dbg-port clock
     {0x0C50, 4}, {0x0E50, 4}, // IGI path A / B
     {0x0838, 4}, // [1] OFDM RX CCA disable
+    {0x0948, 4}, {0x094C, 4}, {0x0C20, 4}, {0x0E20, 4}, // RX DFIR (dfir option)
 };
 } // namespace
 
@@ -60,6 +61,14 @@ void La8822b::configure(const LaRingCfg &c) {
   if (c.igi >= 0) {
     _r.m32(0x0C50, 0x7F, static_cast<uint32_t>(c.igi));
     _r.m32(0x0E50, 0x7F, static_cast<uint32_t>(c.igi));
+  }
+  if (c.dfir == 20 || c.dfir == 40 || c.dfir == 80) {
+    // phydm_rxdfirpar_by_bw_8822b: 0x948[29:28] / 0x94c[29:28] / 0xc20[31] = 0xe20[31]
+    const uint32_t a = c.dfir == 40 ? 1 : 2, b = c.dfir == 20 ? 2 : c.dfir == 40 ? 0 : 1, n20 = c.dfir == 20 ? 1 : 0;
+    _r.m32(0x0948, 0x30000000u, a << 28);
+    _r.m32(0x094C, 0x30000000u, b << 28);
+    _r.m32(0x0C20, 0x80000000u, n20 << 31);
+    _r.m32(0x0E20, 0x80000000u, n20 << 31);
   }
   _r.m32(0x08F8, 0x3C00000u, 0);  // dbg header 0
   _r.m32(0x08B4, 0x80u, 0x80u);   // report update
