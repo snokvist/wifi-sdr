@@ -1,0 +1,60 @@
+C2H 16 KiB wedge matrix, 0bda:b812 (RTL8822B cut 3), 2026-10-25.
+All runs: 1600 requests unless noted, payload 16352 B (frame 16376 B), channel 36 bring-up,
+DEVOURER_LOG_LEVEL=silent, one process per run (each process re-opens + libusb_reset_device).
+"completed" is requests whose bulk-IN completion matched; a wedge ends the run.
+Raw c2h.fail lines are reproduced verbatim. The 10x1600 c2hbench tail is in phase3-c2h-tail.jsonl.
+
+RX source, depth 16, poll, baseline (same as earlier):
+  {"ev":"c2h.fail","completed":63,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0"}
+  {"ev":"c2h.fail","completed":99,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+
+RXDMA mode override (0x0290), RX source:
+  mode 14: completed 63
+  mode 12: completed 500
+  mode  2: completed 47
+  mode  0: completed 286, timeouts 61, r294 0x00001000 (trigger cleared, no packet)
+
+USB LPM clear (CLEAR_FEATURE 48/49), mode 14:
+  {"ev":"c2h.fail","completed":77,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0"}
+  {"ev":"c2h.fail","completed":100,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0"}
+
+TX alias source (the real streamer's banks), 3 runs each:
+  tx0: 1563 / 3 / 70
+  tx1: 26 / 132 / 66
+  tx0 r1 raw: {"ev":"c2h.fail","completed":1563,"desc_bad":0,"stray":0,"timeouts":62,"retries":0,"r294":"0x01006000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0"}
+  (0x01006000 = tx0 request 0x1016000 with BIT16 cleared: trigger cleared, packet lost.)
+  tx0 r2/r3: r294 0x01016000 (trigger still set).
+  tx1 r1: 26 r294 0x00016000; r2: 132 r294 0x00016000; r3: 66 r294 0x00016000.
+
+Varying address (3 slots rx / 4 slots tx, 16 KiB apart), 2 runs each:
+  rx:  331 (r294 0x00015000) / 13 (timeouts 64, r294 0x00005000)
+  tx0: 128 (r294 0x01016000) / 52
+  tx1: 51 (r294 0x01012000) / 66 (r294 0x0001e000)
+
+Unique payload every request (rules out stale/duplicate completion ambiguity), RX:
+  depth 1, no-poll (exactly one URB outstanding, membench shape): 248 / 72 / 252
+    (each has timeouts 4, r294 0x00011000, r288 0, r284 0)
+  depth 1, poll: 655 / 381
+  depth 16, no-poll: 469 (timeouts 64) / 12 (timeouts 64)
+
+RW_RELEASE_EN (0x0284 BIT18) after C2hRxPath::apply:
+  baseline 0x0284 = 0x00000000 (RW_RELEASE clear, RXDMA_IDLE bit17 clear)
+  force 0: 797 / 321 (no change)
+  force 1: 0 / 0, r284 = 0x00060000 (BIT18 set, BIT17 idle) -> pausing RX DMA blocks C2H entirely.
+
+On-chip c2hbench, first run after bring-up (count 1024, depth 16, 16376 B frames):
+  issued 1024 / verified 1024, min 38, p50 41, p90 43, p99 45, max 46 us, wall 43.2 ms,
+  387 MB/s, over_204us 0, stray 2, timeouts 0. Evidence: phase3-c2h-bench.jsonl,
+  phase3-c2h-bench-durations.csv.
+10 subsequent runs (1600 each): completed 720 / 0 / 166 / 813 / 394 / 56 / 369 / 428 / 405 / 323,
+  all done=0. Evidence: phase3-c2h-tail.jsonl + r1..r10.csv.
+
+Payload-size curve (host-driven, RX, depth 16, earlier session):
+  256 B: 2000/2000, 1024 B: 2000/2000 (two runs each)
+  4096 B: 391/2000 (one fail), 2000/2000 (one pass)
+  8192 B: 13/2000 (fail), 2000/2000 (pass)
+  16128 B and 16352 B: nearly always fail early; the rare pass is like the 1024 bench run.
+
+Interpretation: the engine is reliable for <=1 KiB, flaky at 4-8 KiB, and unusable at 16 KiB.
+The failure is not specific to the host loop, the CPU, the source SRAM, the address, the payload
+identity, the RX/TX DMA release gate, LPM, RXDMA mode, or the thermal thread.

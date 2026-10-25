@@ -44,6 +44,7 @@ void Session::open(const OpenOpts &o) {
   _ss = libusb_get_device_speed(libusb_get_device(h)) >= LIBUSB_SPEED_SUPER;
 
   devourer::DeviceConfig cfg;
+  cfg.tuning.thermal_track = o.thermal_track;
   WiFiDriver driver(_log);
   auto dev = driver.CreateRadio(h, ctx, lock, cfg);
   if (!dev)

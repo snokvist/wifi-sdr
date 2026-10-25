@@ -21,6 +21,7 @@ struct OpenOpts {
   int channel = 36;
   int bw = 20;        // 20 / 40 / 80
   bool reset = true;  // libusb_reset_device before claim (devourer default)
+  bool thermal_track = true; // devourer's ~2 s RF thermal tick; off for timing-critical probes
 };
 
 class Session {

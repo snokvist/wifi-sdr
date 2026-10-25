@@ -9,16 +9,26 @@
 //   wsdr_probe marker --pid 0xb812 [--channel 36]
 //       Load the MIPS16e2 marker program behind the vendor prologue, run it, and read its DMEM block
 //       twice: proves upload, execution, DMEM writes and the REG 0x568 microsecond counter.
+//   wsdr_probe c2h --pid 0xb812 [--source rx|tx0|tx1] [--bytes 16352] [--count 64] [--depth 16]
+//       Host-issued C2H requests (no CPU code): stage one PRBS packet, write REG 0x294, verify the
+//       bulk-IN EP 0x84 completion. `tx0`/`tx1` exercise ac54's LA-TX -> C2H alias on this unit.
+//   wsdr_probe c2hbench --pid 0xb812 [--bytes 16352] [--count 1024] [--depth 16] [--dump FILE]
+//       Run c2hbench8822b.S on the embedded CPU (RAM only): per-request C2H latency from REG 0x568,
+//       read back from DMEM. This is the transport-tail measurement, not live ADC.
+#include <algorithm>
 #include <chrono>
 #include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "c2h88xx.h"
+#include "c2hbench8822b.h"
 #include "cpu88xx.h"
 #include "la88xx.h"
 #include "logger.h"
@@ -35,8 +45,29 @@ struct Args {
   OpenOpts open;
   LaRingCfg la;
   std::string dump;
+  std::string source = "rx"; // c2h: rx | tx0 | tx1
+  bool restage = false;      // c2h: rewrite the descriptor before each request
+  bool rx_on = false;        // c2h/c2hbench: keep MAC RX on + filter frames (streamer config)
+  bool halt_cpu = false;     // c2h: halt the vendor CPU before issuing requests
+  int gap_us = 0;            // c2h: delay after each verified packet
+  int retry_ms = 0;          // c2h: re-write the request if the trigger has not cleared
+  int cr = -1;               // c2h: force REG_CR (0x0100) before the run, -1 = leave
+  bool no_poll = false;      // c2h: do not poll 0x294; wait for the bulk packet instead
+  bool abort_retry = false;  // c2h: on poll timeout write 0 to 0x294 before re-triggering
+  int rx_off = 0x1000;       // c2h: RX SRAM byte offset for the source packet
+  int agg_th = -1;           // c2h: override RXDMA agg page threshold (0x0280[7:0]), -1 = leave
+  bool fwff_off = false;     // c2h/c2hbench: disable the firmware-packet (FWFF) engine
+  int rxdma_mode = -1;       // c2h: override RXDMA mode (0x0290), -1 = leave at 14
+  bool no_lpm = false;       // c2h: clear USB U1/U2 (CLEAR_FEATURE 48/49) before the run
+  bool vary = false;         // c2h: rotate over 3 (rx) / 4 (tx) 16 KiB slots, as the real streamer does
+  int rw_release = -1;       // c2h: 0/1 = force 0x0284 BIT18 (RW_RELEASE_EN), -1 = leave
+  bool unique = false;       // c2h: fresh payload every request (rules out stale-match/duplicate ambiguity)
+  bool check_desc = false;   // c2h: verify descriptor bytes 0..11 before each request
+  int bytes = 16352;         // c2h/c2hbench: C2H payload size
+  int depth = 16;            // c2h/c2hbench: async bulk-IN queue depth
+  int xfer = 16384;          // c2h/c2hbench: bulk-IN transfer size
   int reads = 2;
-  int count = 1;      // snap: number of snapshots
+  int count = 0;      // snap/c2h/c2hbench: command default when 0
   int settle_ms = 50; // snap: wait after arm before the first trigger
 };
 
@@ -53,12 +84,34 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--vid") a.open.vid = static_cast<uint16_t>(num(v()));
     else if (k == "--channel") a.open.channel = static_cast<int>(num(v()));
     else if (k == "--no-reset") a.open.reset = false;
+    else if (k == "--no-thermal") a.open.thermal_track = false;
     else if (k == "--rate") a.la.rate_sel = static_cast<int>(num(v()));
     else if (k == "--dbg") a.la.dbg_port = static_cast<uint32_t>(num(v()));
     else if (k == "--cck") a.la.cck_off = num(v()) == 0;
     else if (k == "--filter") a.la.filter_rx = num(v()) != 0;
     else if (k == "--dbgclk") a.la.dbgport_clk = num(v()) != 0;
     else if (k == "--dump") a.dump = v();
+    else if (k == "--source") a.source = v();
+    else if (k == "--bytes") a.bytes = static_cast<int>(num(v()));
+    else if (k == "--depth") a.depth = static_cast<int>(num(v()));
+    else if (k == "--xfer") a.xfer = static_cast<int>(num(v()));
+    else if (k == "--restage") a.restage = true;
+    else if (k == "--rx-on") a.rx_on = true;
+    else if (k == "--halt-cpu") a.halt_cpu = true;
+    else if (k == "--gap-us") a.gap_us = static_cast<int>(num(v()));
+    else if (k == "--retry-ms") a.retry_ms = static_cast<int>(num(v()));
+    else if (k == "--cr") a.cr = static_cast<int>(num(v()));
+    else if (k == "--no-poll") a.no_poll = true;
+    else if (k == "--abort") a.abort_retry = true;
+    else if (k == "--rx-off") a.rx_off = static_cast<int>(num(v()));
+    else if (k == "--agg-th") a.agg_th = static_cast<int>(num(v()));
+    else if (k == "--fwff-off") a.fwff_off = true;
+    else if (k == "--rxdma-mode") a.rxdma_mode = static_cast<int>(num(v()));
+    else if (k == "--no-lpm") a.no_lpm = true;
+    else if (k == "--vary") a.vary = true;
+    else if (k == "--rw-release") a.rw_release = static_cast<int>(num(v()));
+    else if (k == "--unique") a.unique = true;
+    else if (k == "--check-desc") a.check_desc = true;
     else if (k == "--igi") a.la.igi = static_cast<int>(std::strtol(v(), nullptr, 0));
     else if (k == "--ofdm") a.la.ofdm_off = num(v()) == 0;
     else if (k == "--nocca") a.la.no_cca = true;
@@ -155,7 +208,8 @@ int cmd_snap(Session &s, const Args &a) {
   try {
     la.configure(a.la);
     std::vector<uint64_t> out;
-    for (int k = 0; k < a.count; k++) {
+    const int count = a.count > 0 ? a.count : 1;
+    for (int k = 0; k < count; k++) {
       const SnapInfo si = la.snap(out, static_cast<unsigned>(k ? 5 : a.settle_ms) * 1000u);
       const uint32_t fin = (si.r7c0 & 0x7FFF0000u) >> 16; // 8-byte units, TXFF address
       std::printf("{\"ev\":\"snap\",\"k\":%d,\"done\":%d,\"r7c0\":\"0x%08x\",\"wrap\":%d,\"samples\":%zu,\"read_ms\":%.1f}\n",
@@ -221,12 +275,230 @@ int cmd_marker(Session &s, const Args &) {
   return rc;
 }
 
+uint32_t pctl(const std::vector<uint32_t> &v, unsigned p) {
+  if (v.empty())
+    return 0;
+  return v[(v.size() - 1) * p / 100];
+}
+
+// Host-issued C2H: validates the request encoding, descriptor framing and the bulk-IN path without
+// any on-chip code. `tx0`/`tx1` additionally confirm ac54's LA-TX -> C2H alias on this unit.
+int cmd_c2h(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  C2hRxPath rx(r);
+  int rc = 1;
+  int completed = 0;
+  unsigned desc_bad = 0, stray_seen = 0, timeout_seen = 0, retries = 0;
+  C2hReader rd(s.handle(), s.context(), static_cast<size_t>(std::max(a.xfer, 4096)), a.depth);
+  Cpu8822b cpu(r);
+  try {
+    if (a.halt_cpu)
+      cpu.halt();
+    rx.apply(a.rx_on);
+    if (a.cr >= 0)
+      r.w16(0x0100, static_cast<uint16_t>(a.cr));
+    if (a.agg_th >= 0)
+      r.m32(0x0280, 0xFF, static_cast<uint32_t>(a.agg_th));
+    if (a.rxdma_mode >= 0)
+      r.w8(0x0290, static_cast<uint8_t>(a.rxdma_mode));
+    if (a.no_lpm) {
+      for (unsigned f = 48; f <= 49; f++)
+        libusb_control_transfer(s.handle(), 0x00, 1, static_cast<uint16_t>(f), 0, nullptr, 0, 1000);
+    }
+    if (a.rw_release >= 0) {
+      uint32_t v = r.r32(0x0284);
+      v = a.rw_release ? (v | (1u << 18)) : (v & ~(1u << 18));
+      r.w32(0x0284, v);
+    }
+    const size_t payload = static_cast<size_t>(std::clamp(a.bytes, 64, 16352));
+    const int count = a.count > 0 ? a.count : 64;
+    uint32_t ocp = 0, addr = 0;
+    if (a.source == "rx") {
+      ocp = 0x18700000u + static_cast<uint32_t>(a.rx_off & ~7);
+      addr = static_cast<uint32_t>(a.rx_off & ~7);
+    } else if (a.source == "tx0") {
+      ocp = La8822b::kRingOcp;
+      addr = 0x16000;
+    } else if (a.source == "tx1") {
+      ocp = La8822b::kRingOcp + 0x10000;
+      addr = 0x6000;
+    } else {
+      throw std::runtime_error("--source must be rx, tx0 or tx1");
+    }
+    const int slots = a.vary ? (a.source == "rx" ? 3 : 4) : 1;
+    std::vector<C2hPacket> pkts;
+    for (int s = 0; s < slots; s++)
+      pkts.push_back(C2hPacket::make(payload, 0x67a72b31u + static_cast<uint32_t>(s) * 0x9e3779b9u));
+    for (int s = 0; s < slots; s++)
+      c2h_stage(r, ocp + static_cast<uint32_t>(s) * 0x4000u, pkts[s]);
+    if (!rd.start())
+      throw std::runtime_error("bulk-IN submit failed");
+    rd.drain(30);
+    const auto t0 = clk::now();
+    for (int i = 0; i < count; i++) {
+      const int slot = a.vary ? (i % slots) : 0;
+      const uint32_t socp = ocp + static_cast<uint32_t>(slot) * 0x4000u;
+      const uint32_t saddr = addr + static_cast<uint32_t>(slot) * 0x4000u;
+      C2hPacket unique_pkt;
+      const C2hPacket *pkt = &pkts[static_cast<size_t>(slot)];
+      if (a.unique) {
+        unique_pkt = C2hPacket::make(payload, 0x67a72b31u + static_cast<uint32_t>(i) * 0x9e3779b9u);
+        c2h_stage(r, socp, unique_pkt);
+        pkt = &unique_pkt;
+      } else if (a.restage || a.vary) {
+        c2h_stage(r, socp, *pkt);
+      }
+      if (a.check_desc) {
+        uint8_t d[24];
+        r.sram_read(socp, d, sizeof d);
+        if (std::memcmp(d, pkt->frame.data(), 12) != 0)
+          desc_bad++;
+      }
+      const uint32_t req = c2h_request(saddr);
+      r.w32(0x0294, req);
+      if (!a.no_poll) {
+        bool clear = false;
+        const int attempt_ms = a.retry_ms > 0 ? a.retry_ms : 2000;
+        for (int attempt = 0; !clear && attempt <= 5; attempt++) {
+          const auto dl = clk::now() + std::chrono::milliseconds(attempt_ms);
+          while (!clear && clk::now() < dl)
+            clear = (r.r32(0x0294) & 0x10000u) == 0;
+          if (!clear && a.retry_ms > 0 && attempt < 5) {
+            if (a.abort_retry) {
+              r.w32(0x0294, 0);
+              std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            r.w32(0x0294, req);
+            retries++;
+          }
+        }
+        if (!clear)
+          throw std::runtime_error("C2H request did not complete");
+      }
+      if (rd.wait(*pkt, true, 2000) != 1)
+        throw std::runtime_error("no verified bulk-IN completion");
+      completed = i + 1;
+      if (a.gap_us > 0)
+        std::this_thread::sleep_for(std::chrono::microseconds(a.gap_us));
+    }
+    const double ms = ms_since(t0);
+    std::printf("{\"ev\":\"c2h.host\",\"source\":\"%s\",\"bytes\":%zu,\"count\":%d,\"verified\":%u,"
+                "\"stray\":%u,\"timeouts\":%u,\"retries\":%u,\"ms\":%.1f,\"mbps\":%.2f}\n",
+                a.source.c_str(), payload, count, rd.verified(), rd.stray(), rd.timeouts(), retries, ms,
+                ms > 0 ? payload * count / ms / 1e3 : 0.0);
+    rc = 0;
+  } catch (const std::exception &e) {
+    stray_seen = rd.stray();
+    timeout_seen = rd.timeouts();
+    uint32_t r294 = 0, r288 = 0, r280 = 0, r10c = 0, r284 = 0;
+    try {
+      r294 = r.r32(0x0294);
+      r288 = r.r32(0x0288);
+      r280 = r.r32(0x0280);
+      r10c = r.r32(0x010C);
+      r284 = r.r32(0x0284);
+    } catch (...) {
+    }
+    std::printf("{\"ev\":\"c2h.fail\",\"completed\":%d,\"desc_bad\":%u,\"stray\":%u,"
+                "\"timeouts\":%u,\"retries\":%u,\"r294\":\"0x%08x\",\"r288\":\"0x%08x\","
+                "\"r280\":\"0x%08x\",\"r10c\":\"0x%08x\",\"r284\":\"0x%08x\"}\n",
+                completed, desc_bad, stray_seen, timeout_seen, retries, r294, r288, r280, r10c, r284);
+    std::fprintf(stderr, "c2h: %s\n", e.what());
+  }
+  rx.restore();
+  std::printf("{\"ev\":\"c2h.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
+// CPU-issued C2H: per-request latency from REG 0x568, stamped on-chip. Measures the transport tail
+// (the 40 Msps blocker) independently of host USB round-trips.
+int cmd_c2hbench(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  C2hRxPath rx(r);
+  Cpu8822b cpu(r);
+  const int count = std::clamp(a.count > 0 ? a.count : 1024, 1, 1600);
+  const size_t payload = static_cast<size_t>(std::clamp(a.bytes, 64, 16352));
+  C2hReader rd(s.handle(), s.context(), static_cast<size_t>(std::max(a.xfer, 4096)), a.depth);
+  int rc = 1;
+  try {
+    const C2hPacket pkt = C2hPacket::make(payload);
+    cpu.load(c2hbench8822b_bin, c2hbench8822b_bin_len);
+    rx.apply(a.rx_on, a.fwff_off);
+    c2h_stage(r, 0x18701000, pkt);
+    const uint32_t seed = static_cast<uint32_t>(count);
+    cpu.dmem_write(0x1000 + 0x18, &seed, sizeof seed);
+    if (!rd.start())
+      throw std::runtime_error("bulk-IN submit failed");
+    rd.drain(20);
+    const auto t0 = clk::now();
+    cpu.start();
+    unsigned ok = 0;
+    const auto dl = clk::now() + std::chrono::seconds(15);
+    while (ok < static_cast<unsigned>(count) && clk::now() < dl) {
+      if (rd.wait(pkt, true, 1500) == 1)
+        ok++;
+      else
+        break;
+    }
+    const double wall_ms = ms_since(t0);
+    cpu.halt();
+    rd.stop();
+
+    uint32_t hdr[16] = {0};
+    cpu.dmem_read(0x1000, hdr, sizeof hdr);
+    const uint32_t issued = std::min<uint32_t>(hdr[1], static_cast<uint32_t>(count));
+    std::vector<uint32_t> dur(issued);
+    if (issued)
+      cpu.dmem_read(0x1000 + 0x40, dur.data(), dur.size() * 4);
+    std::vector<uint32_t> sorted = dur;
+    std::sort(sorted.begin(), sorted.end());
+    uint64_t sum = 0;
+    unsigned over = 0;
+    for (uint32_t d : dur) {
+      sum += d;
+      if (d > 204)
+        over++;
+    }
+    const double mean = dur.empty() ? 0 : static_cast<double>(sum) / dur.size();
+    if (!a.dump.empty() && !dur.empty()) {
+      if (FILE *f = std::fopen(a.dump.c_str(), "w")) {
+        for (size_t i = 0; i < dur.size(); i++)
+          std::fprintf(f, "%zu,%u\n", i, dur[i]);
+        std::fclose(f);
+      }
+    }
+    std::printf("{\"ev\":\"c2h.bench\",\"n\":%d,\"issued\":%u,\"verified\":%u,\"stray\":%u,"
+                "\"timeouts\":%u,\"magic\":\"0x%08x\",\"done\":%u,\"error\":%u,\"min_us\":%u,"
+                "\"p50_us\":%u,\"p90_us\":%u,\"p99_us\":%u,\"max_us\":%u,\"over_204us\":%u,"
+                "\"mean_us\":%.1f,\"wall_ms\":%.1f,\"mbps\":%.2f}\n",
+                count, hdr[1], ok, rd.stray(), rd.timeouts(), hdr[0], hdr[2], hdr[3],
+                sorted.empty() ? 0 : sorted.front(), pctl(sorted, 50), pctl(sorted, 90),
+                pctl(sorted, 99), sorted.empty() ? 0 : sorted.back(), over, mean, wall_ms,
+                wall_ms > 0 ? payload * ok / wall_ms / 1e3 : 0.0);
+    rc = (hdr[0] == 0x0C2B0001u && hdr[2] == 1u && hdr[1] == static_cast<uint32_t>(count) &&
+          ok == static_cast<unsigned>(count))
+             ? 0
+             : 1;
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "c2hbench: %s\n", e.what());
+    try {
+      cpu.halt();
+    } catch (...) {
+    }
+  }
+  rx.restore();
+  std::printf("{\"ev\":\"c2h.bench.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
   Args a;
   if (!parse(argc, argv, a)) {
-    std::fprintf(stderr, "usage: wsdr_probe ring|marker --pid 0xNNNN [options] (see source header)\n");
+    std::fprintf(stderr,
+                 "usage: wsdr_probe ring|snap|marker|c2h|c2hbench --pid 0xNNNN [options] "
+                 "(see source header)\n");
     return 2;
   }
   auto logger = std::make_shared<Logger>();
@@ -245,6 +517,10 @@ int main(int argc, char **argv) {
     return cmd_snap(s, a);
   if (a.cmd == "marker")
     return cmd_marker(s, a);
+  if (a.cmd == "c2h")
+    return cmd_c2h(s, a);
+  if (a.cmd == "c2hbench")
+    return cmd_c2hbench(s, a);
   std::fprintf(stderr, "unknown command %s\n", a.cmd.c_str());
   return 2;
 }
