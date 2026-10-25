@@ -3,7 +3,7 @@
 A map of this workspace: what has been measured, where each fact lives, and where to look
 further. This file is an index. The detail lives in the files it points to.
 
-_Written 2026-10-25. Workspace state at commit `1c4183b` plus this file._
+_Written 2026-10-25, updated 12:45._
 
 ## Where things stand
 
@@ -12,18 +12,19 @@ _Written 2026-10-25. Workspace state at commit `1c4183b` plus this file._
 | 0 Recon / bench | Done: both adapters HEALTHY under devourer's doctor | `STATUS.md`, `evidence/phase0/` |
 | 1 LA-mode baseline | Done on the 8812BU and the 8812CU | `FINDINGS.md` §2, `evidence/phase1-*` |
 | 2 Document ac54_sdr's streaming method | Done | `FINDINGS.md` §3–4, `notes/ac54-analysis.md` |
-| 3 Continuous streaming, 8812BU | Groundwork done; **paused** | `FINDINGS.md` §4 "Measured on our 8812BU", `STATUS.md` "Blocked" |
-| 4 rtl_tcp / SoapySDR / recorder | Not started (paused) | — |
+| 3 Continuous streaming, 8812BU | Groundwork done; streaming in progress in a parallel session | `FINDINGS.md` §4 "Measured on our 8812BU", `coord/from-opencode.md` |
+| 4 rtl_tcp / SoapySDR / recorder | Not started | `REPORT.md` §7 |
 | 5 8812CU port | Not started | `FINDINGS.md` §2 (8822C LA dialect), §3 (8822C firmware layout) |
 | 6 8812EU | Not started; no adapter | `NEEDS.md` N5 |
 
-The two paused items, the on-chip transfer step and the snapshot-mode rtl_tcp server, were
-stopped by a safety classifier on Claude's side, not by a hardware result. `LOG.md` has the
-timeline.
+Two sessions work in this folder in parallel. `coord/README.md` explains the message files and
+locks they use.
 
 ## Read in this order
 
-1. **`STATUS.md`**: one page on hardware, what works, what's blocked and open needs.
+0. **`REPORT.md`**: the interim write-up. Results by phase, done-criteria status, caveats,
+   reproduction steps, planned next steps and the proposed devourer PR structure.
+1. **`STATUS.md`**: one page on hardware, what works, what's not done and open needs.
 2. **`FINDINGS.md`**: the technical record. Every claim has a measurement or a citation.
    - §1 Bench units: chip cut, RFE type and USB link speed of each adapter.
    - §2 LA-mode sample path, measured: bit layout on both chips, I/Q orientation test, off-centre
@@ -115,7 +116,7 @@ register map (`halmac_reg2.h`) and the phydm DIG code are what FINDINGS and fw-d
 
 ## Open questions (full list: FINDINGS §4 "Unknowns", fw-disasm §8)
 
-- Continuous transfer off the chip on Linux and its latency tail at 20 and 40 Msps (paused).
+- Continuous transfer off the chip on Linux and its latency tail at 20 and 40 Msps (in progress).
 - The fixed-gain recipe on the 8822C (JGR3 equivalent not yet tested).
 - Whether the 8812CU can be switched to USB 3 on this host; at USB 2 it is bandwidth-limited.
 - The BW40 tap anomaly, and the higher out-of-band floor on 8822C path B at 40 Msps.

@@ -200,12 +200,16 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
-   0x880 (`docs/la-capture.md`). Conflicting; test both.
+   0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.
 2. Does the free-running ring stay fresh with devourer's bring-up (DIG/watchdog threads touching BB regs)?
+   **Resolved (8822B):** live, ≈1 % identical between reads. Long-run disturbance is not yet measured.
 3. Gain: no manual AGC freeze path known (ac54 open item; devourer has IGI control — test pinning it).
+   **Resolved (8822B):** the fixed-gain recipe above. The 8822C is untested.
 4. The TX-SRAM→C2H address alias (bank bases 0x16000/0x6000) — empirical on one ASUS unit; confirm here.
 5. Linux usbfs tail latency vs WinUSB RAW_IO — whether 20 Msps holds and where 40 Msps breaks.
 6. Whether the MIPS16e2-only / 0x230 splice behaviour holds on our cut (same die/cut 3 as ac54: likely).
+   **Partly resolved:** code spliced at 0x230 runs on our unit; the implemented MIPS16e2 subset is
+   characterized above.
 7. 8822C: custom-code entry without vectors (ROM), EMEM layout, C2H register/addresses, LA ring at
    0x20000..0x40000 (devourer: same window), the 7.4-sample A/B skew, USB-2 bandwidth.
 8. BW40/80 taps (80/160 Msps?) and dma_type 4–15 formats (dual-path packing) — undecoded.
