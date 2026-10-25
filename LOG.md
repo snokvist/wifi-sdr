@@ -245,3 +245,10 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   IMEM read-back, **the marker runs on the 8822C** (magic, 5.33 M loops/s, exact µs counter, same ISA).
   C2H: trigger clears but no bulk-IN packet yet. `notes/cu-custom-code.md`, `evidence/phase5-cu-*`.
 - `Reg::set_cap()` (block-transfer size) and a 3×w32 fallback in `Reg::ddma` for small caps.
+
+## 2026-10-25 14:40 — SoapySDR: full 40 MHz at 40 MS/s
+- Soapy module: at 40 MS/s it runs 40 MHz channel width + vendor BW40 DFIR (bandwidth 40 MHz;
+  setBandwidth <= 25 MHz selects the 20 MHz path); centre → primary channel (centre − 10 MHz).
+  Below 40 MS/s it stays at 20 MHz width. Verified: 40,003,839 S/s, 0 overflows, −6 dB floor
+  −20.0…+20.0 MHz; retune/gain/re-open clean; gqrx live at 5190 MHz (`evidence/phase4-soapy-gqrx-40m-bw40.png`).
+  A narrow spur near 5198 MHz (also seen by the wide-tap agent) is open.

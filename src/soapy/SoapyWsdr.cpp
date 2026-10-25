@@ -13,8 +13,10 @@
 //   frequency    a double, so 5 GHz needs no tricks; snapped to the 5 MHz synthesizer grid
 //                (2.4 GHz ch1..14, 5 GHz ch16..233), the residual (<= 2.5 MHz) shifted digitally
 //   sample rate  native LA rates, no resampling: 2.5 / 5 MS/s on USB 2; on USB 3 also 10 / 20 / 40 MS/s.
-//                The LA tap sits after a ~20 MHz filter at every channel width (FINDINGS §4), so the
-//                reported bandwidth is min(rate, 18.4 MHz)
+//                At 40 MS/s the radio runs at 40 MHz channel width with the vendor 40 MHz RX DFIR, so
+//                the whole +-20 MHz is real (bandwidth 40 MHz; setBandwidth <= 25 MHz forces the 20 MHz
+//                path). Below 40 MS/s it stays at 20 MHz width (bandwidth min(rate, 18.4 MHz)):
+//                devourer's BW20 DFIR is what limits the band (FINDINGS §4, notes/wide-tap.md)
 //   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (fixed-gain mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)
 //   format       CS16 (native: 12-bit << 4) or CF32 (/2048); one RX channel (path A); DC removed
@@ -63,7 +65,11 @@ struct Settings {
   bool agc = false;
   double gain_db = 30;
   bool dc_remove = true;
+  bool wide = true; // at 40 MS/s: 40 MHz channel width + vendor BW40 DFIR (setBandwidth <= 25 MHz clears)
 };
+
+// Channel width in use: 40 MHz only at 40 MS/s (a 40 MHz band would alias at lower rates).
+int width_of(const Settings &s) { return s.rate_sel == 1 && s.wide ? 40 : 20; }
 
 double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
 constexpr double kAnalogBw = 18.4e6; // measured -3 dB width of the LA tap (+-9.2 MHz), any channel width
@@ -73,8 +79,15 @@ int igi_for(double db) {
 }
 
 // Nearest synthesizer channel (5 MHz grid) for a frequency; same rule as wsdr_tcp.
-int channel_for(double freq) {
+// Primary 20 MHz channel for a requested centre. devourer's Channel is the primary channel with the
+// 40 MHz channel above it, so at 40 MHz width the centre is primary + 10 MHz (measured, wide-tap.md).
+int channel_for(double freq, int width = 20) {
   const double mhz = freq / 1e6;
+  if (width == 40) {
+    if (mhz < 3700)
+      return std::clamp(static_cast<int>(std::lround((mhz - 10 - 2407) / 5)), 1, 9);
+    return std::clamp(static_cast<int>(std::lround((mhz - 10 - 5000) / 5)), 16, 229);
+  }
   if (mhz < 3700) {
     const int g = std::clamp(static_cast<int>(std::lround((mhz - 2407) / 5)), 1, 13);
     return std::abs(mhz - 2484) < std::abs(mhz - devourer::chan_to_freq(g)) ? 14 : g;
@@ -329,11 +342,15 @@ public:
       v.emplace_back(rate_of(r), rate_of(r));
     return v;
   }
-  void setBandwidth(const int, const size_t, const double) override {}
+  void setBandwidth(const int, const size_t, const double bw) override {
+    update([&](Settings &s) { s.wide = bw <= 0 || bw > 25e6; });
+  }
   double getBandwidth(const int dir, const size_t ch) const override {
-    return std::min(getSampleRate(dir, ch), kAnalogBw);
+    return width_of(get()) == 40 ? 40e6 : std::min(getSampleRate(dir, ch), kAnalogBw);
   }
   std::vector<double> listBandwidths(const int dir, const size_t ch) const override {
+    if (get().rate_sel == 1)
+      return {kAnalogBw, 40e6};
     return {getBandwidth(dir, ch)};
   }
 
@@ -382,17 +399,20 @@ private:
         break;
       _restart = false;
       const Settings cur = get();
-      const int ch = channel_for(cur.freq);
+      const int width = width_of(cur);
+      const int ch = channel_for(cur.freq, width);
       const double src = rate_of(cur.rate_sel);
-      const double shift = cur.freq - devourer::chan_to_freq(ch) * 1e6;
+      const double centre = devourer::chan_to_freq(ch) * 1e6 + (width == 40 ? 10e6 : 0);
+      const double shift = cur.freq - centre;
       if (std::abs(shift) > 0.05 * src)
         SoapySDR::logf(SOAPY_SDR_WARNING,
                        "wsdr: %.3f MHz is %.0f kHz off the 5 MHz grid; the band edge on that side is aliased",
                        cur.freq / 1e6, shift / 1e3);
       try {
-        if (ch != _channel) {
-          _s->tune(ch);
+        if (ch != _channel || width != _width) {
+          _s->tune(ch, width);
           _channel = ch;
+          _width = width;
         }
       } catch (const std::exception &e) {
         SoapySDR::logf(SOAPY_SDR_ERROR, "wsdr: retune to channel %d failed: %s", ch, e.what());
@@ -407,6 +427,7 @@ private:
       c.depth = cur.rate_sel <= 2 ? 256 : 64; // >= 20 MS/s needs ~13 ms of posted URBs (FINDINGS §4)
       c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db);
       c.la.no_cca = !cur.agc;
+      c.la.dfir = width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path)
       Stream8822b st(*_s, c);
       const StreamStats ss = st.run(
           [&](const uint8_t *bank, const BankInfo &) {
@@ -432,6 +453,7 @@ private:
 
   std::unique_ptr<Session> _s;
   int _channel = 36;
+  int _width = 20;
   mutable std::mutex _setm;
   Settings _set;
   clk::time_point _last_change{};
