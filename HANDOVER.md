@@ -25,6 +25,9 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
 - **MT7612U:** no raw-IQ path. The PBF ADC dump was tested live and does not exist on its RLT MAC;
   no ICAP on MT76x2 (`notes/mt7612u-sdr.md`). MediaTek route: MT7921AU + Mtk79ICAP.
 
+- **Next product step:** the desktop app **wsdr-studio** (github.com/snokvist/wsdr-studio, private,
+  `~/wsdr-studio`): design doc only. Its M0 needs wifi-sdr's core exported as a clean CMake library.
+
 ## Hardware and ports (this host has four AMD xHCI controllers)
 | Adapter | Where | Notes |
 |---|---|---|
