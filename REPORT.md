@@ -3,8 +3,9 @@
 _2026-10-25 · workspace `~/wifi-sdr` · targets: RTL8812BU (8822B, Jaguar2), RTL8812CU (8822C, Jaguar3),
 RTL8812EU (8822E, stretch)_
 
-This is an interim report. Phases 0–2 are complete, Phase 3 has its groundwork measured on the
-8812BU, and Phases 3 (streaming) to 6 remain. Every number below comes from these two bench units and
+This is an interim report. Phases 0–3 are complete on the 8812BU (continuous streaming at 20 and
+40 Msps for 60 s with zero faults), Phase 4 has two working front ends (SoapySDR, rtl_tcp) and a
+recorder, and Phases 5–6 remain. Every number below comes from these two bench units and
 is backed by a file under `evidence/`, a capture under `captures/` (regenerable, not in git), or a
 source citation in [FINDINGS.md](FINDINGS.md).
 
@@ -27,9 +28,22 @@ source citation in [FINDINGS.md](FINDINGS.md).
   free-running counter is a true µs timer (200,256 µs vs 200,232 µs of host wall time), and the
   executable instruction subset is characterized.
 
+- **Continuous streaming from the 8812BU.** A custom program on the chip ships every 64 KiB ring bank
+  over bulk-IN; the host checks framing, sequence, deadline and staleness for every bank.
+  - USB 3: **20 Msps for 60 s and 40 Msps for 60 s (twice), zero faults**; a bank ships in 182 µs.
+  - USB 2: 2.5 and 5 Msps for 60 s, zero faults.
+  - Independent offline check: beacons of the ch36 AP sit on the 102.4 ms grid with no bank slips; no
+    duplicate banks; no discontinuity at bank or chunk boundaries.
+- **The USB 3 "C2H wedge" was the host port.** One of this host's four xHCI controllers (AMD
+  1022:15b9) locks the chip's RX DMA → bulk-IN path for large packets, even under the in-kernel
+  driver; another (1022:15c0) runs it flawlessly.
+- **Front ends:** a SoapySDR driver (gqrx/SDR++/GNU Radio; true 5 GHz frequencies, CS16/CF32,
+  2.5–40 Msps), an rtl_tcp server, and a `.cs16` + JSON recorder.
+- **Bandwidth limit:** the LA tap is ~18.4 MHz wide (−3 dB) at every channel width and both known
+  debug ports, and its true rate tops out at 40 Msps. 40 Msps is an oversampled 20 MHz channel.
+
 **Not done yet:**
-- Continuous streaming (20 Msps for 60 s with zero integrity faults; the 40 Msps result).
-- The rtl_tcp/SoapySDR front ends and the recorder.
+- A wider-than-20 MHz tap (research in progress), the tuning table across channels.
 - The 8812CU port and the 8812EU stretch goal.
 
 Section 7 has the plan.
@@ -39,15 +53,18 @@ Section 7 has the plan.
 | | RTL8812BU `0bda:b812` | RTL8812CU `0bda:c812` |
 |---|---|---|
 | Die / cut | 8822B cut 3, 2T2R, RFE 3 | 8822C cut 5, 2T2R, RFE 3 |
-| USB link on this host | SuperSpeed 5000M | High-Speed 480M (bcdUSB 2.00) |
+| USB link on this host | 480M after a plain replug; 5000M after an rtw88 probe (see below) | High-Speed 480M (bcdUSB 2.00) |
 | Firmware boot (devourer) | OK (0x80 = 0xC078) | OK |
 | devourer doctor | HEALTHY, ch1 | HEALTHY, ch36 |
 
 - Host: Linux 7.0, libusb through devourer (OpenIPC/devourer @ 0bf1957).
 - Test signals: ambient Wi-Fi only (APs on ch1, ch36, ch44, ch149). There is no controllable transmitter
   on the bench (NEEDS N2).
-- The 8812BU was already in USB 3 mode (the in-kernel driver switches it at probe; the switch is lost
-  at power-off). The 8812CU came up on USB 2, which caps it near 35–40 MB/s of bulk payload.
+- The 8812BU enumerates at USB 2 after a power cycle; the in-kernel rtw88 driver switches it to USB 3
+  at probe (devourer does not). We switch it with a short guarded rtw88 probe and unload rtw88 again.
+- **Host ports matter.** The host has four AMD xHCI controllers. On 0000:65:00.3 (1022:15b9) large C2H
+  packets wedge over USB 3; on 0000:67:00.3 (1022:15c0) they do not. Keep the 8812BU there for USB 3.
+- The 8812CU came up on USB 2, which caps it near 35–40 MB/s of bulk payload.
 
 ## 3. Results by phase
 
@@ -70,8 +87,8 @@ Quirks and traps:
   `0x808[28]` avoids it.
 - With the default AGC, the gain switches per frame, so frames sit only a few dB over the noise. That
   motivated the fixed-gain work in Phase 3.
-- **The BW40 tap is unexplained:** at BW40 the 40M tap still shows a ±11 MHz passband centred at 0.
-  Streaming targets BW20.
+- At BW40 the 40M tap still shows a ±11 MHz passband centred at 0. Phase 3 measured why: both known
+  taps sit after a ~20 MHz filter at every channel width (see Phase 3, "Channel width").
 - At 40 Msps, 8822C path B shows a ~20 dB higher out-of-band floor than path A. Open.
 
 Figures: `evidence/phase1-bu-offcentre.png`, `evidence/phase1-cu-offcentre.png`, per-capture
@@ -124,6 +141,49 @@ data-path facts and preconditions: FINDINGS §3–4.
     constants are built with LUI + ADDIU.
   - Probe: `src/fw/marker8822b.S`.
 
+### Phase 3: continuous streaming, 8812BU
+- **Transport (C2H).** Writing a request to REG 0x294 makes the chip send a 24-byte RX descriptor plus
+  payload from SRAM out bulk-IN EP 0x84. Both TX-FIFO bank aliases work. On-chip latency for a 16 KiB
+  packet is 39–46 µs (391 MB/s); over USB 2 it is wire-limited at 365 µs (44.7 MB/s).
+- **Timing model** (`wsdr_probe latime`, CPU-timed arm→trigger): the writer runs at exactly
+  80 MHz >> rate_sel and starts within ~1 µs of the arm; no drift against REG 0x568 over 5 s. The bank
+  schedule therefore runs open-loop from the µs counter.
+- **Streamer** (`src/fw/stream8822b.S`, `src/stream88xx.*`): per bank, save a 128-byte prefix, write
+  four descriptors in place and ship 4 × 16352-byte chunks plus a trailer (prefix + seq/target/start/end
+  stamps), then write a last-sample sentinel. The host reassembles in order and checks framing,
+  sequence, the deadline (from the CPU's own stamps) and staleness (a descriptor or the sentinel that
+  survived a revolution means the ADC had not rewritten that part).
+- **Results.** USB 2: 2.5 Msps and 5 Msps, 60 s each, zero faults (ship 1475 µs vs 3257/1618 µs).
+  USB 3 on the good port: 20 Msps 60 s (146,484 banks) and 40 Msps 60 s ×2 (292,969 banks), zero faults;
+  ship 182 µs vs 390/203 µs. At 40 Msps the host needs ~13 ms of posted transfers (256 × 16 KiB);
+  with 3 ms one bank once ran 560 µs late after 39 s.
+- **Controls.** A frozen writer is flagged stale on 303/305 banks; a synthetic mode (host-filled banks)
+  matches byte for byte; shipping 1 ms early is caught as framing corruption.
+- **Hardware hazard found:** CPU stores into the bank the ADC is currently filling are corrupted
+  (bytes 8..15 become a copy of 0..7). The schedule only writes into the other bank.
+- **USB 3 wedge, isolated step by step:** not request rate (paced to the USB 2 cadence still wedges),
+  not packet size (1–2 KiB wedge later), not devourer's registers (rtw88's RX-aggregation values do not
+  help), not devourer or libusb at all (under rtw88, requests via debugfs, it wedges at 287 and 43 and
+  rtw88's own RX dies with it). Moving to another xHCI controller fixed it completely.
+- **Channel width.** Width switching works (0x8ac), but both known taps (debug port 0x880 and 0x0) are
+  ~±10 MHz at 20/40/80 MHz width, and rate_sel 0 duplicates ~48 % of samples at every width.
+
+Evidence: `evidence/phase3-c2h-*`, `evidence/phase3-stream-*`, `evidence/usb3-regdiff/`,
+`evidence/phase3-bw-*`. Details: FINDINGS §4.
+
+### Phase 4: front ends
+- **SoapySDR module "wsdr"** (`src/soapy/`, opt-in build): RX path A, CS16/CF32, 2.5/5 Msps on USB 2
+  and up to 40 Msps on USB 3, frequency as a double (2.40–2.50, 5.080–6.165 GHz), gain element "IGI"
+  (0–49.4 dB, fixed-gain mode) plus AGC mode. Verified from Python at 2.5/10/20/40 Msps with zero
+  overflows, retune/gain/re-open clean, and live in gqrx at 5180.000 MHz.
+- **rtl_tcp server** (`wsdr_tcp`): R820T-compatible, any client rate via a polyphase resampler,
+  residual off-grid offset shifted digitally. rtl_tcp's 32-bit frequency cannot express 5 GHz: the
+  server unwraps the wrapped value, or pairs `--freq-offset` with a client LNB LO. Verified with gqrx
+  and gr-osmosdr; 30 s client-side capture continuous.
+- **Recorder:** `wsdr_probe stream --out PREFIX` writes `.cs16` (12-bit << 4) + JSON sidecar.
+
+Evidence: `evidence/phase3-tcp-*`, `evidence/phase4-*`.
+
 ### Firmware study (static, read-only)
 [notes/fw-disasm.md](notes/fw-disasm.md) maps the 8822B/8822C NIC images: load map, MMIO census,
 command dispatch, calibration and PSD hooks. Its claims are tagged verified/inferred. Cross-checked
@@ -142,10 +202,10 @@ against the vendor sources (FINDINGS §3):
 | 0 | Bench recon, adapters healthy | **Met** |
 | 1 | LA baseline: layout, orientation, placement, both chips | **Met** |
 | 2 | ac54 streaming method documented | **Met** |
-| 3 | 20 Msps for 60 s with zero integrity faults | Not yet |
+| 3 | 20 Msps for 60 s with zero integrity faults | **Met** (USB 3, good port; offline-checked) |
 | 3 | Tuning table | Partial: IGI gain map on one channel, from the noise floor |
-| 3 | 40 Msps result recorded | Not yet |
-| 4 | rtl_tcp (+ SoapySDR if feasible) and CLI recorder (.cs16 + JSON sidecar) | Not started |
+| 3 | 40 Msps result recorded | **Met**: 60 s ×2 with zero faults (256 posted transfers) |
+| 4 | rtl_tcp (+ SoapySDR if feasible) and CLI recorder (.cs16 + JSON sidecar) | **Met** (SoapySDR, rtl_tcp, recorder) |
 | 5 | 8812CU port | Not started (Phase 1 done on it) |
 | 6 | 8812EU + proposed devourer PR structure | Adapter not available; PR structure proposed in §8 |
 
@@ -154,8 +214,10 @@ against the vendor sources (FINDINGS §3):
 - One unit per chip, one host, one room. None of the numbers is shown to generalize.
 - Ambient Wi-Fi only. Orientation and placement are verified against real frames, but there is no CW
   tone or known-level source yet, so the dB-per-step figure is relative (noise floor), not calibrated.
-- A live ring and contiguous snapshots are not continuous streaming. Snapshots capture about 6 % of
-  wall time.
+- Streaming results are from one adapter on one host; the USB 3 result depends on the host port
+  (one of the four controllers wedges). Long-run tail behaviour at 40 Msps beyond 2 × 60 s is not
+  characterized.
+- Usable bandwidth is ~18.4 MHz at any sample rate: 20/40 Msps oversample a 20 MHz channel.
 - Fixed gain is measured on the 8822B only. The 8822C equivalent is untested.
 - ac54's results are reported as theirs and have not been reproduced here.
 
@@ -185,6 +247,15 @@ sudo DEVOURER_LOG_LEVEL=warn build/wsdr_probe snap --pid 0xb812 --channel 36 --i
      --count 12 --dump captures/snap
 sudo DEVOURER_LOG_LEVEL=warn build/wsdr_probe marker --pid 0xb812 --channel 36
 
+# Phase 3 streaming (USB 2 after a plain replug: --rate 5 or 4; USB 3 on the good port: up to --rate 1)
+sudo build/wsdr_probe stream --pid 0xb812 --rate 2 --depth 256 --seconds 60 --out captures/s20m
+python3 tools/stream_check.py captures/s20m      # offline continuity (beacons, slips, boundaries)
+
+# Phase 4 front ends
+cmake -S . -B build-soapy -DWSDR_SOAPY=ON && cmake --build build-soapy -j --target wsdrSupport
+SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy gqrx      # device: soapy=0,driver=wsdr
+sudo build/wsdr_tcp --pid 0xb812 --freq-offset 5e9   # rtl_tcp; gqrx LNB LO 5000 MHz
+
 sudo tools/rtw88_guard.sh off         # restore the normal drivers
 ```
 
@@ -195,44 +266,19 @@ sudo tools/rtw88_guard.sh off         # restore the normal drivers
 
 ## 7. Planned next steps
 
-The facts each step builds on are in FINDINGS §2–4 and the two notes. Open questions are listed in
-FINDINGS §4 "Unknowns".
-
-**Phase 3, 8812BU continuous streaming** (in progress in a parallel session; its lane is posted in
-`coord/from-opencode.md`):
-1. Bring up the on-chip transfer path on Linux and measure its latency distribution, since tail latency
-   decides whether 40 Msps can hold.
-2. Build the bank-scheduled streamer with a host-side integrity harness: per-bank header, length,
-   overlap, sequence and freshness checks, plus a fault counter.
-3. Run 10 → 20 → 40 Msps. Done when 20 Msps runs 60 s with zero faults; record the 40 Msps result
-   whatever it is.
-4. Tuning table: extend the IGI gain map across channels in both bands. Use a CW or known-level source
-   once one is on the bench (N2).
-
-**Phase 4, front ends:**
-- An rtl_tcp server: snapshot mode first, continuous once Phase 3 holds.
-- A SoapySDR module if feasible.
-- A CLI recorder writing `.cs16` plus a JSON sidecar (rate, frequency, IGI, chip, integrity counters).
-- Viewers: SDR++ (not in Ubuntu's apt; upstream builds), plus gqrx and inspectrum (in apt).
-
-**Phase 5, 8812CU:**
-- An LA ring configuration for the 8822C register dialect (devourer's `LaCapture.cpp` covers it).
-- The fixed-gain recipe in its Jaguar3 form, then an IGI sweep.
-- A read-only check of whether the board supports the runtime USB 3 switch. On USB 2 the estimate is
-  about 10 Msps (not yet measured).
-- Two-path output with the ≈7.4-sample skew compensated.
-- Streaming port: entry contract, memory map and transfer registers (FINDINGS §3 and §4 unknown 7).
-
-**Phase 6, 8812EU:** repeat Phase 1 and the Phase 3 groundwork once an adapter is available (N5).
-
-**Analysis threads that need no new hardware:**
-- Decode the [31:24] receive-state bits.
-- Explain the BW40 tap and the path-B out-of-band floor.
-- Use the 8822C IQK read-out for offline IQ-imbalance correction.
-- Check whether devourer's background threads disturb captures.
-
-**Finish:** a final REPORT.md with the streaming measurements, a tuning table and per-chip
-reproduction steps.
+- **Wider bandwidth:** search for an LA debug-port selector or format that bypasses the ~20 MHz filter
+  (in progress); a wider tap would help snapshots even where streaming cannot carry it.
+- **Front-end polish:** install the udev rule for non-root clients; SDR++ check; rtl_tcp at USB 3 rates
+  is low value (clients top out near 3.2 Msps).
+- **Long-run 40 Msps tail statistics** (hours, host load), and a recovery path for a late bank.
+- **Tuning table:** the IGI gain map across channels in both bands; a CW or known-level source (N2)
+  would make it absolute.
+- **Phase 5, 8812CU:** the 8822C LA ring dialect, fixed gain in Jaguar3 form, two-path output with the
+  ≈7.4-sample skew compensated, and its streaming entry/memory map (FINDINGS §3–4). USB 2 only on this
+  board so far.
+- **Phase 6, 8812EU:** once an adapter is available (N5).
+- **Analysis threads:** decode the [31:24] receive-state bits; path-B out-of-band floor; 8822C IQK
+  read-out for offline IQ-imbalance correction.
 
 ## 8. Upstreaming to devourer (proposed, not opened)
 
@@ -246,8 +292,11 @@ Small, independently reviewable pieces, each with its evidence:
 2. **LaCapture: optional fixed-gain mode for the 8822B** (CCA off, CCK off, pinned IGI), with snapshot
    and restore of every register it touches.
 3. **LaCapture: free-running ring and contiguous-snapshot mode** (the `La8822b::snap()` semantics).
-4. Later, after Phase 3: the streaming path as a separate, optional component with its integrity
-   counters.
+4. **The streaming path** as a separate, optional component: the C2H request helpers, the bank
+   streamer firmware and host reader with its integrity checks, and `latime`. Document the
+   current-bank write hazard and the host-port dependence on USB 3.
+5. **docs:** devourer does not switch the 8822B to USB 3; the LA tap's ~20 MHz width at every channel
+   width; rate_sel 0 duplicates samples.
 
 ## 9. Licensing and handling
 

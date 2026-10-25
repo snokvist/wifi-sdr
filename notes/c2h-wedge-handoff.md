@@ -1,5 +1,11 @@
 # C2H large-packet wedge — progress and handoff (2026-10-25)
 
+> **RESOLVED (2026-10-25, later the same day).** The wedge is the host port: on xHCI 0000:65:00.3
+> (AMD 1022:15b9) large C2H packets lock the chip's RX DMA → USB 3 bulk-IN path, even with rtw88 owning
+> the chip; on 0000:67:00.3 (AMD 1022:15c0) the same adapter streams 20 Msps and 40 Msps for 60 s with
+> zero faults. USB 2 works on any port. The sections below are kept as the record of the investigation;
+> their hypotheses and experiment list are superseded. See FINDINGS §4 and REPORT.md §3 (Phase 3).
+
 This note is a self-contained brief for a fresh investigator (Kimi K3.1 Pro, with Flash subagents if
 useful). It records what was built, what is proven, what has been ruled out, and the experiments most
 likely to unblock continuous IQ streaming from the RTL8822B.
