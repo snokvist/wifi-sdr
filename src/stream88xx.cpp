@@ -26,6 +26,8 @@ constexpr uint32_t kBankCpu[2] = {0xB87A0000u, 0xB87B0000u};
 constexpr uint32_t kBankC2h[2] = {0x16000u, 0x06000u}; // TXFF 0x20000 / 0x30000 aliases
 constexpr uint8_t kSentinel[8] = {0xE1, 0xF1, 0x47, 0x5E, 0xA5, 0xA5, 0xA5, 0xA5}; // stream8822b.S
 
+constexpr unsigned kStartRetries = 2;
+
 size_t chunk_off(int k) { return Stream8822b::kPrefix + static_cast<size_t>(k) * Stream8822b::kChunk; }
 
 void desc(uint8_t *d, size_t payload) {
@@ -48,6 +50,22 @@ uint8_t fill(int bank, size_t i) { // synthetic pattern
   x ^= x >> 15;
   x *= 0x2c1b3c6du;
   return static_cast<uint8_t>(x >> 24);
+}
+
+// Where the CPU program got to, for a missed first packet: its DMEM state block (magic, seq, state,
+// t_arm), the chip clock, the C2H trigger and the LA engine.
+std::string chip_state(Reg &r, Cpu8822b &cpu) {
+  try {
+    const uint32_t now = r.r32(0x0568);
+    uint32_t s[5];
+    cpu.dmem_read(kStateOff, s, sizeof s);
+    char b[160];
+    std::snprintf(b, sizeof b, "; magic %08x seq %u state %u t_arm %u now %u r294 %08x r7c0 %08x", s[0], s[1],
+                  s[2], s[4], now, r.r32(0x0294), r.r32(0x07C0));
+    return b;
+  } catch (const std::exception &e) {
+    return std::string("; state unreadable: ") + e.what();
+  }
 }
 
 } // namespace
@@ -73,8 +91,8 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
   std::vector<uint8_t> bank(kBankBytes);
   bool seen[2] = {false, false};
   const auto t0 = clk::now();
-  try {
-    rx.emplace(r);
+  // The whole start sequence; repeatable (load() halts and platform-resets the CPU first).
+  const auto start = [&] {
     cpu.load(stream8822b_bin, stream8822b_bin_len);
     rx->apply(true); // MAC RX on, no frames accepted: the LA writer needs it
     la.configure(_c.la);
@@ -108,6 +126,24 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
     rd.start();
     rd.drain(30);
     cpu.start();
+    // Now and then (~1 start in 30, issue #2) the CPU stalls at its first MAC-register access (the LA
+    // arm) until the host itself reads the MAC block; a read of 0x0003 or 0x0080 does not release it.
+    // MEASURED: a stalled CPU armed exactly at the host's next 0x0568 read, ~20 ms later; polling
+    // 0x7C0 from here on, 0 stalls in ~3000 starts against 47 in 1088 without (armed by the 1st read
+    // in 97 %, else the 2nd).
+    // Bounded: a synthetic run never arms, and in gapped mode the CPU may stop the LA again.
+    const auto p0 = clk::now();
+    while (r.r8(0x07C0) != 0xCB && clk::now() - p0 < std::chrono::milliseconds(1)) {
+    }
+  };
+  // The first bank is due one period + guard after the start. If it does not come within a few
+  // periods, start again (a stalled start used to cost the 200 ms pkt_timeout_ms and a Receiver
+  // restart); the last attempt waits the full pkt_timeout_ms before calling it a fault.
+  const unsigned first_ms =
+      std::max(20u, static_cast<unsigned>((4 * period_us() + std::max(_c.guard_us, 0)) / 1000));
+  try {
+    rx.emplace(r);
+    start();
 
     const double budget5 = static_cast<double>(period5) - guard5;
     for (uint32_t seq = 0;; seq++) {
@@ -118,11 +154,28 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
       BankInfo bi;
       bi.seq = seq;
       bi.bank = b;
+      bool stopped = false;
       while (part < 5) {
         InOrderReader::Done d;
-        if (!rd.next(d, _c.pkt_timeout_ms))
+        const bool first = seq == 0 && part == 0;
+        const bool retry = first && st.start_retries < kStartRetries;
+        if (!rd.next(d, retry ? first_ms : _c.pkt_timeout_ms)) {
+          const std::string why = first ? chip_state(r, cpu) : ""; // mid-stream the chip may not answer
+          if (retry && stop && *stop) {
+            stopped = true;
+            break;
+          }
+          if (retry) {
+            std::fprintf(stderr, "stream: no first packet in %u ms, starting again%s\n", first_ms, why.c_str());
+            st.start_retries++;
+            cpu.halt();
+            rd.stop();
+            start();
+            continue;
+          }
           throw std::runtime_error("no packet within timeout (bank " + std::to_string(seq) + " part " +
-                                   std::to_string(part) + ")");
+                                   std::to_string(part) + ")" + why);
+        }
         if (d.status != LIBUSB_TRANSFER_COMPLETED)
           throw std::runtime_error("bulk-IN status " + std::to_string(d.status));
         const bool c2h = d.len >= 24 && (d.data[11] & 0x10);
@@ -161,6 +214,8 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
         rd.release();
         part++;
       }
+      if (stopped)
+        break;
       // CPU-written windows: descriptors ([104,128) and the 24 bytes before chunks 1..3) and the
       // sentinel in the last sample. In live data the ADC must have overwritten all of them.
       uint8_t *tail = bank.data() + kBankBytes - 8;

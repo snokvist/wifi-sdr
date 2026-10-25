@@ -115,6 +115,13 @@ Extracted locally by `tools/extract_vendor_fw.sh` / `tools/rtkfw88xx.py` into gi
 - **Address map:** OCP/DMA view — 8822B IMEM 0x0, DMEM 0x200000, TX buffer 0x18780000; CPU kseg0 =
   0x80000000 + OCP; uncached kseg1 MAC registers 0xB86x_xxxx (0xB8640568 = REG 0x568), RX SRAM 0xB8700000,
   TX SRAM 0xB8780000.
+- **A started CPU can stall at its first MAC-register access until the host reads the MAC block**
+  (2026-10-25, issue #2; 8812BU on USB 3, `wsdr_rxtest --sweep` with 3 cores of host load). Now and then
+  (47 starts in 1088; ~1 in 20 in wsdr-studio's sweep) stream8822b.S did not arm the LA (0x7C0) after
+  `Cpu8822b::start`, then armed at the host's next 0x0568 read, ~20 ms later, to the µs (`t_arm` = the
+  host's reading). Host reads of 0x0003 or 0x0080 (system block) did not release it. Polling 0x7C0 from
+  right after the start: 0 stalls in ~3000 starts, armed by the first read 97 % of the time. Mechanism
+  unknown. Untested on the 8822C, whose streamer starts its CPU the same way.
 - **8822C differs:** IMEM at **0x30000**, EMEM at **0x100000** (holds most code), DMEM 0x200000; IROM field
   0x10000; IMEM starts directly with SP/CP0 init (SP 0x80210000, Status 0xfe00) and has **no reset or
   exception vectors** → inferred mask ROM owns reset/exceptions. ac54's "keep vendor prologue, append code"

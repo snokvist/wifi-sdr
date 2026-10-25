@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // wsdr_rxtest — hardware check of wsdr::Receiver (the app-facing API):
 //   wsdr_rxtest --pid 0xb812 [--freq 5190e6] [--rate 1] [--seconds 10] [--retune 5230e6]
+//               [--sweep 5190e6:5830e6:40e6 --dwell-ms 280]   (--sweep replaces --retune)
 // Opens the adapter, streams, optionally retunes half-way, and prints status JSON once a second plus a
 // summary: banks, restarts, settings generations seen, sink time per bank (must stay tiny: it runs on
-// the libusb event thread).
+// the libusb event thread). --sweep retunes over [first, last] every dwell (the wsdr-studio Spectral Map
+// shape) and prints every stream restart with its error.
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -21,7 +24,8 @@ int main(int argc, char **argv) {
   uint16_t pid = 0;
   RxSettings set;
   set.rate_sel = 5;
-  double seconds = 10, retune = 0;
+  double seconds = 10, retune = 0, sw0 = 0, sw1 = 0, swstep = 0;
+  int dwell_ms = 280;
   int bus = -1;
   std::string port;
   for (int i = 1; i < argc; i++) {
@@ -32,13 +36,26 @@ int main(int argc, char **argv) {
     else if (k == "--rate") set.rate_sel = std::atoi(v), i++;
     else if (k == "--seconds") seconds = std::strtod(v, nullptr), i++;
     else if (k == "--retune") retune = std::strtod(v, nullptr), i++;
+    else if (k == "--sweep") {
+      if (std::sscanf(v, "%lf:%lf:%lf", &sw0, &sw1, &swstep) != 3 || swstep <= 0 || sw1 < sw0) {
+        std::fprintf(stderr, "--sweep first:last:step (Hz)\n");
+        return 2;
+      }
+      i++;
+    }
+    else if (k == "--dwell-ms") dwell_ms = std::atoi(v), i++;
     else if (k == "--agc") set.agc = true;
     else if (k == "--bus") bus = std::atoi(v), i++;
     else if (k == "--port") port = v, i++;
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return 2; }
   }
+  if (dwell_ms <= 0) {
+    std::fprintf(stderr, "--dwell-ms must be > 0\n");
+    return 2;
+  }
   if (!pid) {
-    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812 [--freq HZ] [--rate 1..5] [--seconds N] [--retune HZ]\n");
+    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812 [--freq HZ] [--rate 1..5] [--seconds N]\n"
+                         "                   [--retune HZ | --sweep FIRST:LAST:STEP [--dwell-ms MS]]\n");
     return 2;
   }
   Receiver rx(std::make_shared<Logger>());
@@ -70,7 +87,34 @@ int main(int argc, char **argv) {
   });
   const auto t0 = clk::now();
   bool retuned = false;
-  while (std::chrono::duration<double>(clk::now() - t0).count() < seconds) {
+  if (swstep > 0) {
+    uint64_t steps = 0, restarts = 0;
+    auto next = t0;
+    double f = sw0;
+    while (std::chrono::duration<double>(clk::now() - t0).count() < seconds) {
+      if (clk::now() >= next) {
+        RxSettings s = rx.settings();
+        s.freq = f;
+        rx.set(s);
+        steps++;
+        f = f + swstep > sw1 + 1 ? sw0 : f + swstep;
+        next = std::max(next + std::chrono::milliseconds(dwell_ms), clk::now()); // no catch-up burst
+      }
+      const RxStatus st = rx.status();
+      if (st.restarts != restarts) {
+        restarts = st.restarts;
+        std::printf("{\"ev\":\"restart\",\"t\":%.3f,\"n\":%llu,\"channel\":%d,\"error\":\"%s\"}\n",
+                    std::chrono::duration<double>(clk::now() - t0).count(), static_cast<unsigned long long>(restarts),
+                    st.channel, st.error.c_str());
+        std::fflush(stdout);
+      }
+      if (st.state == RxState::Lost || st.state == RxState::Error)
+        break;
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    std::printf("{\"ev\":\"sweep\",\"steps\":%llu}\n", static_cast<unsigned long long>(steps));
+  }
+  while (swstep <= 0 && std::chrono::duration<double>(clk::now() - t0).count() < seconds) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     if (retune > 0 && !retuned && std::chrono::duration<double>(clk::now() - t0).count() >= seconds / 2) {
       RxSettings s = rx.settings();
