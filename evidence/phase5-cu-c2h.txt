@@ -41,3 +41,40 @@ unlocked 8812cu
 {"ev":"c2h.fail","completed":0,"stray":0,"timeouts":0,"r294":"0x00011000","r288":"0x00000000"}
 === [--agg --rx-on --count 1600 --bytes 16352]
 {"ev":"c2h.fail","completed":0,"stray":0,"timeouts":0,"r294":"0x00011000","r288":"0x00000000"}
+=== [--burst 8 --bytes 1024]
+{"ev":"c2h.burst","requested":8,"accepted":8,"arrived":7,"stray":0,"timeouts":41,"r284_after_burst":"0x00020000","r288":"0x00000000","r298":"0x00001418","r294_end":"0x00001000"}
+=== [--burst 8 --bytes 16352]
+{"ev":"c2h.burst","requested":8,"accepted":8,"arrived":7,"stray":0,"timeouts":41,"r284_after_burst":"0x00020000","r288":"0x00000000","r298":"0x00004ff8","r294_end":"0x00001000"}
+=== [--burst 8 --bytes 1024 --agg]
+{"ev":"c2h.burst","requested":8,"accepted":0,"arrived":0,"stray":0,"timeouts":48,"r284_after_burst":"0x00000000","r288":"0x00000000","r298":"0x00005f20","r294_end":"0x00011000"}
+=== pipelined 1600 x 16352 run 1
+c2h: no verified bulk-IN completion
+{"ev":"c2h.fail","completed":16,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== pipelined 1600 x 16352 run 2
+c2h: no verified bulk-IN completion
+{"ev":"c2h.fail","completed":16,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== depth 32
+{"ev":"c2h.fail","completed":32,"stray":0,"timeouts":128,"r294":"0x00001000","r288":"0x00000000"}
+=== depth 4
+{"ev":"c2h.fail","completed":4,"stray":0,"timeouts":16,"r294":"0x00001000","r288":"0x00000000"}
+=== 0x290=0x1e
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x9e","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":8,"stray":0,"timeouts":32,"r294":"0x00001000","r288":"0x00000000"}
+=== 0x290=0x1a
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x9a","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":8,"stray":0,"timeouts":32,"r294":"0x00001000","r288":"0x00000000"}
+=== 0x290=0x12
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x92","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":8,"stray":0,"timeouts":32,"r294":"0x00001000","r288":"0x00000000"}
+=== [--count 64 --bytes 1024] (not pipelined)
+devourer [I] Jaguar3: coex/phydm runtime thread not started (tuning.j3_runtime_thread)
+{"ev":"c2h.host","staged":1,"bytes":1024,"count":64,"verified":64,"stray":69,"timeouts":0,"ms":47.9,"mbps":1.37}
+=== [--count 1600 --bytes 16352] (not pipelined)
+devourer [I] Jaguar3: coex/phydm runtime thread not started (tuning.j3_runtime_thread)
+{"ev":"c2h.host","staged":1,"bytes":16352,"count":1600,"verified":1600,"stray":61,"timeouts":0,"ms":1816.7,"mbps":14.40}
+=== tx0
+{"ev":"c2h.stage","ocp":"0x187a0000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00080000"}
+{"ev":"c2h.fail","completed":0,"stray":83,"timeouts":63,"r294":"0x01006000","r288":"0x00000000","callbacks":147,"cb_completed":83,"verified":0}
+=== tx1
+{"ev":"c2h.stage","ocp":"0x187b0000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00080000"}
+{"ev":"c2h.fail","completed":0,"stray":86,"timeouts":63,"r294":"0x00006000","r288":"0x00000000","callbacks":150,"cb_completed":86,"verified":0}

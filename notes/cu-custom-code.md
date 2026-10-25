@@ -29,24 +29,30 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
 - [V] REG 0x568 is a µs counter here too: 206,742 µs over 206,742 µs of host wall time.
 - [V] ISA as on the 8822B: LUI works; ORI/XORI act as LI; ANDI 0xffff as LUI 0xffff. Chip alive after.
 
-## C2H (`wsdr_cu c2h`, `evidence/phase5-cu-c2h.txt`) — partly working
-- [V] Staging is fine: the RX-buffer window round trip is exact (`memtest` H1r) and the descriptor
-  reads back. The C2H engine consumes the packet: REG 0x298 moves from 0x5f00 to 0x1000 + 0x418 (end of
-  a 1048-byte frame). FWFF is not involved (0x601 FWEN already clear, 0x29c/0x2a0 unchanged).
-- [V] RX filtered (8822B recipe: 0x10c[2] RX-agg cleared): the trigger clears but **no packet reaches
-  bulk-IN** — not even with the CPU running or MAC RX on.
-- [V] RX accepting all frames, CPU halted: **15 of 64 1 KiB C2H packets arrive** (199 frames as
-  strays); 16 KiB: 0. With the CPU running, the vendor firmware issues its own C2H (0x294 = 0x5f00)
-  and collides with ours — halt it for tests.
-- [V] RX-agg re-enabled (0x10c[2] = 1): the request is no longer accepted (0x294 BIT16 stays set).
-- [I] Reading: on Jaguar3 the RX DMA only flushes to bulk-IN under aggregation (devourer
-  HalmacJaguar3MacInit::init_usb_cfg says the same for the 8822E), so with aggregation off a C2H packet
-  waits for later RX traffic and leaves packed with frames; with aggregation on, the C2H request path
-  wants something else configured. Next: read halmac 88xx (8822C) `cfg_usb_rx_agg` / C2H / RXDMA
-  code and the rtw88 8822cu RX path; try aggregation in DMA mode, a short agg timeout, and parse
-  aggregated transfers (descriptor walk) instead of requiring one packet per transfer.
+## C2H (`wsdr_cu c2h|c2hbench|c2hmap`, `evidence/phase5-cu-*`) — working
+- [V] **Root cause of the missing packets: devourer's Jaguar3 coex/phydm runtime thread.** With no RX
+  loop running it keeps a synchronous 16 KiB bulk-IN read posted on EP 0x84, so our C2H packets were
+  split between its reads and ours (usbmon: every request produced its packet within 0.1–0.3 ms;
+  our reader saw only as many as it had transfers posted). Earlier "one-packet hold", "needs RX
+  traffic" and "depth-limited" readings were all this race. The thread also rewrites DIG/IGI every ~2 s.
+  Fix: devourer `tuning.j3_runtime_thread = false` (branch `pr/jaguar3-runtime-thread-optional`);
+  `Session` sets it when the field exists.
+- [V] Host C2H from RX SRAM 0x1000: 64/64 at 1 KiB, **1600/1600 at 16 KiB** (14.4 MB/s host-driven).
+- [V] **CPU-driven bench: 1024/1024 ×3 at 44.7 MB/s**, 365 µs per 16 KiB packet (USB2 wire limit,
+  same as the 8822B on USB2).
+- [V] Keep RX-DMA aggregation off for C2H: with 0x10c[2] = 1 the request is not accepted.
+- [V] **C2H address map** (`c2hmap`, all 58 probes clear, 32/32 ring pages found):
+  C2H 0x06000–0x0ffff → TX 0x36000–0x3ffff; 0x10000–0x15fff → TX 0x30000–0x35fff;
+  0x16000–0x1ffff → TX 0x26000–0x2ffff; 0x20000–0x25fff → TX 0x20000–0x25fff.
+  Each 64 KiB bank maps in two segments split at offset 0x6000; the 8822B aliases (0x16000/0x6000
+  for the bank bases) do **not** apply.
 
 ## Toward an 8822C streamer
-- Needs: working C2H; the 8822C LA ring location and its C2H aliases (the 8822B's TX-bank aliases
-  0x16000/0x6000 are unverified here); the two-path word layout (path B at Q[43:32]/I[55:44]).
+- C2H works and the alias map is known. Ring: TXFF 0x20000–0x40000 (devourer la_regs_jgr3, half mode).
+- Chunk layout must not cross the 0x6000 split inside a bank: e.g. segment A [128, 0x6000) as two
+  chunks and segment B [0x6000+24, 0x10000) as three, with the 24 bytes at 0x6000 saved like the
+  prefix (the segment-B descriptor overwrites them). Descriptor and payload must share a segment.
+- Still to do: an 8822C LA ring config (Jaguar3 dialect 0x1ce4/0x1cf4/0x1c3c, devourer LaCapture),
+  the streamer firmware at 0x8003003c with a 5-chunk table, and the two-path word layout
+  (path B at Q[43:32]/I[55:44]).
 - USB 2 only on this board (480M): ~44 MB/s → 5 MS/s at 8 B/sample, both paths in the same word.

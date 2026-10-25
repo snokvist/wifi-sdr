@@ -8,6 +8,15 @@
 
 namespace wsdr {
 
+// Jaguar3 (8822C/E): devourer starts a coex/phydm runtime thread after bring-up that keeps a bulk-IN
+// read posted (it steals C2H packets from our reader) and rewrites DIG/IGI every ~2 s. All wifi-sdr
+// tools own bulk-IN and want fixed gain, so turn it off where devourer has the switch
+// (tuning.j3_runtime_thread, proposed upstream); older devourer builds compile without it.
+template <class T> auto no_j3_runtime(T &t, int) -> decltype(t.j3_runtime_thread = false, void()) {
+  t.j3_runtime_thread = false;
+}
+template <class T> void no_j3_runtime(T &, long) {}
+
 static ChannelWidth_t width_of(int bw) {
   switch (bw) {
   case 40: return CHANNEL_WIDTH_40;
@@ -45,6 +54,7 @@ void Session::open(const OpenOpts &o) {
 
   devourer::DeviceConfig cfg;
   cfg.tuning.thermal_track = o.thermal_track;
+  no_j3_runtime(cfg.tuning, 0);
   WiFiDriver driver(_log);
   auto dev = driver.CreateRadio(h, ctx, lock, cfg);
   if (!dev)

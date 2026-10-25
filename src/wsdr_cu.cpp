@@ -35,6 +35,10 @@ constexpr uint32_t kBlock = 0x8000; // DMEM offset of the programs' state block 
 struct Args {
   bool no_halt = false; // c2h: leave the vendor CPU running
   bool rx_on = false;   // c2h: MAC RX on with frames filtered (streamer RX-path state)
+  std::vector<std::pair<uint16_t, uint32_t>> sets; // c2h: --set ADDR=VAL (8-bit if ADDR=0x290, else 32-bit) after setup
+  std::string source = "rx"; // c2h: rx | tx0 (TXFF 0x20000 -> C2H 0x16000) | tx1 (TXFF 0x30000 -> 0x6000)
+  bool pipelined = false; // c2h: wait for packet i-1 after request i (8822C one-packet hold)
+  int burst = 0; // c2h: fire this many requests back to back, then count what arrives
   bool agg = false; // c2h: keep RX-DMA aggregation on (0x10c[2]); Jaguar3 RX DMA only flushes to bulk-IN with it
   bool accept_all = false; // c2h: MAC RX on and accept every frame (does the reader see anything?)
   bool fwff_off = false; // c2h: clear 0x601 BIT_FWEN (firmware-packet FIFO) before requesting
@@ -62,6 +66,16 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--fwff-off") a.fwff_off = true;
     else if (k == "--accept-all") a.accept_all = true;
     else if (k == "--agg") a.agg = true;
+    else if (k == "--pipelined") a.pipelined = true;
+    else if (k == "--source") a.source = v();
+    else if (k == "--set") {
+      std::string sv = v();
+      const size_t eq = sv.find('=');
+      if (eq == std::string::npos) { std::fprintf(stderr, "--set needs ADDR=VAL\n"); return false; }
+      a.sets.push_back({static_cast<uint16_t>(num(sv.substr(0, eq).c_str())),
+                        static_cast<uint32_t>(num(sv.substr(eq + 1).c_str()))});
+    }
+    else if (k == "--burst") a.burst = static_cast<int>(num(v()));
     else if (k == "--cap") a.cap = static_cast<size_t>(std::strtoul(v(), nullptr, 0));
     else if (k == "--channel") a.open.channel = static_cast<int>(num(v()));
     else if (k == "--bytes") a.bytes = static_cast<int>(num(v()));
@@ -237,6 +251,12 @@ int cmd_c2h(Session &s, const Args &a) {
     std::printf("{\"ev\":\"c2h.fwff_before\",\"r601\":\"0x%02x\",\"r29c\":\"0x%08x\",\"r2a0\":\"0x%08x\",\"r298\":\"0x%08x\"}\n",
                 r.r8(0x0601), r.r32(0x029C), r.r32(0x02A0), r.r32(0x0298));
     rx.apply(a.rx_on || a.accept_all, a.fwff_off);
+    for (auto [addr, val] : a.sets) {
+      if (addr == 0x0290)
+        r.w8(addr, static_cast<uint8_t>(val));
+      else
+        r.w32(addr, val);
+    }
     if (a.agg) // C2hRxPath clears it for the 8822B; restored by C2hRxPath
       r.m8(0x010C, 0x04, 0x04);
     if (a.accept_all) { // RCR accept bits + all RX filter maps (restored by C2hRxPath)
@@ -247,19 +267,57 @@ int cmd_c2h(Session &s, const Args &a) {
     }
     const size_t payload = static_cast<size_t>(std::clamp(a.bytes, 64, 16352));
     const int count = a.count > 0 ? a.count : 64;
-    const uint32_t off = static_cast<uint32_t>(a.rx_off & ~7);
+    // C2H address and OCP of the staged packet. The TX aliases are the 8822B's (ac54/FINDINGS §4);
+    // on the 8822C they are what this test checks.
+    uint32_t off = static_cast<uint32_t>(a.rx_off & ~7), ocp = 0x18700000u + off;
+    if (a.source == "tx0") {
+      off = 0x16000;
+      ocp = 0x187A0000u;
+    } else if (a.source == "tx1") {
+      off = 0x06000;
+      ocp = 0x187B0000u;
+    } else if (a.source != "rx") {
+      throw std::runtime_error("--source must be rx, tx0 or tx1");
+    }
     const C2hPacket pkt = C2hPacket::make(payload);
-    c2h_stage(r, 0x18700000u + off, pkt);
+    c2h_stage(r, ocp, pkt);
     std::vector<uint8_t> chk(24);
-    r.sram_read(0x18700000u + off, chk.data(), chk.size());
+    r.sram_read(ocp, chk.data(), chk.size());
     const bool staged = std::memcmp(chk.data(), pkt.frame.data(), 24) == 0;
     std::printf("{\"ev\":\"c2h.stage\",\"ocp\":\"0x%08x\",\"descriptor_readback_ok\":%d,\"r100\":\"0x%04x\","
                 "\"r290\":\"0x%02x\",\"r10c\":\"0x%08x\",\"r284\":\"0x%08x\"}\n",
-                0x18700000u + off, staged ? 1 : 0, r.r16(0x0100), r.r8(0x0290), r.r32(0x010C), r.r32(0x0284));
+                ocp, staged ? 1 : 0, r.r16(0x0100), r.r8(0x0290), r.r32(0x010C), r.r32(0x0284));
     std::fflush(stdout);
     if (!rd.start())
       throw std::runtime_error("bulk-IN submit failed");
     rd.drain(30);
+    if (a.burst > 0) {
+      // Burst probe: does packet N leave only when something follows it? Fire K requests (each must
+      // be accepted), then collect for 1.5 s. A one-packet hold shows up as K-1 arrivals.
+      int accepted = 0;
+      for (int i = 0; i < a.burst; i++) {
+        r.w32(0x0294, c2h_request(off));
+        bool clear = false;
+        const auto dl = clk::now() + std::chrono::milliseconds(50);
+        while (!clear && clk::now() < dl)
+          clear = (r.r32(0x0294) & 0x10000u) == 0;
+        if (!clear)
+          break;
+        accepted++;
+      }
+      const uint32_t r284 = r.r32(0x0284), r288 = r.r32(0x0288), r298 = r.r32(0x0298);
+      int got = 0;
+      while (rd.wait(pkt, true, 1500) == 1)
+        got++;
+      std::printf("{\"ev\":\"c2h.burst\",\"requested\":%d,\"accepted\":%d,\"arrived\":%d,\"stray\":%u,"
+                  "\"timeouts\":%u,\"r284_after_burst\":\"0x%08x\",\"r288\":\"0x%08x\",\"r298\":\"0x%08x\","
+                  "\"r294_end\":\"0x%08x\"}\n",
+                  a.burst, accepted, got, rd.stray(), rd.timeouts(), r284, r288, r298, r.r32(0x0294));
+      rd.stop();
+      rx.restore();
+      std::printf("{\"ev\":\"c2h.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+      return got > 0 ? 0 : 1;
+    }
     const auto t0 = clk::now();
     for (int i = 0; i < count; i++) {
       r.w32(0x0294, c2h_request(off));
@@ -269,9 +327,13 @@ int cmd_c2h(Session &s, const Args &a) {
         clear = (r.r32(0x0294) & 0x10000u) == 0;
       if (!clear)
         throw std::runtime_error("C2H request did not complete (r294 " + hex32(r.r32(0x0294)) + ")");
+      // MEASURED: the 8822C RX DMA releases packet N only when packet N+1 arrives, so in pipelined
+      // mode request i flushes packet i-1 and the last packet stays held.
+      if (a.pipelined && i == 0)
+        continue;
       if (rd.wait(pkt, true, 2000) != 1)
         throw std::runtime_error("no verified bulk-IN completion");
-      completed = i + 1;
+      completed = a.pipelined ? i : i + 1;
     }
     const double ms = ms_since(t0);
     std::printf("{\"ev\":\"c2h.host\",\"staged\":%d,\"bytes\":%zu,\"count\":%d,\"verified\":%u,\"stray\":%u,"
@@ -292,14 +354,73 @@ int cmd_c2h(Session &s, const Args &a) {
     } catch (...) {
     }
     std::printf("{\"ev\":\"c2h.fail\",\"completed\":%d,\"stray\":%u,\"timeouts\":%u,\"r294\":\"0x%08x\","
-                "\"r288\":\"0x%08x\"}\n",
-                completed, rd.stray(), rd.timeouts(), r294, r288);
+                "\"r288\":\"0x%08x\",\"callbacks\":%u,\"cb_completed\":%u,\"verified\":%u}\n",
+                completed, rd.stray(), rd.timeouts(), r294, r288, C2hReader::g_callbacks.load(),
+                C2hReader::g_cb_completed.load(), rd.verified());
     std::fprintf(stderr, "c2h: %s\n", e.what());
   }
   rd.stop();
   rx.restore();
   std::printf("{\"ev\":\"c2h.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
   return rc;
+}
+
+// Map the 8822C's C2H address space onto the TX buffer: plant a small tagged C2H packet every 4 KiB
+// in TXFF 0x20000..0x3f000, then fire one request per 4 KiB-aligned C2H address and see which tag
+// (if any) comes back. Stops at the first request that does not clear (a wedge).
+int cmd_c2hmap(Session &s, const Args &) {
+  Reg &r = s.reg();
+  C2hRxPath rx(r);
+  Cpu8822c cpu(r);
+  int found = 0;
+  try {
+    cpu.halt();
+    rx.apply(false);
+    constexpr size_t kPay = 64;
+    for (uint32_t t = 0x20000; t < 0x40000; t += 0x1000) {
+      uint8_t f[24 + kPay] = {};
+      f[0] = kPay;
+      f[3] = 0x80;
+      f[11] = 0x10;
+      const uint32_t tag = 0xC2C00000u | t;
+      for (size_t i = 24; i < sizeof f; i += 4)
+        std::memcpy(f + i, &tag, 4);
+      r.sram_write(0x18780000u + t, f, sizeof f);
+    }
+    std::vector<uint8_t> buf(16384);
+    for (uint32_t c = 0x6000; c < 0x40000; c += 0x1000) {
+      r.w32(0x0294, c2h_request(c));
+      // The engine only completes once a bulk-IN read is posted, so read first, then check the bit.
+      int got = 0, len = 0;
+      uint32_t tag = 0;
+      for (int k = 0; k < 4 && !tag; k++) {
+        int n = 0;
+        if (libusb_bulk_transfer(s.handle(), 0x84, buf.data(), static_cast<int>(buf.size()), &n, 40) != 0 || n <= 0)
+          break;
+        got++;
+        len = n;
+        if (n == static_cast<int>(24 + kPay) && (buf[11] & 0x10))
+          std::memcpy(&tag, buf.data() + 24, 4);
+      }
+      bool clear = false;
+      const auto dl = clk::now() + std::chrono::milliseconds(30);
+      while (!clear && clk::now() < dl)
+        clear = (r.r32(0x0294) & 0x10000u) == 0;
+      if (tag)
+        found++;
+      std::printf("{\"ev\":\"c2hmap\",\"c2h\":\"0x%05x\",\"cleared\":%d,\"packets\":%d,\"last_len\":%d,"
+                  "\"tag\":\"0x%08x\"}\n",
+                  c, clear ? 1 : 0, got, len, tag);
+      std::fflush(stdout);
+      if (!clear)
+        break;
+    }
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "c2hmap: %s\n", e.what());
+  }
+  rx.restore();
+  std::printf("{\"ev\":\"c2hmap.done\",\"mapped\":%d,\"alive\":%d}\n", found, r.alive() ? 1 : 0);
+  return found ? 0 : 1;
 }
 
 int cmd_c2hbench(Session &s, const Args &a) {
@@ -379,6 +500,8 @@ int main(int argc, char **argv) {
               s.chip().c_str(), s.superspeed() ? 1 : 0, a.open.channel, s.reg().r16(0x0080));
   s.reg().set_cap(a.cap);
   std::printf("{\"ev\":\"cu.cap\",\"block_bytes\":%zu}\n", a.cap);
+  if (a.cmd == "c2hmap")
+    return cmd_c2hmap(s, a);
   if (a.cmd == "memtest")
     return cmd_memtest(s, a);
   if (a.cmd == "marker")

@@ -118,11 +118,16 @@ C2hReader::C2hReader(libusb_device_handle *h, libusb_context *ctx, size_t transf
 
 C2hReader::~C2hReader() { stop(); }
 
+std::atomic<unsigned> C2hReader::g_callbacks{0}, C2hReader::g_cb_completed{0};
+
 void LIBUSB_CALL C2hReader::cb(libusb_transfer *x) {
   auto *s = static_cast<Slot *>(x->user_data);
   s->status = x->status;
   s->length = x->actual_length;
   s->done = true;
+  g_callbacks++;
+  if (x->status == LIBUSB_TRANSFER_COMPLETED)
+    g_cb_completed++;
 }
 
 bool C2hReader::start() {

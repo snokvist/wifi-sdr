@@ -263,3 +263,11 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   20 MHz frame counts unchanged within noise; ctest 83/83. **PR: OpenIPC/devourer#497.** The local
   devourer clone is back on master (0bf1957); wifi-sdr keeps `--dfir` / the Soapy BW40 path until it
   merges. Evidence: `evidence/devourer-dfir-ab.txt`.
+
+## 2026-10-25 16:30 — 8822C C2H works; address map found
+- The missing 8822C C2H packets were devourer's Jaguar3 coex/phydm runtime thread, which keeps a
+  bulk-IN read posted when no RX loop runs (usbmon showed every packet on the wire). With the thread
+  off (devourer branch `pr/jaguar3-runtime-thread-optional`, `tuning.j3_runtime_thread`; `Session`
+  sets it via SFINAE): host C2H 1600/1600 at 16 KiB; CPU bench 1024/1024 ×3 at 44.7 MB/s.
+- C2H→TX map on the 8822C (`wsdr_cu c2hmap`): each bank splits at offset 0x6000; table in
+  `notes/cu-custom-code.md`. Next: 8822C LA ring config + streamer with a 5-chunk layout.

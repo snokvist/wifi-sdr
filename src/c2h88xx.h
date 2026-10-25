@@ -10,6 +10,7 @@
 
 #include <libusb.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -74,6 +75,8 @@ public:
   unsigned stray() const { return _stray; }
   unsigned timeouts() const { return _timeouts; }
   unsigned errors() const { return _errors; }
+  // Diagnostics: every transfer callback / every COMPLETED one, process-wide.
+  static std::atomic<unsigned> g_callbacks, g_cb_completed;
 
 private:
   struct Slot {
