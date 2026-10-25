@@ -1,0 +1,4 @@
+20 MS/s USB3 bank     n= 24412 paired log-ratio -0.0859 +- 0.0032
+20 MS/s USB3 chunk    n= 73236 paired log-ratio -0.0827 +- 0.0018
+20 MS/s USB3 prefix   n= 24412 paired log-ratio -0.0787 +- 0.0031
+20 MS/s USB3 control  n= 73236 paired log-ratio -0.0871 +- 0.0019

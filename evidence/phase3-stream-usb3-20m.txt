@@ -1,0 +1,13 @@
+=== synthetic 20 MS/s 10 s
+{"ev":"stream","ok":1,"synthetic":1,"rate_sel":2,"fs":20000000,"channel":36,"banks":24414,"samples":199999488,"stream_s":10.000,"wall_s":10.049,"mbps_wire":159.21,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":389.6,"rms":1666.6,"error":""}
+=== live 20 MS/s 60 s
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":2,"fs":20000000,"channel":36,"banks":146484,"samples":1199996928,"stream_s":60.000,"wall_s":60.037,"mbps_wire":159.90,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":389.6,"rms":38.9,"error":""}
+=== live 20 MS/s 10 s to disk
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":2,"fs":20000000,"channel":36,"banks":24414,"samples":199999488,"stream_s":10.000,"wall_s":10.036,"mbps_wire":159.42,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":389.6,"rms":35.7,"error":""}
+=== live 40 MS/s 10 s guard 20
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":1,"fs":40000000,"channel":36,"banks":48828,"samples":399998976,"stream_s":10.000,"wall_s":10.036,"mbps_wire":318.85,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":184.8,"rms":35.4,"error":""}
+=== live 40 MS/s 10 s guard 2
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":1,"fs":40000000,"channel":36,"banks":48828,"samples":399998976,"stream_s":10.000,"wall_s":10.036,"mbps_wire":318.87,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":202.8,"rms":34.1,"error":""}
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":1,"fs":40000000,"channel":36,"banks":192574,"samples":1577566208,"stream_s":39.439,"wall_s":39.476,"mbps_wire":319.70,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":202.8,"rms":37.8,"error":"deadline: bank 192574 ended 560.000000 us after due"}
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":1,"fs":40000000,"channel":36,"banks":292969,"samples":2400002048,"stream_s":60.000,"wall_s":60.039,"mbps_wire":319.79,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":202.8,"rms":43.7,"error":""}
+{"ev":"stream","ok":1,"synthetic":0,"rate_sel":1,"fs":40000000,"channel":36,"banks":292969,"samples":2400002048,"stream_s":60.000,"wall_s":60.039,"mbps_wire":319.79,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.8,"budget_us":202.8,"rms":51.1,"error":""}

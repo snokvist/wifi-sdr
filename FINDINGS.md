@@ -235,6 +235,12 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   to our path does not help either. The fault is in the chip's RX DMA → USB3 bulk-IN path when it
   carries C2H packets, on this board / this AMD xHCI (1022:15b9). Next separators: another xHCI
   controller, another 8822BU board, a USB3 hub in between. `evidence/usb3-regdiff/`.
+- **USB3 resolved — it is the host controller/port.** On this host's other xHCI (0000:67:00.3, AMD
+  1022:15c0) the same adapter, code and init run 16 KiB C2H 1600/1600 ×3, a 50k soak, c2hbench at
+  391 MB/s, and the streamer at **20 MS/s for 60 s** and **40 MS/s for 60 s** (×2) with zero faults.
+  The failing controller is 0000:65:00.3 (AMD 1022:15b9). At 40 MS/s the host needs a deep URB queue
+  (256 × 16 KiB ≈ 13 ms); with 64 one bank once took 560 µs (> 202.8 µs budget) after 39 s.
+  `evidence/phase3-c2h-usb3-xhci2.txt`, `evidence/phase3-stream-usb3-20m*`.
 
 ### Continuous streaming over USB2 (Phase 3, 2026-10-25)
 - **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at

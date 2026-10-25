@@ -1,11 +1,12 @@
 # STATUS
 
-_Last updated: 2026-10-25 10:45 CET_
+_Last updated: 2026-10-25 12:40 CET_
 
-**Current phase:** Phase 3 on USB2 is done and Phase 4 has its first front end: **`wsdr_tcp` serves the
-8812BU as an rtl_tcp device** (gqrx verified live), on top of the 2.5/5 MS/s continuous stream (60 s,
-zero faults). 16 KiB C2H wedges on USB3, so 20/40 Msps still waits on the USB3 investigation. The 8812BU
-is enumerated at 480M (1-1). Interim write-up: [REPORT.md](REPORT.md).
+**Current phase:** **Phase 3 done** (2026-10-25): continuous streaming at **20 MS/s for 60 s** and
+**40 MS/s for 60 s** with zero faults over USB3, once the 8812BU is on the right port (xHCI
+0000:67:00.3; the other controller, 65:00.3, wedges C2H). USB2 gives 2.5/5 MS/s on any port. Front ends:
+`wsdr_tcp` (rtl_tcp) and the SoapySDR module, both still capped at 2.5/5 MS/s. Interim write-up:
+[REPORT.md](REPORT.md).
 
 ### Using it
 ```sh
@@ -60,9 +61,9 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
   8822C in this vendor tree).
 
 ## Not done yet
-- Continuous streaming at 20 Msps for 60 s and the 40 Msps result: needs USB3, where 16 KiB C2H wedges.
-  Next: the USB3 rate-vs-link test (pace C2H to the USB2 rate on USB3), then the devourer-vs-rtw88
-  register diff (`notes/c2h-wedge-handoff.md`). Done on USB2: 2.5 and 5 MS/s for 60 s (FINDINGS §4).
+- Front ends at 10/20/40 MS/s on USB3 (Soapy/rtl_tcp still list 2.5/5 MS/s only).
+- Wider spans: BW40 tuning with 40 MS/s (the BW20 analog passband is ~±11 MHz); BW80 would need ~80 MS/s
+  (640 MB/s at 8 B/sample, over the 391 MB/s C2H ceiling) unless a denser LA format exists (undecoded).
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),
   Phase 6 (8812EU).
@@ -74,8 +75,7 @@ N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch
 (8812CU plugged in).
 
 ## Next steps
-Updated 2026-10-25 10:45: (1) **USB3**: the rate-vs-link test is done (USB3-specific, not rate; FINDINGS §4).
-Driver ruled out too: under rtw88 it wedges and takes normal RX down with it. Next: another xHCI
-controller (move the 8812BU to the 8812CU's port, 67:00.3), a USB3 hub, another 8822BU board (N6); (2) front-end polish: a
-SpyServer or SoapySDR module (int16, true 5 GHz frequencies, no LNB trick), tuning table per channel;
-(3) 20/40 Msps only after the USB3 transport holds. The 8812CU port is deprioritized.
+Updated 2026-10-25 12:40: (1) front ends on USB3: 10/20/40 MS/s in the SoapySDR module (and wsdr_tcp),
+deep URB queue; (2) BW40 at 40 MS/s for a full 40 MHz span; (3) characterize the 40 MS/s tail over long
+runs; (4) decode the LA dma_type formats for a denser word (the only route to 80 MHz on USB3 Gen1).
+Keep the 8812BU on the xHCI 67:00.3 port for USB3.

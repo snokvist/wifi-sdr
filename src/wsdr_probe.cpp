@@ -616,7 +616,7 @@ int cmd_stream(Session &s, const Args &a) {
   if (!a.rate_given)
     c.la.rate_sel = 5;
   c.synthetic = a.synthetic;
-  c.depth = std::clamp(a.depth > 16 ? a.depth : 32, 4, 64);
+  c.depth = std::clamp(a.depth > 16 ? a.depth : 32, 4, 512);
   c.guard_us = a.guard_us;
   Stream8822b st(s, c);
   const uint64_t want = static_cast<uint64_t>(a.seconds * st.fs() / Stream8822b::kBankSamples + 0.5);

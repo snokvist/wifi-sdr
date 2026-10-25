@@ -202,3 +202,16 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   `soapy=0,driver=wsdr` live at 5180.000 MHz (`evidence/phase4-soapy-gqrx-ch36.png`).
 - python3-soapysdr 0.8.1 quirk: `SoapySDR.Device(dict(...))` fails with "no match"; use the string form.
 - USB2 streaming also holds on the second controller (10 s, 3052 banks, 0 faults).
+
+## 2026-10-25 12:40 — USB3 fixed by the port: 20 MS/s and 40 MS/s for 60 s (Phase 3 done)
+- Moved the 8812BU to the port on xHCI 0000:67:00.3 (AMD 1022:15c0; the failing one is 65:00.3,
+  1022:15b9), switched it to USB3 there with a short rtw88 probe.
+- C2H on the new controller: 16 KiB 1600/1600 ×3 (155 MB/s host-driven), c2hbench 1600/1600 ×3 at
+  391 MB/s (39–46 µs), 50000/50000 soak. The wedge was the xHCI/port, not chip, board or code.
+- Streamer on USB3: synthetic 20 MS/s byte-exact; **live 20 MS/s 60 s, 146,484 banks, 0 faults**
+  (ship 182 µs of a 389.6 µs budget); **live 40 MS/s 60 s ×2 with 256 posted URBs, 0 faults**
+  (182 of 202.8 µs). With 64 URBs one 40 MS/s run hit a single 560 µs bank after 39 s (host buffer
+  only ~3 ms) — the deeper queue removed it in two runs.
+- Offline (20 MS/s, 10 s): 93 beacons, max residual 20 µs, 0 slips, no duplicates; boundary steps
+  equal control positions (paired log-ratio −0.086 vs −0.087).
+- Evidence: `evidence/phase3-c2h-usb3-xhci2.txt`, `evidence/phase3-stream-usb3-20m*`.

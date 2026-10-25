@@ -1,0 +1,27 @@
+{
+ "file": "captures/phase3/stream-usb3-ch36-20m-10s",
+ "fs": 20000000,
+ "samples": 199999488,
+ "banks": 24414,
+ "seconds": 9.9999744,
+ "duplicate_banks": 0,
+ "ring_lag_identical": 0.009593365447513005,
+ "adjacent_identical": 0.011624369816508578,
+ "step_mean_all": 8.247146606445312,
+ "step_mean_bank_boundary": 8.70655345916748,
+ "step_mean_chunk_boundary": 8.004135131835938,
+ "step_mean_prefix_boundary": 8.654291152954102,
+ "bursts": 388,
+ "beacon_train": {
+  "beacons": 93,
+  "interval_tu100_multiples": [
+   1,
+   2,
+   3
+  ],
+  "resid_samples_median": 0.0,
+  "resid_samples_max_abs": 400.0,
+  "resid_us_max_abs": 20.0,
+  "bank_slips": 0
+ }
+}
