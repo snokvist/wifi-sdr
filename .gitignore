@@ -10,3 +10,6 @@ __pycache__/
 # Coordination messages and locks are ephemeral (coord/README.md is tracked)
 coord/*
 !coord/README.md
+# Per-session build trees and editor/agent state
+build-*/
+.serena/
