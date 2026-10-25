@@ -1,6 +1,6 @@
 # STATUS
 
-_Last updated: 2026-10-25 10:30 CET_
+_Last updated: 2026-10-25 11:40 CET_
 
 **Current phase:** Phase 3 (8812BU streaming), groundwork done. **Paused** — the next on-chip step was
 interrupted (see "Blocked"). Phases 0–2 complete; Phase 1 done on both chips.
@@ -37,8 +37,12 @@ interrupted (see "Blocked"). Phases 0–2 complete; Phase 1 done on both chips.
 - 8812CU streaming would also be USB-2-limited (≈35–40 MB/s) unless the die supports the runtime USB 3
   switch (open).
 
-## Running in background
-- Static firmware RE of the 8822B/8822C NIC images (subagent, read-only) → `notes/fw-disasm.md` when done.
+- **Snapshot-mode rtl_tcp server:** while writing it, my response was stopped by a safety classifier
+  again. The partial `src/wsdr_tcp.cpp` was deleted and not retried. The snapshot logic it needed is now
+  `La8822b::snap()` (used by `wsdr_probe snap`). Paused pending your direction.
+
+## Background results
+- The firmware-RE subagent finished and wrote `notes/fw-disasm.md` (not yet reviewed or merged into FINDINGS).
 
 ## Open needs (NEEDS.md)
 N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch) RTL8812EU. N1 resolved

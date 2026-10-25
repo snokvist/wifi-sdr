@@ -99,3 +99,10 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   LUI 0xffff → only LUI of the e2 LI-group exists. Constants must be LUI+ADDIU (`LI32` macro).
 - 10:30 — my response was stopped by a safety classifier while writing the next on-chip program
   (a C2H transport benchmark). The truncated file was deleted; that piece is paused pending Joakim.
+
+## 2026-10-25 11:40 — pause
+- Declined to write a hand-off brief for other agents to do the stopped on-chip transfer work.
+- Refactor: snapshot capture moved into `La8822b::snap()`; `wsdr_probe snap` uses it; builds clean.
+- Started a snapshot-mode rtl_tcp server (`src/wsdr_tcp.cpp`); the response was stopped by a safety
+  classifier mid-write. Partial file deleted, not retried. Work paused for Joakim's direction.
+- Firmware-RE subagent completed; output at `notes/fw-disasm.md` (unreviewed, uncommitted).

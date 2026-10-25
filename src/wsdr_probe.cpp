@@ -154,41 +154,22 @@ int cmd_snap(Session &s, const Args &a) {
   int rc = 0;
   try {
     la.configure(a.la);
-    const size_t n = La8822b::kRingBytes / 8;
-    std::vector<uint64_t> ring(n), out(n);
+    std::vector<uint64_t> out;
     for (int k = 0; k < a.count; k++) {
-      la.arm();
-      std::this_thread::sleep_for(std::chrono::milliseconds(k ? 5 : a.settle_ms));
-      r.w8(0x07C0, 0xCB | 0x20); // manual trigger edge after arm (devourer: ordering matters on 8822B)
-      bool done = false;
-      for (int i = 0; i < 200 && !done; i++)
-        done = !(r.r8(0x07C0) & 0x02);
-      const uint32_t v = r.r32(0x07C0);
-      auto t0 = clk::now();
-      r.sram_read(La8822b::kRingOcp, ring.data(), La8822b::kRingBytes);
-      const double ms = ms_since(t0);
-      la.stop();
-      const uint32_t fin = (v & 0x7FFF0000u) >> 16; // 8-byte units, TXFF address
-      const bool wrap = (v >> 31) & 1;
-      size_t start = 0, cnt = n;
-      if (wrap)
-        start = (((fin + 2) << 3) - 0x20000u) / 8 % n;
-      else
-        cnt = fin > (0x20000u >> 3) ? fin - (0x20000u >> 3) : 0;
-      for (size_t i = 0; i < cnt; i++)
-        out[i] = ring[(start + i) % n];
+      const SnapInfo si = la.snap(out, static_cast<unsigned>(k ? 5 : a.settle_ms) * 1000u);
+      const uint32_t fin = (si.r7c0 & 0x7FFF0000u) >> 16; // 8-byte units, TXFF address
       std::printf("{\"ev\":\"snap\",\"k\":%d,\"done\":%d,\"r7c0\":\"0x%08x\",\"wrap\":%d,\"samples\":%zu,\"read_ms\":%.1f}\n",
-                  k, done ? 1 : 0, v, wrap ? 1 : 0, cnt, ms);
-      if (!a.dump.empty() && cnt) {
+                  k, si.done ? 1 : 0, si.r7c0, si.wrap ? 1 : 0, si.samples, si.read_ms);
+      if (!a.dump.empty() && si.samples) {
         uint8_t hdr[32] = {'D', 'V', 'L', 'A', 1, 1, 3, static_cast<uint8_t>(a.la.rate_sel),
-                           static_cast<uint8_t>(a.la.dma_type), static_cast<uint8_t>(wrap)};
-        const uint32_t n32 = static_cast<uint32_t>(cnt);
+                           static_cast<uint8_t>(a.la.dma_type), static_cast<uint8_t>(si.wrap)};
+        const uint32_t n32 = static_cast<uint32_t>(si.samples);
         std::memcpy(hdr + 12, &n32, 4);
         std::memcpy(hdr + 16, &fin, 4);
         std::string fn = a.dump + "-snap" + std::to_string(k) + ".bin";
         if (FILE *f = std::fopen(fn.c_str(), "wb")) {
           std::fwrite(hdr, 1, 32, f);
-          std::fwrite(out.data(), 8, cnt, f);
+          std::fwrite(out.data(), 8, si.samples, f);
           std::fclose(f);
         }
       }

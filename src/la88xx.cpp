@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include "la88xx.h"
 
+#include <chrono>
+#include <thread>
+
 namespace wsdr {
 
 namespace {
@@ -64,6 +67,38 @@ void La8822b::configure(const LaRingCfg &c) {
   _r.m32(0x095C, 0x80000FFFu,
          (static_cast<uint32_t>(c.dma_type & 0xF) << 8) | (static_cast<uint32_t>(c.rate_sel & 7) << 5) |
              3u); // trig sel 3 (REG), edge 0
+}
+
+SnapInfo La8822b::snap(std::vector<uint64_t> &out, unsigned settle_us, std::vector<uint64_t> *raw) {
+  const size_t n = kRingBytes / 8;
+  std::vector<uint64_t> local;
+  std::vector<uint64_t> &ring = raw ? *raw : local;
+  ring.resize(n);
+  out.resize(n);
+  SnapInfo s;
+  arm();
+  std::this_thread::sleep_for(std::chrono::microseconds(settle_us));
+  _r.w8(0x07C0, 0xCB | 0x20); // manual trigger edge after arm (devourer: ordering matters on 8822B)
+  for (int i = 0; i < 200 && !s.done; i++)
+    s.done = !(_r.r8(0x07C0) & 0x02);
+  s.r7c0 = _r.r32(0x07C0);
+  const auto t0 = std::chrono::steady_clock::now();
+  _r.sram_read(kRingOcp, ring.data(), kRingBytes);
+  s.read_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  stop();
+  const uint32_t fin = (s.r7c0 & 0x7FFF0000u) >> 16;
+  s.wrap = (s.r7c0 >> 31) & 1;
+  size_t start = 0;
+  if (s.wrap) {
+    start = (((fin + 2) << 3) - 0x20000u) / 8 % n;
+    s.samples = n;
+  } else {
+    s.samples = fin > (0x20000u >> 3) ? fin - (0x20000u >> 3) : 0;
+  }
+  for (size_t i = 0; i < s.samples; i++)
+    out[i] = ring[(start + i) % n];
+  out.resize(s.samples);
+  return s;
 }
 
 void La8822b::restore() {

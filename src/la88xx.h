@@ -25,6 +25,14 @@ struct LaRingCfg {
   bool no_cca = false;       // 0x838[1] = 1: OFDM RX CCA off (phydm_stop_ic_trx) -> no AGC events
 };
 
+struct SnapInfo {
+  bool done = false;   // engine stopped within the poll budget
+  bool wrap = false;   // 0x7c0[31]: the ring wrapped, so all of it is valid
+  uint32_t r7c0 = 0;   // 0x7c0 at stop: [30:16] finish address (8-byte units, TXFF)
+  size_t samples = 0;  // valid samples unrolled into the output
+  double read_ms = 0;  // EP0 readback time of the ring
+};
+
 class La8822b {
 public:
   static constexpr uint32_t kRingOcp = 0x187A0000; // TXFF byte 0x20000
@@ -37,6 +45,11 @@ public:
   void stop() { _r.w8(0x07C0, 0x00); }
   void restore();            // stop, then write the snapshot back (idempotent)
   bool saved() const { return !_saved.empty(); }
+  // One contiguous snapshot: arm, let the ring fill for settle_us, fire the manual trigger (0x7c0[5]
+  // edge, post-trigger time 0), wait for the engine to stop, read the ring and unroll it oldest-first
+  // from the finish address into `out` (devourer LaCapture::readback semantics). `raw`, if given,
+  // receives the ring as read (for freshness checks). Leaves the engine stopped.
+  SnapInfo snap(std::vector<uint64_t> &out, unsigned settle_us, std::vector<uint64_t> *raw = nullptr);
 
 private:
   Reg &_r;
