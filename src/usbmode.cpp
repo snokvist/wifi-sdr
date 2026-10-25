@@ -70,7 +70,12 @@ Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::str
   std::unique_ptr<libusb_device_handle, void (*)(libusb_device_handle *)> h_guard(h, libusb_close);
   libusb_set_auto_detach_kernel_driver(h, 1);
   if (const int rc = libusb_claim_interface(h, 0); rc != 0)
-    return fail(std::string("claim: ") + libusb_error_name(rc));
+    return fail(std::string("claim: ") + libusb_error_name(rc)); // held by someone else: left alone
+  // Release on every return (with auto-detach this also reattaches a kernel driver we moved aside).
+  struct Release {
+    libusb_device_handle *h;
+    ~Release() { libusb_release_interface(h, 0); }
+  } release{h};
   uint32_t pad = 0; // PAD_CTRL2
   try {
     Reg r(h, false);
@@ -96,7 +101,6 @@ Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::str
     r.w32(0xc4, pad | (1u << 17)); // NO_PDN_CHIPOFF: the device disconnects (this write may not complete)
   } catch (...) {
   }
-  libusb_release_interface(h, 0);
   return Usb3Switch::Requested;
 }
 
