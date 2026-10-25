@@ -80,6 +80,9 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
   Phase 6 (8812EU).
 - 8812CU streaming is USB-2-limited (44.7 MB/s C2H → 5 MS/s, both paths in the same word) unless
   the board supports the runtime USB 3 switch (open).
+- **TX is deferred:** devourer can inject 802.11 MPDUs and emit CW/continuous carriers, but the
+  8822C has no arbitrary-IQ path (TX FIFO -> 802.11 MAC/PHY; the LA tap is capture-only). No TX API
+  is exposed by wifi-sdr. Findings and a reuse plan: `notes/tx-feasibility.md`.
 
 ## Open needs (NEEDS.md)
 N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch) RTL8812EU. N1 is resolved
