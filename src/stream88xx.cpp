@@ -55,6 +55,10 @@ uint8_t fill(int bank, size_t i) { // synthetic pattern
 StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const BankInfo &)> &on_bank,
                              const std::atomic<bool> *stop) {
   StreamStats st;
+  if (_c.gapped && _c.synthetic) {
+    st.error = "gapped mode needs live data";
+    return st;
+  }
   Reg &r = _s.reg();
   std::optional<C2hRxPath> rx; // its constructor reads registers: built inside the try (unplug -> error)
   La8822b la(r);
@@ -86,7 +90,8 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
     std::memcpy(trl, trl_desc, 24);
     r.sram_write(kTrailerOcp, trl, sizeof trl);
 
-    uint32_t state[9] = {0, 0, 0, 0, 0, _c.synthetic ? 0u : 1u, period5, static_cast<uint32_t>(guard5), 0};
+    uint32_t state[10] = {0, 0, 0, 0, 0, _c.synthetic ? 0u : 1u, period5, static_cast<uint32_t>(guard5), 0,
+                          _c.gapped ? 1u : 0u};
     std::memcpy(&state[8], data_desc, 4);
     cpu.dmem_write(kStateOff, state, sizeof state);
     uint32_t rec[2][16] = {};
@@ -108,7 +113,7 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
     for (uint32_t seq = 0;; seq++) {
       if (stop && *stop)
         break;
-      const int b = static_cast<int>(seq & 1);
+      const int b = _c.gapped ? 0 : static_cast<int>(seq & 1);
       int part = 0;
       BankInfo bi;
       bi.seq = seq;
@@ -149,7 +154,7 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
           bi.late_us = static_cast<int32_t>(stamp[2] - stamp[1]) / 5.0;
           bi.ship_us = static_cast<int32_t>(stamp[3] - stamp[2]) / 5.0;
           bi.end_us = static_cast<int32_t>(stamp[3] - stamp[1]) / 5.0;
-          if (bi.end_us * 5 > budget5)
+          if (!_c.gapped && bi.end_us * 5 > budget5) // gapped: the LA is stopped while a bank ships
             throw std::runtime_error("deadline: bank " + std::to_string(seq) + " ended " +
                                      std::to_string(bi.end_us) + " us after due");
         }

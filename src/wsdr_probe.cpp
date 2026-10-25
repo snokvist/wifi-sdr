@@ -100,6 +100,7 @@ struct Args {
   bool rate_given = false;
   double seconds = 10; // stream
   bool synthetic = false; // stream: host-filled banks, LA stopped
+  bool gapped = false;    // stream: one bank per round (banks not contiguous)
   int guard_us = 20;      // stream
   std::string out;        // stream: output prefix
   std::string plan;       // tapscan: plan file
@@ -170,6 +171,7 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--seconds") a.seconds = std::strtod(v(), nullptr);
     else if (k == "--synthetic") a.synthetic = true;
     else if (k == "--guard-us") a.guard_us = static_cast<int>(std::strtol(v(), nullptr, 0));
+    else if (k == "--gapped") a.gapped = true;
     else if (k == "--out") a.out = v();
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return false; }
   }
@@ -796,8 +798,10 @@ int cmd_stream(Session &s, const Args &a) {
   c.synthetic = a.synthetic;
   c.depth = std::clamp(a.depth > 16 ? a.depth : 32, 4, 512);
   c.guard_us = a.guard_us;
+  c.gapped = a.gapped;
   Stream8822b st(s, c);
-  const uint64_t want = static_cast<uint64_t>(a.seconds * st.fs() / Stream8822b::kBankSamples + 0.5);
+  const uint64_t want = a.gapped ? UINT64_MAX : static_cast<uint64_t>(a.seconds * st.fs() / Stream8822b::kBankSamples + 0.5);
+  const auto t_start = std::chrono::steady_clock::now();
   FILE *f = nullptr;
   if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
     std::fprintf(stderr, "stream: cannot open %s.cs16\n", a.out.c_str());
@@ -805,7 +809,7 @@ int cmd_stream(Session &s, const Args &a) {
   }
   std::signal(SIGINT, [](int) { g_stop = true; });
   std::vector<int16_t> iq(2 * Stream8822b::kBankSamples);
-  const uint64_t every = std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
+  const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
   double e2 = 0;
   uint64_t n = 0;
   const StreamStats ss = st.run(
@@ -830,13 +834,15 @@ int cmd_stream(Session &s, const Args &a) {
                       bi.stale ? 1 : 0);
           std::fflush(stdout);
         }
+        if (a.gapped)
+          return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count() < a.seconds;
         return n < want;
       },
       &g_stop);
   if (f)
     std::fclose(f);
   const double secs = ss.banks * Stream8822b::kBankSamples / st.fs();
-  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && ss.banks >= want;
+  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
   char summary[1024];
   std::snprintf(summary, sizeof summary,
                 "{\"ev\":\"stream\",\"ok\":%d,\"synthetic\":%d,\"rate_sel\":%d,\"fs\":%.0f,\"channel\":%d,"

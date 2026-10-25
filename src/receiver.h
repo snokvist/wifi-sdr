@@ -39,7 +39,7 @@ struct RxSettings {
                         // BW40 set opens its filter, flat to +-17 MHz, measured)
   bool agc = false;     // true: chip AGC; false: fixed gain (OFDM CCA off, IGI pinned)
   double gain_db = 30;
-  bool allow_gapped = false; // 8812CU: rate_sel below min_rate_sel streams gapped (see BankMeta::gapped)
+  bool allow_gapped = false; // rate_sel below min_rate_sel streams gapped (see BankMeta::gapped)
 };
 
 struct RxCaps {
@@ -48,7 +48,7 @@ struct RxCaps {
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously
-  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812CU: 1); 6 = none
+  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812CU, 8812BU on USB 2: 1); 6 = none
   int paths = 1;            // 2 on the 8812CU (A, B)
   double gain_max = 0, gain_step = 1;
 };

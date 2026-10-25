@@ -31,7 +31,7 @@ struct StreamCfg {
   bool synthetic = false;  // host-filled banks, LA left stopped: transport/framing self-test
   int depth = 32;          // bulk-IN transfers kept queued
   int guard_us = 20;       // ship a bank this long after the ADC is due to finish it (< 0: test only)
-  bool gapped = false;     // 8822C only: capture one bank, stop, ship, re-arm (banks not contiguous)
+  bool gapped = false;     // capture one bank, stop, ship, re-arm (banks not contiguous)
   unsigned pkt_timeout_ms = 200;
 };
 

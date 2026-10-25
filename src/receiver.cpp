@@ -95,9 +95,10 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   _caps.chip = s->chip();
   // USB 2 carries ~44 MB/s of C2H (5 MS/s); USB 3 carries 40 MS/s. The 8812CU is verified on USB 2 only.
   _caps.min_rate_sel = s->superspeed() && !cu ? 1 : 4;
-  // The 8822C streamer can also capture one bank at any rate, stop, ship and re-arm (gapped mode,
-  // measured on this board at 10/20/40 MS/s: zero stale banks, 11-21 % of the time sampled).
-  _caps.gapped_min_rate_sel = cu ? 1 : 6;
+  // Both streamers can also capture one bank at any rate, stop, ship and re-arm (gapped mode; on the
+  // 8812CU measured at 10/20/40 MS/s: zero stale banks, 11-21 % of the time sampled). Not needed
+  // on an 8812BU on USB 3, which streams every rate continuously.
+  _caps.gapped_min_rate_sel = cu || !s->superspeed() ? 1 : 6; // 8812BU on USB 2 too
   _caps.paths = cu ? 2 : 1;
   _caps.gain_step = gain_step(cu);
   _caps.gain_max = gain_max(cu);
@@ -241,7 +242,7 @@ void Receiver::worker() {
     c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _caps.cu);
     c.la.no_cca = !cur.agc;
     c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's DFIR (8822B: BW20 set; 8822C: per width)
-    c.gapped = _caps.cu && cur.rate_sel < _caps.min_rate_sel;
+    c.gapped = cur.rate_sel < _caps.min_rate_sel;
     BankMeta meta;
     meta.gen = gen;
     meta.cfg = cfg;

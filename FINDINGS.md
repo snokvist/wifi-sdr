@@ -337,6 +337,9 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   the floor is flat from −17 to +17 MHz, rolling off at ±19 MHz, with no adjacent-duplicate samples.
   A real carrier at +7.7 MHz (5197.7 MHz, the one the 8812BU also shows) stands 31-32 dB above the floor
   on both paths. 20 MS/s at BW20: flat to ±8 MHz, −6 dB at ±9 MHz.
+- **8812BU on USB 2, same mode** (`stream8822b.S`, DMEM +0x24; `wsdr_probe stream --gapped`): zero stale
+  banks; 20 MS/s 516 banks/s (21 %), 40 MS/s (BW40 + vendor DFIR) 579 banks/s (12 %); no centre notch on
+  the 8822B (a DC spike instead, removed by the consumer's DC block); continuous 5 MS/s unchanged.
 - Use: spectrum/waterfall over wide spans (FFT within one 8192-sample bank); not for continuous IQ.
   `Receiver` offers it only with `RxSettings::allow_gapped` and marks `BankMeta::gapped`.
 

@@ -62,7 +62,7 @@ endif()
 
 # ---- the receive core: both chips (8822B and 8822C streamers), consumed by the tools and by apps ----
 add_library(wsdrcore STATIC src/rtlreg.cpp src/session.cpp src/la88xx.cpp src/cpu88xx.cpp src/c2h88xx.cpp
-            src/stream88xx.cpp src/cpu8822c.cpp src/stream_cu.cpp src/receiver.cpp)
+            src/stream88xx.cpp src/cpu8822c.cpp src/stream_cu.cpp src/receiver.cpp src/usbmode.cpp)
 target_include_directories(wsdrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${DEVOURER_DIR}/examples/common
                            ${WSDR_FW_OUT})
 target_link_libraries(wsdrcore PUBLIC devourer)
