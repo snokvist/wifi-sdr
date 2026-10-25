@@ -65,7 +65,8 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
 ## Not done yet
 - Front ends do not yet pass `dfir`/channel width (Soapy/wsdr_tcp are BW20); centre→primary-channel
   mapping at 40/80 MHz. 80 MS/s and raw-ADC (dma 11) snapshot modes are not exposed.
-- 8812CU: C2H transport (trigger clears, no bulk-IN packet), then an 8822C streamer.
+- 8812CU: C2H partly works (packets leave only with RX traffic; aggregation interplay on Jaguar3),
+  then an 8822C streamer. devourer DFIR fix: OpenIPC/devourer#497 (open).
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),
   Phase 6 (8812EU).

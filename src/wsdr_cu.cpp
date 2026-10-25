@@ -33,6 +33,11 @@ namespace {
 constexpr uint32_t kBlock = 0x8000; // DMEM offset of the programs' state block (CPU 0x80208000)
 
 struct Args {
+  bool no_halt = false; // c2h: leave the vendor CPU running
+  bool rx_on = false;   // c2h: MAC RX on with frames filtered (streamer RX-path state)
+  bool agg = false; // c2h: keep RX-DMA aggregation on (0x10c[2]); Jaguar3 RX DMA only flushes to bulk-IN with it
+  bool accept_all = false; // c2h: MAC RX on and accept every frame (does the reader see anything?)
+  bool fwff_off = false; // c2h: clear 0x601 BIT_FWEN (firmware-packet FIFO) before requesting
   size_t cap = 4; // Reg block-transfer cap: the 8822C hangs on 4 KiB window reads (memtest)
   std::string cmd;
   OpenOpts open;
@@ -52,6 +57,11 @@ bool parse(int argc, char **argv, Args &a) {
     std::string k = argv[i];
     auto v = [&]() -> const char * { return i + 1 < argc ? argv[++i] : "0"; };
     if (k == "--pid") a.open.pid = static_cast<uint16_t>(num(v()));
+    else if (k == "--no-halt") a.no_halt = true;
+    else if (k == "--rx-on") a.rx_on = true;
+    else if (k == "--fwff-off") a.fwff_off = true;
+    else if (k == "--accept-all") a.accept_all = true;
+    else if (k == "--agg") a.agg = true;
     else if (k == "--cap") a.cap = static_cast<size_t>(std::strtoul(v(), nullptr, 0));
     else if (k == "--channel") a.open.channel = static_cast<int>(num(v()));
     else if (k == "--bytes") a.bytes = static_cast<int>(num(v()));
@@ -115,6 +125,14 @@ int cmd_memtest(Session &s, const Args &) {
       r.sram_write(tx_a, w.data(), n);
       r.sram_read(tx_a, g.data(), n);
       report("H1 txbuf window write/read", w, g, "");
+    }
+    // H1r: the same through the window, but in the RX packet buffer (where c2h stages its packet).
+    {
+      auto w = pattern(11, n);
+      std::vector<uint8_t> g(n);
+      r.sram_write(0x18701000, w.data(), n);
+      r.sram_read(0x18701000, g.data(), n);
+      report("H1r rxbuf window write/read", w, g, "");
     }
     // H2: DDMA TX -> TX.
     {
@@ -214,8 +232,19 @@ int cmd_c2h(Session &s, const Args &a) {
   C2hReader rd(s.handle(), s.context(), 16384, a.depth);
   int rc = 1, completed = 0;
   try {
-    cpu.halt(); // the vendor firmware is not needed for host-issued C2H; keep it from interfering
-    rx.apply(false);
+    if (!a.no_halt)
+      cpu.halt(); // the vendor firmware is not needed for host-issued C2H; keep it from interfering
+    std::printf("{\"ev\":\"c2h.fwff_before\",\"r601\":\"0x%02x\",\"r29c\":\"0x%08x\",\"r2a0\":\"0x%08x\",\"r298\":\"0x%08x\"}\n",
+                r.r8(0x0601), r.r32(0x029C), r.r32(0x02A0), r.r32(0x0298));
+    rx.apply(a.rx_on || a.accept_all, a.fwff_off);
+    if (a.agg) // C2hRxPath clears it for the 8822B; restored by C2hRxPath
+      r.m8(0x010C, 0x04, 0x04);
+    if (a.accept_all) { // RCR accept bits + all RX filter maps (restored by C2hRxPath)
+      r.w32(0x0608, r.r32(0x0608) | 0x0000F00Fu);
+      r.w16(0x06A0, 0xFFFF);
+      r.w16(0x06A2, 0xFFFF);
+      r.w16(0x06A4, 0xFFFF);
+    }
     const size_t payload = static_cast<size_t>(std::clamp(a.bytes, 64, 16352));
     const int count = a.count > 0 ? a.count : 64;
     const uint32_t off = static_cast<uint32_t>(a.rx_off & ~7);
@@ -224,6 +253,10 @@ int cmd_c2h(Session &s, const Args &a) {
     std::vector<uint8_t> chk(24);
     r.sram_read(0x18700000u + off, chk.data(), chk.size());
     const bool staged = std::memcmp(chk.data(), pkt.frame.data(), 24) == 0;
+    std::printf("{\"ev\":\"c2h.stage\",\"ocp\":\"0x%08x\",\"descriptor_readback_ok\":%d,\"r100\":\"0x%04x\","
+                "\"r290\":\"0x%02x\",\"r10c\":\"0x%08x\",\"r284\":\"0x%08x\"}\n",
+                0x18700000u + off, staged ? 1 : 0, r.r16(0x0100), r.r8(0x0290), r.r32(0x010C), r.r32(0x0284));
+    std::fflush(stdout);
     if (!rd.start())
       throw std::runtime_error("bulk-IN submit failed");
     rd.drain(30);
@@ -251,6 +284,11 @@ int cmd_c2h(Session &s, const Args &a) {
     try {
       r294 = r.r32(0x0294);
       r288 = r.r32(0x0288);
+    } catch (...) {
+    }
+    try {
+      std::printf("{\"ev\":\"c2h.fwff_after\",\"r601\":\"0x%02x\",\"r29c\":\"0x%08x\",\"r2a0\":\"0x%08x\",\"r298\":\"0x%08x\"}\n",
+                  r.r8(0x0601), r.r32(0x029C), r.r32(0x02A0), r.r32(0x0298));
     } catch (...) {
     }
     std::printf("{\"ev\":\"c2h.fail\",\"completed\":%d,\"stray\":%u,\"timeouts\":%u,\"r294\":\"0x%08x\","

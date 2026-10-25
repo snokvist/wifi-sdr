@@ -1,0 +1,10 @@
+round 1 bw 40 master: 16 frames / 15 s
+round 1 bw 40 patched: 15 frames / 15 s
+round 1 bw 80 master: 19 frames / 15 s
+round 1 bw 80 patched: 16 frames / 15 s
+round 2 bw 40 master: 15 frames / 15 s
+round 2 bw 40 patched: 15 frames / 15 s
+round 2 bw 80 master: 21 frames / 15 s
+round 2 bw 80 patched: 13 frames / 15 s
+patched devourer, pbw40rate1, no --dfir: -6 dB floor -19.8..+19.9 MHz
+patched devourer, pbw80rate0, no --dfir: -6 dB floor -37.7..+38.0 MHz

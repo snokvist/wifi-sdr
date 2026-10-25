@@ -29,14 +29,22 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
 - [V] REG 0x568 is a µs counter here too: 206,742 µs over 206,742 µs of host wall time.
 - [V] ISA as on the 8822B: LUI works; ORI/XORI act as LI; ANDI 0xffff as LUI 0xffff. Chip alive after.
 
-## C2H (`wsdr_cu c2h`, `evidence/phase5-cu-c2h.txt`) — not working yet
-- [V] Host-issued request 0x11000 (RX SRAM 0x1000): the trigger bit clears (r294 = 0x00001000) but no
-  packet reaches bulk-IN EP 0x84 (64 timeouts, no strays) at 1 KiB and 16 KiB. EP 0x84 is the 8812CU's
-  bulk-IN too (lsusb).
-- [I] Candidates: the RX-path setup is the 8822B's (`C2hRxPath`: 0x100/0x608/0x290/0x10c), the 8822C
-  RX buffer base or RXDMA/HCI enables differ, or C2H on this die needs the FWFF/RX queue configured as
-  halmac 88xx v1 does for the 8822C. Next: diff the 8822C RX-path registers against devourer's
-  Jaguar3 init and halmac `cfg_usb_rx_agg`/C2H code, then retry with RX on and aggregation off.
+## C2H (`wsdr_cu c2h`, `evidence/phase5-cu-c2h.txt`) — partly working
+- [V] Staging is fine: the RX-buffer window round trip is exact (`memtest` H1r) and the descriptor
+  reads back. The C2H engine consumes the packet: REG 0x298 moves from 0x5f00 to 0x1000 + 0x418 (end of
+  a 1048-byte frame). FWFF is not involved (0x601 FWEN already clear, 0x29c/0x2a0 unchanged).
+- [V] RX filtered (8822B recipe: 0x10c[2] RX-agg cleared): the trigger clears but **no packet reaches
+  bulk-IN** — not even with the CPU running or MAC RX on.
+- [V] RX accepting all frames, CPU halted: **15 of 64 1 KiB C2H packets arrive** (199 frames as
+  strays); 16 KiB: 0. With the CPU running, the vendor firmware issues its own C2H (0x294 = 0x5f00)
+  and collides with ours — halt it for tests.
+- [V] RX-agg re-enabled (0x10c[2] = 1): the request is no longer accepted (0x294 BIT16 stays set).
+- [I] Reading: on Jaguar3 the RX DMA only flushes to bulk-IN under aggregation (devourer
+  HalmacJaguar3MacInit::init_usb_cfg says the same for the 8822E), so with aggregation off a C2H packet
+  waits for later RX traffic and leaves packed with frames; with aggregation on, the C2H request path
+  wants something else configured. Next: read halmac 88xx (8822C) `cfg_usb_rx_agg` / C2H / RXDMA
+  code and the rtw88 8822cu RX path; try aggregation in DMA mode, a short agg timeout, and parse
+  aggregated transfers (descriptor walk) instead of requiring one packet per transfer.
 
 ## Toward an 8822C streamer
 - Needs: working C2H; the 8822C LA ring location and its C2H aliases (the 8822B's TX-bank aliases

@@ -8,3 +8,36 @@ c2h: no verified bulk-IN completion
 {"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
 {"ev":"c2h.done","alive":1}
 unlocked 8812cu
+=== --no-halt
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x063f","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== --rx-on
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x06ff","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== --no-halt --rx-on
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x06ff","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== []
+{"ev":"c2h.fwff_before","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00005f00"}
+{"ev":"c2h.fwff_after","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00001418"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== [--fwff-off]
+{"ev":"c2h.fwff_before","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00005f00"}
+{"ev":"c2h.fwff_after","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00001418"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+=== [--fwff-off --rx-on --no-halt]
+{"ev":"c2h.fwff_before","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00005f00"}
+{"ev":"c2h.fwff_after","r601":"0x40","r29c":"0x00010000","r2a0":"0x00000000","r298":"0x00001418"}
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+{"ev":"c2h.stage","ocp":"0x18701000","descriptor_readback_ok":1,"r100":"0x06ff","r290":"0x8e","r10c":"0x0000f5a0","r284":"0x00020000"}
+{"ev":"c2h.fail","completed":2,"stray":281,"timeouts":0,"r294":"0x00005f00","r288":"0x00000000"}
+=== [--accept-all --count 64 --bytes 1024]
+{"ev":"c2h.fail","completed":15,"stray":199,"timeouts":0,"r294":"0x00001000","r288":"0x00000000"}
+=== [--accept-all --count 400 --bytes 16352]
+{"ev":"c2h.fail","completed":0,"stray":291,"timeouts":0,"r294":"0x00001000","r288":"0x00000000"}
+=== [--agg --count 64 --bytes 1024]
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":0,"r294":"0x00011000","r288":"0x00000000"}
+=== [--agg --count 1600 --bytes 16352]
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":0,"r294":"0x00011000","r288":"0x00000000"}
+=== [--agg --rx-on --count 1600 --bytes 16352]
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":0,"r294":"0x00011000","r288":"0x00000000"}

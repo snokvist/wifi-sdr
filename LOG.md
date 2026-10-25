@@ -252,3 +252,14 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   Below 40 MS/s it stays at 20 MHz width. Verified: 40,003,839 S/s, 0 overflows, −6 dB floor
   −20.0…+20.0 MHz; retune/gain/re-open clean; gqrx live at 5190 MHz (`evidence/phase4-soapy-gqrx-40m-bw40.png`).
   A narrow spur near 5198 MHz (also seen by the wide-tap agent) is open.
+
+## 2026-10-25 15:30 — 8822C C2H partly working; devourer DFIR PR opened
+- 8812CU C2H: staging and the engine work (0x298 walks the packet); with RX filtered nothing reaches
+  bulk-IN; with all frames accepted and the CPU halted 15/64 1 KiB C2H packets arrive. Jaguar3 RX DMA
+  seems to flush only under aggregation; with aggregation on the request is not accepted. Details and
+  next steps: `notes/cu-custom-code.md`.
+- devourer: branch `pr/jaguar2-rx-dfir-by-bw` (8822B RX DFIR by width, vendor values), verified:
+  patched devourer alone gives ±19.9 MHz (BW40) / ±38 MHz + genuine 80 MS/s (BW80) on the LA ring; rxdemo
+  20 MHz frame counts unchanged within noise; ctest 83/83. **PR: OpenIPC/devourer#497.** The local
+  devourer clone is back on master (0bf1957); wifi-sdr keeps `--dfir` / the Soapy BW40 path until it
+  merges. Evidence: `evidence/devourer-dfir-ab.txt`.
