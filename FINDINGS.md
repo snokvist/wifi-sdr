@@ -341,6 +341,9 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   banks; 20 MS/s 516 banks/s (21 %), 40 MS/s (BW40 + vendor DFIR) 579 banks/s (12 %); no centre notch on
   the 8822B (a DC spike instead, removed by the consumer's DC block); continuous 5 MS/s unchanged.
 - Use: spectrum/waterfall over wide spans (FFT within one 8192-sample bank); not for continuous IQ.
+- **The 8822B can notch its centre too** (2026-10-25, seen in wsdr-studio, not yet measured): 8812BU at
+  USB 3, 40 MS/s continuous, 2.4 GHz (centre 2422 MHz): a deep, ~1 MHz wide dip at the centre. At 5 GHz
+  (centre 5190) none was seen. Open: band/AGC dependence; if confirmed, offset tuning applies to the BU too.
   `Receiver` offers it only with `RxSettings::allow_gapped` and marks `BankMeta::gapped`.
 
 ### Unknowns (Phase 2 exit list)
