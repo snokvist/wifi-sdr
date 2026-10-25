@@ -1,36 +1,49 @@
 # STATUS
 
-_Last updated: 2026-10-25 07:00 CET_
+_Last updated: 2026-10-25 10:30 CET_
 
-**Current phase:** Phase 0 done for the one adapter present → starting Phase 1 (LA baseline, 8812BU).
-Phase 2 reading (ac54_sdr and firmware images) is running in parallel.
+**Current phase:** Phase 3 (8812BU streaming), groundwork done. **Paused** — the next on-chip step was
+interrupted (see "Blocked"). Phases 0–2 complete; Phase 1 done on both chips.
 
 ## Hardware
 
-| Adapter | VID:PID | Chip (as identified) | USB link | bcdUSB | Endpoints | Port (sysfs) | devourer RX |
-|---|---|---|---|---|---|---|---|
-| "AC1200 Techkey" | 0bda:b812 | RTL8822B cut 3 (UMC), 2T2R, EFUSE rfe_type 3, chip-id 0x0a | **5000M (USB 3)** | 3.00 | bulk IN 0x84; bulk OUT 0x05/0x06/0x08; intr IN 0x87 | bus 2 port 1 (`…/0000:65:00.3/usb2/2-1`) | **HEALTHY** — [doctor ch1](evidence/phase0/doctor-8812bu-ch1.jsonl): 1899 ok / 636 crc in 8 s |
-| RTL8812CU | — | not attached | — | — | — | — | — (NEEDS N1) |
-| RTL8812EU | — | not attached (stretch) | — | — | — | — | — |
+| Adapter | VID:PID | Chip | USB link | Port (sysfs) | devourer RX |
+|---|---|---|---|---|---|
+| "AC1200 Techkey" | 0bda:b812 | RTL8822B cut 3, 2T2R, rfe 3 | **5000M (USB 3)** | bus 2 port 1 | HEALTHY ([doctor ch1](evidence/phase0/doctor-8812bu-ch1.jsonl)) |
+| RTL8812CU | 0bda:c812 | RTL8822C cut 5, 2T2R, rfe 3 | **480M (USB 2, bcdUSB 2.00)** | bus 5 port 1 | HEALTHY ([doctor ch36](evidence/phase0/doctor-8812cu-ch36.jsonl)) |
 
-- Switchable (uhubctl) hub: **none** → recovery ladder ends at `usbreset`, then a replug (NEEDS N3).
-- Host uplink `enp3s0`: protected, untouched. In-tree `rtw88_8822bu/cu/21cu` temp-blacklisted by
-  `tools/rtw88_guard.sh on` (restore with `sudo tools/rtw88_guard.sh off`).
-- Test signal: **ambient Wi-Fi** (ch1 ≈180 frames/s, ch36 ≈110 frames/s). No controllable TX yet (NEEDS N2).
-- devourer: local snokvist clone fast-forwarded to OpenIPC master 0bf1957 (with your OK), built Release.
+- No uhubctl-capable hub (NEEDS N3). Host uplink `enp3s0` untouched.
+- **In-tree rtw88_8822bu/cu/21cu + DKMS 88x2cu are temp-blacklisted** (`tools/rtw88_guard.sh on`).
+  Restore with `sudo ~/wifi-sdr/tools/rtw88_guard.sh off` (then replug or `modprobe`).
+- Test signal: ambient Wi-Fi (ch36 AP). No controllable TX (NEEDS N2).
+- devourer: local clone fast-forwarded to OpenIPC 0bf1957 (your OK), not pushed.
 
 ## What works (with evidence)
-- devourer bring-up + RX on the 8812BU: `evidence/phase0/`.
+- **Phase 1 — LA baseline, both chips:** layout I[11:0]/Q[23:12] (+ 8822C path B Q[43:32]/I[55:44]),
+  orientation correct (L-LTF test, 13/13 detections), off-centre placement correct
+  ([BU](evidence/phase1-bu-offcentre.png), [CU](evidence/phase1-cu-offcentre.png)), 8822C two paths
+  phase-coherent after a fixed ≈7.4-sample A/B skew. Details: FINDINGS §2.
+- **Phase 2 — data path documented** (FINDINGS §3–4, `notes/ac54-analysis.md`). The "vendor IMEM" is the
+  Linux firmware (byte-identical), not a Windows extraction.
+- **Phase 3 groundwork (8812BU):** free-running LA ring live after devourer bring-up; **fixed-gain mode
+  found** (0x838[1] + CCK off + IGI, ≈0.95 dB/IGI step) — an open item in ac54; contiguous snapshot
+  capture (`wsdr_probe snap`, 819 µs per snapshot, ~12 ms readback); **custom code runs on the embedded
+  CPU** with the REG 0x568 µs counter verified; ISA subset characterized. FINDINGS §4 "Measured on our 8812BU".
 
-## Blocked / waiting
-- 8812CU work (Phase 1 second half, Phase 5) — N1.
-- Controllable test transmitter — N2 (ambient suffices to proceed).
+## Blocked
+- **Continuous streaming (rest of Phase 3):** while writing the next on-chip program (a C2H transport
+  benchmark), my response was stopped by a safety classifier. I deleted the truncated file and have not
+  retried that content. Needs your direction (see chat).
+- 8812CU streaming would also be USB-2-limited (≈35–40 MB/s) unless the die supports the runtime USB 3
+  switch (open).
 
-## Open needs (detail in NEEDS.md)
-- N1 plug in an RTL8812CU · N2 a test transmitter (second adapter / SDR / OK to unblock MT7922)
-- N3 uhubctl-capable USB 3 hub · N4 judgment: ac54_sdr is unlicensed (re-implementing, not copying)
-- N5 (stretch) RTL8812EU
+## Running in background
+- Static firmware RE of the 8822B/8822C NIC images (subagent, read-only) → `notes/fw-disasm.md` when done.
 
-## Next step
-LA-mode manual + CRC-triggered captures on the 8812BU at ch1, decode with `la_decode.py`, PSD plot,
-orientation check via an off-centre tune against an ambient AP.
+## Open needs (NEEDS.md)
+N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch) RTL8812EU. N1 resolved
+(8812CU plugged in).
+
+## Next step (once unblocked)
+C2H transport + latency measurement on Linux, then the bank-scheduled streamer at 10 → 20 → 40 Msps with
+the integrity harness; snapshot-mode rtl_tcp server in parallel.

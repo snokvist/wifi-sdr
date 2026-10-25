@@ -10,7 +10,7 @@ Newest at the bottom. Resolved entries are marked, never deleted.
   the 8812CU too, and Phase 5 is the 8812CU port.
 - **Unblocks:** Phase 1 (8812CU half), Phase 5.
 - **Meanwhile:** all 8812BU work (Phases 1–4) proceeds; the 8822C firmware/LA dialect is being studied offline.
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-25 ~07:15 — 8812CU (0bda:c812) plugged in; note it enumerates USB 2 (480M).
 
 ### N2 — 2026-10-25 — A controllable test transmitter
 - **Need (any one of):**

@@ -89,3 +89,13 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   gain**, writer stays live; metadata bits stay 0. `wsdr_probe snap` (contiguous manual-trigger
   snapshots, DVLA output): CCA-on frame shows AGC spike + step-down; CCA-off frame flat at +22 dB,
   no clipping. Evidence `evidence/phase3-snap-{cca,nocca}-frame.png`.
+
+**~10:10–10:30** — 8812BU, continued.
+- IGI sweep with CCA off (`evidence/phase3-igi-sweep-bu-ch36.txt`): noise-floor RMS 0x1c→198, 0x20→134,
+  0x28→54, 0x30→22, 0x38→9.3, 0x40→4.0 → **≈0.95 dB per IGI step**, ~45 dB usable range.
+- `wsdr_probe marker`: custom MIPS16 code runs on the 8822B CPU behind the vendor 0x230 prologue
+  (RAM only). 4.2 M loop iterations/s; REG 0x568 advanced 200,256 µs vs 200,232 µs host wall → a true
+  µs counter. ISA probe: MIPS16e2 LUI works; ORI and XORI execute as plain LI; ANDI 0xffff executes as
+  LUI 0xffff → only LUI of the e2 LI-group exists. Constants must be LUI+ADDIU (`LI32` macro).
+- 10:30 — my response was stopped by a safety classifier while writing the next on-chip program
+  (a C2H transport benchmark). The truncated file was deleted; that piece is paused pending Joakim.

@@ -156,6 +156,26 @@ Their measured results: 20 Msps for 60 s with 0 faults (single unit, quiet host)
 (best 0.66 s) — the limit is C2H latency outliers (normal 38–45 µs, worst 369 µs) against a 204.8 µs
 opposite-bank window, not USB average throughput. On-chip packing tops out at 3.8 Msps; DDMA at ~15 MB/s.
 
+### Measured on our 8812BU (Phase 3 groundwork)
+- Free-running ring (0x7c0 = 0xCB, never triggered) is **live** after devourer `InitWrite` bring-up, with
+  MAC RX on and all frames filtered (≈1 % of words identical between two reads; frozen ≥ 95 %). Both dbg
+  port 0x0 and 0x880 are live (0x0 tags the upper word bits with a constant; 0x880 leaves them 0) —
+  resolves unknown 1. A 128 KiB ring read over EP0 takes 12.5 ms (10.4 MB/s) on USB 3.
+- `InitWrite` leaves IGI (0xc50/0xe50 [6:0]) at 0x40 → ≈4 LSB RMS. Pinning IGI is the gain control:
+  **≈0.95 dB per step**, noise-floor RMS 198 @0x1c … 9.3 @0x38 (`evidence/phase3-igi-sweep-bu-ch36.txt`).
+- **Fixed-gain mode (resolves unknown 3 for the 8822B):** OFDM RX CCA off (`0x838[1] = 1`, the 11AC
+  branch of phydm `phydm_stop_ic_trx`, used by phydm's own PSD routine) + CCK off (`0x808[28] = 0`) +
+  pinned IGI. No packet detection → no AGC steps; the LA writer stays live; the [31:24] state bits stay 0.
+  Contiguous snapshots: CCA on → frame shows the AGC spike then a gain step-down; CCA off → frame flat at
+  +22 dB over noise, no clipping at IGI 0x20 (`evidence/phase3-snap-{cca,nocca}-frame.png`).
+- Negative: `0x808[29] = 0` (OFDM block off) **freezes** the LA writer.
+- With CCA on, word bits [31:24] are non-zero only during frames (0x40, 0x80, 0x83–0x86, 0xc5, 0xc7, 0xc8,
+  0xd2) — BB receive-state flags; undecoded lead.
+- **Embedded CPU:** custom code at IMEM 0x230 runs (`wsdr_probe marker`): ≈4.2 M simple loop iterations/s;
+  REG 0x568 (CPU 0xB8640568) is a µs counter (200,256 vs 200,232 µs host wall). Only **LUI** of the
+  MIPS16e2 extended-LI group is implemented — ORI/XORI behave as LI, ANDI 0xffff as LUI 0xffff — so 32-bit
+  constants must be LUI + ADDIU. After our code starts, 0x80 reads 0x4078 (no vendor ready bit 15).
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both.

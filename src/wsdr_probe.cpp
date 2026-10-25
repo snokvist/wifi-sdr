@@ -211,10 +211,10 @@ int cmd_marker(Session &s, const Args &) {
     cpu.load(marker8822b_bin, marker8822b_bin_len);
     std::printf("{\"ev\":\"cpu.loaded\",\"bytes\":%zu,\"prog\":%u,\"r80_before\":\"0x%04x\"}\n",
                 cpu.loaded_bytes(), marker8822b_bin_len, r80);
-    const uint32_t zero[4] = {0, 0, 0, 0};
+    const uint32_t zero[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     cpu.dmem_write(0x1000, zero, sizeof zero);
     cpu.start();
-    uint32_t a[4], b[4];
+    uint32_t a[8], b[8];
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     cpu.dmem_read(0x1000, a, sizeof a);
     auto t0 = clk::now();
@@ -224,9 +224,9 @@ int cmd_marker(Session &s, const Args &) {
     const bool ok = a[0] == 0xCAFEF00Du && b[1] > a[1] && b[2] != a[2];
     std::printf("{\"ev\":\"cpu.marker\",\"ok\":%d,\"magic\":\"0x%08x\",\"count_a\":%u,\"count_b\":%u,"
                 "\"loops_per_s\":%.0f,\"timer_a\":%u,\"timer_b\":%u,\"timer_delta\":%u,\"wall_us\":%.0f,"
-                "\"r80\":\"0x%04x\"}\n",
+                "\"r80\":\"0x%04x\",\"lui_ori\":\"0x%08x\",\"lui_xori\":\"0x%08x\",\"lui_andi\":\"0x%08x\"}\n",
                 ok, a[0], a[1], b[1], (b[1] - a[1]) / (wall_us / 1e6), a[2], b[2], b[2] - a[2], wall_us,
-                r.r16(0x0080));
+                r.r16(0x0080), b[4], b[5], b[6]);
     rc = ok ? 0 : 1;
   } catch (const std::exception &e) {
     std::fprintf(stderr, "marker: %s\n", e.what());
