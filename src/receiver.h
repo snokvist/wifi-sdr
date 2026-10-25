@@ -74,6 +74,7 @@ struct RxStatus {
   std::string error;     // last fault (cleared on a clean run start)
   uint32_t gen = 0, cfg = 0; // run / settings generation of the current stream (as in BankMeta)
   bool running = false;  // the worker is alive (false after Lost/Error ended it, or stop())
+  bool settling = false; // a settings change is waiting to be applied (the run above is about to end)
 };
 
 class Receiver {
@@ -122,6 +123,7 @@ private:
   int _hw_channel = 0, _hw_width = 20;
   BankSink _sink;
   std::atomic<bool> _active{false}, _restart{false}, _open{false};
+  std::atomic<double> _freq{0}; // requested frequency, for BankMeta.shift_hz
   std::thread _worker;
 };
 

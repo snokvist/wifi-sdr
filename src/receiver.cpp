@@ -63,15 +63,16 @@ void Receiver::set_state(RxState s, const std::string &err) {
 
 void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std::string &port) {
   close();
+  if (initial.rate_sel < 1 || initial.rate_sel > 5)
+    throw std::invalid_argument("rate_sel must be 1..5");
   {
     std::lock_guard<std::mutex> l(_m);
     _set = initial;
     _st = {};
     _st.state = RxState::Opening;
   }
+  _freq = initial.freq;
   const bool cu = pid == kPid8812cu;
-  if (initial.rate_sel < 1 || initial.rate_sel > 5)
-    throw std::invalid_argument("rate_sel must be 1..5");
   OpenOpts o;
   o.pid = pid;
   o.bus = bus;
@@ -154,6 +155,7 @@ void Receiver::set(const RxSettings &s) {
     };
     const bool same_hw = hw(n) == hw(_set);
     _set = n;
+    _freq = n.freq;
     if (same_hw)
       return; // nothing for the chip to do: keep streaming
     _last_change = clk::now();
@@ -169,7 +171,9 @@ RxSettings Receiver::settings() const {
 
 RxStatus Receiver::status() const {
   std::lock_guard<std::mutex> l(_m);
-  return _st;
+  RxStatus s = _st;
+  s.settling = _cfg != _st.cfg && _st.state != RxState::Closed;
+  return s;
 }
 
 void Receiver::worker() {
@@ -221,6 +225,10 @@ void Receiver::worker() {
         set_state(RxState::Lost, std::string("adapter lost during retune: ") + e.what());
         break;
       }
+      if (++consecutive_faults >= 5) { // a retune that never succeeds is fatal, like a stream that never runs
+        set_state(RxState::Error, std::string("retune to channel ") + std::to_string(ch) + " keeps failing: " + e.what());
+        break;
+      }
       set_state(RxState::Error, std::string("retune to channel ") + std::to_string(ch) + " failed: " + e.what());
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
@@ -259,6 +267,7 @@ void Receiver::worker() {
         _st.error.clear();
       }
       meta.seq = seq++;
+      meta.shift_hz = _freq.load() - centre; // a frequency change inside the same step needs no restart
       _sink(bank, Stream8822b::kBankBytes, meta);
       {
         std::lock_guard<std::mutex> l(_m);
