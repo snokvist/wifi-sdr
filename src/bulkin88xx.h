@@ -23,6 +23,8 @@ public:
   void start() {
     for (size_t i = 0; i < _slots.size(); i++) {
       Slot &s = _slots[i];
+      if (s.x) // a transfer stop() could not reap: its callback still points at this slot
+        throw std::runtime_error("bulk-IN transfer still pending from the last run");
       s.buf.resize(16384);
       s.x = libusb_alloc_transfer(0);
       if (!s.x)
@@ -41,12 +43,14 @@ public:
     const size_t i = _fifo.front();
     const auto dl = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
     while (_slots[i].busy) {
-      if (std::chrono::steady_clock::now() >= dl)
-        return false;
-      timeval tv{0, 2000};
+      // past the deadline, reap once more before giving up (the thread may have slept through it)
+      const bool late = std::chrono::steady_clock::now() >= dl;
+      timeval tv{0, late ? 0 : 2000};
       const int rc = libusb_handle_events_timeout_completed(_ctx, &tv, nullptr);
       if (rc < 0 && rc != LIBUSB_ERROR_INTERRUPTED)
         throw std::runtime_error(std::string("libusb events: ") + libusb_error_name(rc));
+      if (late && _slots[i].busy)
+        return false;
     }
     d = {_slots[i].buf.data(), _slots[i].x->actual_length, _slots[i].x->status};
     return true;

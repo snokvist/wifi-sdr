@@ -50,6 +50,7 @@ struct StreamStats {
   unsigned strays = 0;     // non-C2H packets skipped (MAC RX frames)
   unsigned stale = 0;
   unsigned pattern_bad = 0;
+  unsigned start_retries = 0; // starts repeated because the first packet never came (issue #2)
   double late_max_us = 0, ship_max_us = 0, end_max_us = 0;
   double wall_s = 0;
   std::string error;       // empty unless the stream stopped on a fault

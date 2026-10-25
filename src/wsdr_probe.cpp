@@ -847,13 +847,13 @@ int cmd_stream(Session &s, const Args &a) {
   std::snprintf(summary, sizeof summary,
                 "{\"ev\":\"stream\",\"ok\":%d,\"synthetic\":%d,\"rate_sel\":%d,\"fs\":%.0f,\"channel\":%d,"
                 "\"banks\":%llu,\"samples\":%llu,\"stream_s\":%.3f,\"wall_s\":%.3f,\"mbps_wire\":%.2f,"
-                "\"strays\":%u,\"stale\":%u,\"pattern_bad\":%u,\"late_max_us\":%.1f,\"ship_max_us\":%.1f,"
-                "\"end_max_us\":%.1f,\"budget_us\":%.1f,\"rms\":%.1f,\"error\":\"%s\"}",
+                "\"strays\":%u,\"start_retries\":%u,\"stale\":%u,\"pattern_bad\":%u,\"late_max_us\":%.1f,"
+                "\"ship_max_us\":%.1f,\"end_max_us\":%.1f,\"budget_us\":%.1f,\"rms\":%.1f,\"error\":\"%s\"}",
                 ok ? 1 : 0, c.synthetic ? 1 : 0, c.la.rate_sel, st.fs(), a.open.channel,
                 static_cast<unsigned long long>(ss.banks),
                 static_cast<unsigned long long>(ss.banks * Stream8822b::kBankSamples), secs, ss.wall_s,
-                ss.wall_s > 0 ? ss.banks * 65536.0 / ss.wall_s / 1e6 : 0.0, ss.strays, ss.stale, ss.pattern_bad,
-                ss.late_max_us, ss.ship_max_us, ss.end_max_us, st.period_us() - c.guard_us,
+                ss.wall_s > 0 ? ss.banks * 65536.0 / ss.wall_s / 1e6 : 0.0, ss.strays, ss.start_retries, ss.stale,
+                ss.pattern_bad, ss.late_max_us, ss.ship_max_us, ss.end_max_us, st.period_us() - c.guard_us,
                 n ? std::sqrt(e2 / (n * Stream8822b::kBankSamples)) : 0.0, ss.error.c_str());
   std::printf("%s\n", summary);
   if (!a.out.empty())
