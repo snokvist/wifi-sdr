@@ -70,6 +70,10 @@ bool cpu_window(size_t i) { // bytes the CPU overwrites: the five descriptors an
 StreamStats Stream8822c::run(const std::function<bool(const uint8_t *, const BankInfo &)> &on_bank,
                              const std::atomic<bool> *stop) {
   StreamStats st;
+  if (_c.gapped && _c.synthetic) {
+    st.error = "gapped mode needs live data";
+    return st;
+  }
   Reg &r = _s.reg();
   std::optional<C2hRxPath> rx; // its constructor reads registers: built inside the try (unplug -> error)
   La8822c la(r);
@@ -102,8 +106,6 @@ StreamStats Stream8822c::run(const std::function<bool(const uint8_t *, const Ban
     std::memcpy(trl, trl_desc, 24);
     r.sram_write(kTrailerOcp, trl, sizeof trl);
 
-    if (_c.gapped && _c.synthetic)
-      throw std::invalid_argument("gapped mode needs live data");
     const uint32_t state[9] = {0, 0, 0, 0, 0, _c.synthetic ? 0u : 1u, period5, static_cast<uint32_t>(guard5),
                                _c.gapped ? 1u : 0u};
     cpu.dmem_write(kStateOff, state, sizeof state);

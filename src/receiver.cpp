@@ -76,7 +76,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   o.pid = pid;
   o.bus = bus;
   o.port = port;
-  o.bw = width_of(initial, cu);
+  o.bw = cu && !initial.allow_gapped ? 20 : width_of(initial, cu); // 8812CU at 40 MS/s only gapped
   o.channel = channel_for(initial.freq, o.bw);
   o.thermal_track = false; // no host register traffic while streaming
   auto s = std::make_unique<Session>(_log);
