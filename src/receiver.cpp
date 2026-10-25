@@ -98,6 +98,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial) {
   _hw_channel = o.channel;
   _hw_width = o.bw;
   _s = std::move(s);
+  _open = true;
   std::lock_guard<std::mutex> l(_m);
   _set.rate_sel = std::max(_set.rate_sel, _caps.min_rate_sel);
   _st.state = RxState::Closed;
@@ -107,6 +108,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial) {
 
 void Receiver::close() {
   stop();
+  _open = false;
   _s.reset();
   std::lock_guard<std::mutex> l(_m);
   _st.state = RxState::Closed;
@@ -140,6 +142,7 @@ void Receiver::set(const RxSettings &s) {
     _set.rate_sel = std::clamp(_set.rate_sel, _caps.min_rate_sel, 5);
     _set.gain_db = std::clamp(_set.gain_db, 0.0, _caps.gain_max);
     _last_change = clk::now();
+    _cfg++;
   }
   _restart = true;
 }
@@ -173,11 +176,12 @@ void Receiver::worker() {
       break;
     _restart = false;
     RxSettings cur;
-    uint32_t gen;
+    uint32_t gen, cfg;
     {
       std::lock_guard<std::mutex> l(_m);
       cur = _set;
       gen = ++_gen;
+      cfg = _cfg;
       _st.state = RxState::Starting;
     }
     const int width = width_of(cur, _caps.cu);
@@ -208,6 +212,7 @@ void Receiver::worker() {
     c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path)
     BankMeta meta;
     meta.gen = gen;
+    meta.cfg = cfg;
     meta.fs = fs;
     meta.centre_hz = centre;
     meta.shift_hz = cur.freq - centre;

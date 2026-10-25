@@ -54,7 +54,8 @@ const char *rx_state_name(RxState s);
 
 struct BankMeta {
   uint64_t seq = 0;      // banks delivered since start()
-  uint32_t gen = 0;      // settings generation (changes on every applied settings change)
+  uint32_t gen = 0;      // stream run (changes on every restart: reset DSP state when it does)
+  uint32_t cfg = 0;      // settings generation (changes only when the caller changed settings)
   double fs = 0;         // sample rate
   double centre_hz = 0;  // hardware centre frequency
   double shift_hz = 0;   // requested freq - hardware centre; Nco::set(shift_hz, fs) brings the requested
@@ -83,7 +84,7 @@ public:
   // Blocking (~5 s bring-up). Throws OpenError (not found / permission / busy) or runtime_error.
   void open(uint16_t pid, const RxSettings &initial = {});
   void close(); // stop + release the adapter
-  bool is_open() const { return _s != nullptr; }
+  bool is_open() const { return _open; }
   RxCaps caps() const { return _caps; }
 
   void start(BankSink sink); // worker thread; no-op if running
@@ -110,12 +111,12 @@ private:
   RxCaps _caps;
   mutable std::mutex _m; // settings, status strings
   RxSettings _set;
-  uint32_t _gen = 0;
+  uint32_t _gen = 0, _cfg = 0;
   std::chrono::steady_clock::time_point _last_change{};
   RxStatus _st;
   int _hw_channel = 0, _hw_width = 20;
   BankSink _sink;
-  std::atomic<bool> _active{false}, _restart{false};
+  std::atomic<bool> _active{false}, _restart{false}, _open{false};
   std::thread _worker;
 };
 
