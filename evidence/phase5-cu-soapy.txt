@@ -1,0 +1,9 @@
+# SoapySDR "wsdr" on the 8812CU (pid=0xc812), 2026-10-25. tools/soapy_check.py --args driver=wsdr,pid=0xc812
+# --channels 0,1 --rate 5e6 --seconds 20 --out captures/phase5/cu-soapy-5m (two RX channels = paths A/B)
+discovery: RTL8812BU (RTL8822B) :: bus 6 port 1 (USB 3) pid 0xb812; RTL8812CU (RTL8822C) :: bus 1 port 1 (USB 2) pid 0xc812
+{"hw": "RTL8822C", "rates": [2500000.0, 5000000.0], "gain_range": "0, 52, 1", "has_agc": true, "formats": ["CS16", "CF32"], "channels": 2, "hw_info": {"chip": "RTL8822C", "path": "A (ch 0), B (ch 1); B leads A by ~400 ns", "usb": "2"}}
+clean   : {"samples": 99057664, "seconds": 20.001, "first_sample_s": 0.192, "rate_avg": 5000562, "overflows": 0, "timeouts": 0, "errors": 0}
+changes : {"samples": 36085760, "seconds": 8.001, "first_sample_s": 0.154, "rate_avg": 4598794, "overflows": 0, "timeouts": 0, "errors": 0}   (5200 MHz, back to 5180, gain 20 dB; each restarts the stream)
+reopen  : {"samples": 14073856, "seconds": 3.0, "first_sample_s": 0.187, "rate_avg": 5003002, "overflows": 0, "timeouts": 0, "errors": 0}
+offline (ch 0, stream_check.py): 190 beacons on the 102.4 ms grid, median residual 0 samples, 0 bank slips
+two-path (cu_twopath.py): 200 bursts, B leads A by 1.98 samples, burst coherence 0.58, noise 0.02

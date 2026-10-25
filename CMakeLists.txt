@@ -66,8 +66,9 @@ target_link_libraries(iqdsp_test iqdsp)
 add_executable(wsdr_tcp src/wsdr_tcp.cpp)
 target_link_libraries(wsdr_tcp wsdrcore iqdsp Threads::Threads)
 
-# Optional SoapySDR driver module (cmake/soapy.cmake builds it when SoapySDR is found).
-include(cmake/soapy.cmake OPTIONAL)
-
 # Optional 8822C (8812CU) custom-code tools (cmake/cu.cmake).
 include(cmake/cu.cmake OPTIONAL)
+
+# Optional SoapySDR driver module (cmake/soapy.cmake builds it when SoapySDR is found); after cu.cmake,
+# because the module also drives the 8812CU (fw_cu).
+include(cmake/soapy.cmake OPTIONAL)

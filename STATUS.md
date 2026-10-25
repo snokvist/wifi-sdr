@@ -62,7 +62,8 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
   `wsdr_cu stream` + `src/fw/stream8822c.S`, five C2H packets per bank around the 0x6000 segment
   split. 60 s at 5 MS/s and 60 s at 2.5 MS/s, zero faults; offline 567/552 beacons on the grid, 0
   slips. Path B rides in the same word: B leads A by 401 ns, coherent in bursts
-  (`evidence/phase5-cu-stream*`).
+  (`evidence/phase5-cu-stream*`). Fixed gain (CCA off, ~1.0 dB per IGI step). **SoapySDR:**
+  `soapy=0,driver=wsdr,pid=0xc812`, two coherent channels (A/B), 2.5/5 MS/s.
 - **Firmware study** `notes/fw-disasm.md`: the 8822B PSD engine, the 8822C IQK read-out and the
   register names are cross-checked into FINDINGS §3, with one correction (no PSD registers on the
   8822C in this vendor tree).
@@ -70,8 +71,8 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
 ## Not done yet
 - Front ends do not yet pass `dfir`/channel width (Soapy/wsdr_tcp are BW20); centre→primary-channel
   mapping at 40/80 MHz. 80 MS/s and raw-ADC (dma 11) snapshot modes are not exposed.
-- 8812CU: the streamer is not yet behind the Soapy/rtl_tcp front ends; no fixed-gain (CCA-off) mode
-  for the 8822C yet (IGI pin exists, `--igi`); wide-tap/DFIR untested on the 8822C. Upstream:
+- 8812CU: not behind `wsdr_tcp` (rtl_tcp) yet; wide-tap/DFIR untested on the 8822C; no USB 3 on this
+  board. Upstream:
   OpenIPC/devourer#497 (8822B DFIR) and #498 (optional Jaguar3 runtime thread), both open.
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),

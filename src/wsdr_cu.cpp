@@ -9,12 +9,12 @@
 //       bulk-IN completion.
 //   wsdr_cu c2hbench --pid 0xc812 [--bytes 16352] [--count 1024] [--depth 16]
 //       Run c2hbench8822c.S: per-request C2H latency from REG 0x568, read back from DMEM.
-//   wsdr_cu ring     --pid 0xc812 [--rate 2] [--dbg 0x880] [--halt-cpu]
+//   wsdr_cu ring     --pid 0xc812 [--rate 2] [--dbg 0x880] [--halt-cpu] [--igi N] [--no-cca]
 //       Configure the Jaguar3 free-running LA ring, arm it, read four 4 KiB slices twice: is it live?
 //   wsdr_cu latime   --pid 0xc812 [--rate 2] [--dur-us 500]
 //       Run latime8822c.S: CPU arms the ring, waits D us on REG 0x568, triggers; the finish address
 //       gives the true sample rate and the arm latency on the chip's own clock.
-//   wsdr_cu stream   --pid 0xc812 [--rate 5] [--seconds 10] [--synthetic] [--igi N] [--out PREFIX]
+//   wsdr_cu stream   --pid 0xc812 [--rate 5] [--seconds 10] [--synthetic] [--igi N [--no-cca]] [--out PREFIX]
 //       Run stream8822c.S (Stream8822c): continuous ring banks over C2H. --out writes PREFIX.cs16
 //       (path A, or --path b; --path ab adds PREFIX-b.cs16) and PREFIX.json.
 #include <algorithm>
@@ -67,6 +67,7 @@ struct Args {
   int dma = 0;
   uint32_t dbg = 0x880;
   int igi = -1;
+  bool no_cca = false;       // fixed gain: OFDM RX CCA off (0x1D58)
   bool halt_cpu = false;     // ring: halt the vendor CPU first
   int dur_us = 0;            // latime
   double seconds = 10;       // stream
@@ -114,6 +115,7 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--dbg") a.dbg = static_cast<uint32_t>(num(v()));
     else if (k == "--igi") a.igi = static_cast<int>(num(v()));
     else if (k == "--halt-cpu") a.halt_cpu = true;
+    else if (k == "--no-cca") a.no_cca = true;
     else if (k == "--dur-us") a.dur_us = static_cast<int>(num(v()));
     else if (k == "--seconds") a.seconds = std::strtod(v(), nullptr);
     else if (k == "--synthetic") a.synthetic = true;
@@ -523,6 +525,7 @@ LaRingCfg la_cfg(const Args &a, int default_rate) {
   c.dma_type = a.dma;
   c.dbg_port = a.dbg;
   c.igi = a.igi;
+  c.no_cca = a.no_cca;
   return c;
 }
 

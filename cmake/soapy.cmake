@@ -20,13 +20,16 @@ set_target_properties(devourer wsdrcore iqdsp PROPERTIES POSITION_INDEPENDENT_CO
 if(COMMAND SOAPY_SDR_MODULE_UTIL)
   SOAPY_SDR_MODULE_UTIL(
     TARGET wsdrSupport
-    SOURCES ${CMAKE_SOURCE_DIR}/src/soapy/SoapyWsdr.cpp
+    SOURCES ${CMAKE_SOURCE_DIR}/src/soapy/SoapyWsdr.cpp ${CMAKE_SOURCE_DIR}/src/stream_cu.cpp
+            ${CMAKE_SOURCE_DIR}/src/cpu8822c.cpp
     LIBRARIES wsdrcore iqdsp Threads::Threads)
 else()
-  add_library(wsdrSupport MODULE ${CMAKE_SOURCE_DIR}/src/soapy/SoapyWsdr.cpp)
+  add_library(wsdrSupport MODULE ${CMAKE_SOURCE_DIR}/src/soapy/SoapyWsdr.cpp ${CMAKE_SOURCE_DIR}/src/stream_cu.cpp
+              ${CMAKE_SOURCE_DIR}/src/cpu8822c.cpp)
   target_link_libraries(wsdrSupport PRIVATE wsdrcore iqdsp Threads::Threads SoapySDR)
   set_target_properties(wsdrSupport PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 endif()
+add_dependencies(wsdrSupport fw_cu) # stream8822c.h (cmake/cu.cmake)
 target_compile_options(wsdrSupport PRIVATE -Wall -Wextra -Wno-cpp) # -Wno-cpp: SoapySDR headers include <ciso646> (deprecated in C++20)
 # Keep devourer/wsdrcore symbols private to the module (other Soapy modules share the process).
 target_link_options(wsdrSupport PRIVATE -Wl,--exclude-libs,ALL)

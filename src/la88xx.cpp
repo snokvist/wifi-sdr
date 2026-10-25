@@ -135,6 +135,8 @@ const uint16_t kTouchedJ3[] = {
     0x07CC,                                         // [30] full-buffer mode
     0x1CE4, 0x1CF4, 0x1EB4, 0x1C3C, 0x1CE8, 0x1CF0, // LA engine / dbg port
     0x1D70,                                         // IGI paths A/B
+    0x1D58,                                         // [11:3] OFDM RX CCA disable
+    0x1A14,                                         // [9:8] CCK RxIQ weighting
 };
 } // namespace
 
@@ -159,6 +161,12 @@ void La8822c::configure(const LaRingCfg &c) {
   }
   if (c.igi >= 0)
     _r.m32(0x1D70, 0x7F7Fu, static_cast<uint32_t>(c.igi) * 0x101u);
+  // Fixed gain, Jaguar3 branch of phydm_stop_ic_trx / phydm_dis_cck_trx (rtl88x2cu phydm_api.c):
+  // OFDM RX CCA off (no packet detection -> no AGC steps), CCK RxIQ weighting [0,0].
+  if (c.no_cca)
+    _r.m32(0x1D58, 0xFF8u, 0x1FFu << 3);
+  if (c.cck_off)
+    _r.m32(0x1A14, 0x300u, 0x300u);
   _r.m32(0x07CC, 1u << 30, 0);
   _r.m32(0x1EB4, 1u << 23, 1u << 23);
   _r.m32(0x1CF4, 1u << 23, 1u << 23);

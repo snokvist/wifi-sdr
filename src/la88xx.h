@@ -64,8 +64,9 @@ private:
 // [17:13] trig sel, [26] edge, [27]/[31:28] adv trigger), 0x1CF4[23] LA on, 0x1EB4[23] report
 // update, 0x1C3C[19:8] dbg port, 0x1CE8/0x1CF0 adv-trigger AND gates. MAC side (0x7C0) as on the
 // 8822B; 0x7CC[30] = 0 keeps the half-size ring at TXFF 0x20000..0x40000. Rate index as devourer's
-// (0 = 80M, 1 = 40M, 2 = 20M ...); measured with latime8822c. Ignores the 11AC-only fields
-// (cck_off/no_cca/dbgport_clk/dfir); igi pins 0x1D70[6:0]/[14:8].
+// (0 = 80M, 1 = 40M, 2 = 20M ...); measured with latime8822c. igi pins 0x1D70[6:0]/[14:8]; no_cca
+// sets 0x1D58[11:3] = 0x1FF and cck_off 0x1A14[9:8] = 3 (Jaguar3 phydm_stop_ic_trx /
+// phydm_dis_cck_trx). Ignores the 11AC-only dbgport_clk / dfir / ofdm_off.
 class La8822c {
 public:
   static constexpr uint32_t kRingOcp = 0x187A0000;

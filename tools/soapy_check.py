@@ -6,6 +6,7 @@ Opens driver=wsdr, prints the advertised capabilities, streams CS16 at 5180 MHz 
 retune (5200 MHz and back) and a gain change, then closes and re-opens to test teardown. Writes the
 uninterrupted first segment as PREFIX.cs16 + PREFIX.json for tools/stream_check.py.
 Usage: SOAPY_SDR_PLUGIN_PATH=build-soapy tools/soapy_check.py [--seconds 20] [--rate 2.5e6] [--out PREFIX]
+       [--args driver=wsdr,pid=0xc812] [--channels 0,1]   (two channels: ch 1 goes to PREFIX-b.cs16)
 """
 import argparse
 import json
@@ -19,13 +20,16 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--seconds", type=float, default=20)
 ap.add_argument("--rate", type=float, default=2.5e6)
 ap.add_argument("--out")
+ap.add_argument("--args", default="driver=wsdr")
+ap.add_argument("--channels", default="0")
 a = ap.parse_args()
+CH = [int(c) for c in a.channels.split(",")]
 
 
 def stream(dev, seconds, events=(), keep=None):
-    st = dev.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CS16, [0])
+    st = dev.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CS16, CH)
     dev.activateStream(st)
-    buf = np.empty(2 * 65536, np.int16)
+    bufs = [np.empty(2 * 65536, np.int16) for _ in CH]
     n = over = timeouts = errors = 0
     t0 = time.monotonic()
     first = None
@@ -36,12 +40,12 @@ def stream(dev, seconds, events=(), keep=None):
             _, fn, label = ev.pop(0)
             fn()
             print(f"  t={el:5.2f}s {label} (samples so far {n})")
-        r = dev.readStream(st, [buf], 65536, timeoutUs=500000)
+        r = dev.readStream(st, bufs, 65536, timeoutUs=500000)
         if r.ret > 0:
             if first is None:
                 first = time.monotonic() - t0
             if keep is not None:
-                keep.append(buf[: 2 * r.ret].copy())
+                keep.append([b[: 2 * r.ret].copy() for b in bufs])
             n += r.ret
             if r.flags & SOAPY_SDR_OVERFLOW:
                 over += 1
@@ -62,12 +66,13 @@ def stream(dev, seconds, events=(), keep=None):
 
 
 res = {}
-dev = SoapySDR.Device("driver=wsdr")  # a plain dict hits a python3-soapysdr 0.8.1 overload quirk
+dev = SoapySDR.Device(a.args)  # a string: a plain dict hits a python3-soapysdr 0.8.1 overload quirk
 res["info"] = {
     "hw": dev.getHardwareKey(), "rates": list(dev.listSampleRates(SOAPY_SDR_RX, 0)),
     "freq_ranges": [str(r) for r in dev.getFrequencyRange(SOAPY_SDR_RX, 0)],
     "gains": list(dev.listGains(SOAPY_SDR_RX, 0)), "gain_range": str(dev.getGainRange(SOAPY_SDR_RX, 0)),
     "has_agc": dev.hasGainMode(SOAPY_SDR_RX, 0), "formats": list(dev.getStreamFormats(SOAPY_SDR_RX, 0)),
+    "channels": dev.getNumChannels(SOAPY_SDR_RX), "hw_info": dict(dev.getHardwareInfo()),
 }
 print(json.dumps(res["info"]))
 dev.setSampleRate(SOAPY_SDR_RX, 0, a.rate)
@@ -88,7 +93,7 @@ res["changes"] = stream(dev, 8, events=[
 print(json.dumps(res["changes"]))
 del dev
 print("segment 3: re-open after teardown")
-dev = SoapySDR.Device("driver=wsdr")  # a plain dict hits a python3-soapysdr 0.8.1 overload quirk
+dev = SoapySDR.Device(a.args)  # a string: a plain dict hits a python3-soapysdr 0.8.1 overload quirk
 dev.setSampleRate(SOAPY_SDR_RX, 0, a.rate)
 dev.setFrequency(SOAPY_SDR_RX, 0, 5180e6)
 res["reopen"] = stream(dev, 3)
@@ -96,7 +101,7 @@ print(json.dumps(res["reopen"]))
 del dev
 
 if a.out and keep:
-    x = np.concatenate(keep)
-    x.astype("<i2").tofile(a.out + ".cs16")
+    for k in range(len(CH)):
+        np.concatenate([b[k] for b in keep]).astype("<i2").tofile(a.out + ("-b" if k else "") + ".cs16")
     json.dump({"sample_rate": a.rate, "source": "soapy wsdr", "result": res}, open(a.out + ".json", "w"))
 print(json.dumps(res))

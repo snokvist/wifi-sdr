@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SoapySDR driver "wsdr": the RTL8812BU (RTL8822B) LA stream as an SDR receiver.
+// SoapySDR driver "wsdr": the RTL8812BU (RTL8822B) and RTL8812CU (RTL8822C) LA streams as SDR receivers.
 //
 // Build and use (no system install needed):
 //   cmake -S . -B build-soapy -DWSDR_SOAPY=ON && cmake --build build-soapy -j --target wsdrSupport
 //   export SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy
 //   SoapySDRUtil --find=driver=wsdr
 //   gqrx: device string  soapy=0,driver=wsdr      SDR++: SoapySDR source, device "wsdr"
+//   adapter: pid=0xb812 (8812BU, the default when both are plugged in) or pid=0xc812 (8812CU)
 // The client opens the adapter itself, so it needs USB access: install tools/99-wsdr.rules (udev) or
 // run the client as root. Keep the rtw88 guard ON so the kernel driver does not claim the adapter.
 //
@@ -17,9 +18,12 @@
 //                the whole +-20 MHz is real (bandwidth 40 MHz; setBandwidth <= 25 MHz forces the 20 MHz
 //                path). Below 40 MS/s it stays at 20 MHz width (bandwidth min(rate, 18.4 MHz)):
 //                devourer's BW20 DFIR is what limits the band (FINDINGS §4, notes/wide-tap.md)
-//   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (fixed-gain mode, OFDM CCA off);
+//   8812CU       USB 2 only here: 2.5 / 5 MS/s, 20 MHz path. Two coherent RX channels (0 = path A,
+//                1 = path B, from the same LA word; B leads A by ~400 ns, not compensated)
+//   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (8812CU: 0..52 dB, ~1.0 dB; fixed-gain
+//                mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)
-//   format       CS16 (native: 12-bit << 4) or CF32 (/2048); one RX channel (path A); DC removed
+//   format       CS16 (native: 12-bit << 4) or CF32 (/2048); 8812BU: one RX channel (path A); DC removed
 //                unless DC offset mode is turned off
 // Every setting change restarts the stream (tens of ms; ~150 ms for a retune), so the chip is never
 // touched while it streams. USB 3 works on a good host controller (here xHCI 67:00.3; 65:00.3 wedges
@@ -48,6 +52,7 @@
 #include "logger.h"
 #include "session.h"
 #include "stream88xx.h"
+#include "stream_cu.h"
 
 using namespace wsdr;
 using clk = std::chrono::steady_clock;
@@ -56,8 +61,11 @@ namespace {
 
 constexpr uint16_t kVid = 0x0bda;
 constexpr uint16_t kPid8812bu = 0xb812;
-constexpr double kGainMax = 49.4;   // (0x50 - 0x1C) * 0.95
-constexpr double kGainStep = 0.95;  // measured dB per IGI step (FINDINGS §4)
+constexpr uint16_t kPid8812cu = 0xc812;
+// Measured dB per IGI step: 8822B 0.95, 8822C ~1.0 (FINDINGS §4). Range IGI 0x1C..0x50.
+constexpr double kGainStepB = 0.95, kGainStepC = 1.0;
+double gain_step(bool cu) { return cu ? kGainStepC : kGainStepB; }
+double gain_max(bool cu) { return (0x50 - 0x1C) * gain_step(cu); }
 
 struct Settings {
   double freq = 5180e6;
@@ -74,8 +82,8 @@ int width_of(const Settings &s) { return s.rate_sel == 1 && s.wide ? 40 : 20; }
 double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
 constexpr double kAnalogBw = 18.4e6; // measured -3 dB width of the LA tap (+-9.2 MHz), any channel width
 
-int igi_for(double db) {
-  return std::clamp(0x50 - static_cast<int>(std::lround(db / kGainStep)), 0x1C, 0x50);
+int igi_for(double db, bool cu) {
+  return std::clamp(0x50 - static_cast<int>(std::lround(db / gain_step(cu))), 0x1C, 0x50);
 }
 
 // Nearest synthesizer channel (5 MHz grid) for a frequency; same rule as wsdr_tcp.
@@ -151,7 +159,10 @@ private:
 
 struct WsdrStream {
   std::string format;
+  std::vector<size_t> channels; // 0 = path A, 1 = path B (8812CU)
 };
+
+SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args);
 
 class SoapyWsdr : public SoapySDR::Device {
 public:
@@ -160,10 +171,20 @@ public:
       _set.freq = std::stod(args.at("freq"));
     OpenOpts o;
     o.pid = kPid8812bu;
+    if (args.count("pid")) {
+      o.pid = static_cast<uint16_t>(std::stoul(args.at("pid"), nullptr, 0));
+    } else {
+      const auto found = find_wsdr(args); // 8812BU entries first
+      if (!found.empty())
+        o.pid = static_cast<uint16_t>(std::stoul(found.front().at("pid"), nullptr, 0));
+    }
+    _cu = o.pid == kPid8812cu;
     o.channel = channel_for(_set.freq);
     o.thermal_track = false; // no host register traffic while streaming
     _s = std::make_unique<Session>(std::make_shared<Logger>());
     _s->open(o); // throws on failure; SoapySDR reports it to the client
+    if (_cu)
+      _s->reg().set_cap(4); // the 8822C hangs on >= 4 KiB EP0 block transfers (notes/cu-custom-code.md)
     _channel = o.channel;
     SoapySDR::logf(SOAPY_SDR_INFO, "wsdr: %s on USB %d, sample rates up to %.1f MS/s", _s->chip().c_str(),
                    _s->superspeed() ? 3 : 2, rate_of(min_rate_sel()) / 1e6);
@@ -173,14 +194,15 @@ public:
 
   // ---- identification ----
   std::string getDriverKey() const override { return "wsdr"; }
-  std::string getHardwareKey() const override { return "RTL8822B"; }
+  std::string getHardwareKey() const override { return _cu ? "RTL8822C" : "RTL8822B"; }
   SoapySDR::Kwargs getHardwareInfo() const override {
-    return {{"chip", _s->chip()}, {"usb", _s->superspeed() ? "3 (streaming unsupported)" : "2"},
-            {"path", "A"}, {"source", "LA ring, C2H bank streamer"}};
+    return {{"chip", _s->chip()}, {"usb", _s->superspeed() ? "3" : "2"},
+            {"path", _cu ? "A (ch 0), B (ch 1); B leads A by ~400 ns" : "A"},
+            {"source", "LA ring, C2H bank streamer"}};
   }
 
   // ---- channels ----
-  size_t getNumChannels(const int dir) const override { return dir == SOAPY_SDR_RX ? 1 : 0; }
+  size_t getNumChannels(const int dir) const override { return dir == SOAPY_SDR_RX ? nch() : 0; }
   bool getFullDuplex(const int, const size_t) const override { return false; }
 
   // ---- streams ----
@@ -199,13 +221,16 @@ public:
       throw std::runtime_error("wsdr: RX only");
     if (format != SOAPY_SDR_CS16 && format != SOAPY_SDR_CF32)
       throw std::runtime_error("wsdr: format must be CS16 or CF32");
-    if (channels.size() > 1 || (channels.size() == 1 && channels[0] != 0))
-      throw std::runtime_error("wsdr: one channel (0)");
+    std::vector<size_t> chans = channels.empty() ? std::vector<size_t>{0} : channels;
+    for (size_t i = 0; i < chans.size(); i++)
+      if (chans[i] >= nch() || std::count(chans.begin(), chans.end(), chans[i]) > 1)
+        throw std::runtime_error(nch() == 1 ? "wsdr: one channel (0)" : "wsdr: channels 0 (path A) and/or 1 (path B)");
     std::lock_guard<std::mutex> l(_streamm);
     if (_stream)
       throw std::runtime_error("wsdr: stream already open");
     _stream = std::make_unique<WsdrStream>();
     _stream->format = format;
+    _stream->channels = chans;
     return reinterpret_cast<SoapySDR::Stream *>(_stream.get());
   }
   void closeStream(SoapySDR::Stream *) override {
@@ -219,7 +244,8 @@ public:
       return SOAPY_SDR_NOT_SUPPORTED;
     if (_active)
       return 0;
-    _ring.reset(static_cast<size_t>(rate_of(min_rate_sel()) / 4)); // 0.25 s at the fastest rate
+    _chans = reinterpret_cast<WsdrStream *>(_stream.get())->channels;
+    _ring.reset(_chans.size() * static_cast<size_t>(rate_of(min_rate_sel()) / 4)); // 0.25 s at the fastest rate
     _active = true;
     _restart = false;
     _worker = std::thread([this] { worker(); });
@@ -236,26 +262,31 @@ public:
     flags = 0;
     timeNs = 0;
     auto *st = reinterpret_cast<WsdrStream *>(stream);
-    if (_tmp.size() < numElems)
-      _tmp.resize(numElems);
-    const int n = _ring.pop(_tmp.data(), numElems, timeoutUs, _active);
-    if (n == -1)
+    const size_t w = st->channels.size(); // the ring holds frames of w samples (one per channel)
+    if (_tmp.size() < numElems * w)
+      _tmp.resize(numElems * w);
+    const int got = _ring.pop(_tmp.data(), numElems * w, timeoutUs, _active);
+    if (got == -1)
       return SOAPY_SDR_OVERFLOW;
-    if (n == -2)
+    if (got == -2)
       return SOAPY_SDR_STREAM_ERROR;
-    if (n == 0)
+    if (got == 0)
       return SOAPY_SDR_TIMEOUT;
-    if (st->format == SOAPY_SDR_CS16) {
-      auto *o = static_cast<int16_t *>(buffs[0]);
-      for (int i = 0; i < n; i++) {
-        o[2 * i] = static_cast<int16_t>(std::clamp(std::lrint(_tmp[i].real() * 16.f), -32768L, 32767L));
-        o[2 * i + 1] = static_cast<int16_t>(std::clamp(std::lrint(_tmp[i].imag() * 16.f), -32768L, 32767L));
-      }
-    } else {
-      auto *o = static_cast<float *>(buffs[0]);
-      for (int i = 0; i < n; i++) {
-        o[2 * i] = _tmp[i].real() / 2048.f;
-        o[2 * i + 1] = _tmp[i].imag() / 2048.f;
+    const int n = got / static_cast<int>(w);
+    for (size_t k = 0; k < w; k++) {
+      if (st->format == SOAPY_SDR_CS16) {
+        auto *o = static_cast<int16_t *>(buffs[k]);
+        for (int i = 0; i < n; i++) {
+          const cf v = _tmp[i * w + k];
+          o[2 * i] = static_cast<int16_t>(std::clamp(std::lrint(v.real() * 16.f), -32768L, 32767L));
+          o[2 * i + 1] = static_cast<int16_t>(std::clamp(std::lrint(v.imag() * 16.f), -32768L, 32767L));
+        }
+      } else {
+        auto *o = static_cast<float *>(buffs[k]);
+        for (int i = 0; i < n; i++) {
+          o[2 * i] = _tmp[i * w + k].real() / 2048.f;
+          o[2 * i + 1] = _tmp[i * w + k].imag() / 2048.f;
+        }
       }
     }
     return n;
@@ -285,14 +316,16 @@ public:
   }
   bool getGainMode(const int, const size_t) const override { return get().agc; }
   void setGain(const int, const size_t, const double value) override {
-    update([&](Settings &s) { s.gain_db = std::clamp(value, 0.0, kGainMax); });
+    update([&](Settings &s) { s.gain_db = std::clamp(value, 0.0, gain_max(_cu)); });
   }
   void setGain(const int dir, const size_t ch, const std::string &, const double value) override {
     setGain(dir, ch, value);
   }
   double getGain(const int, const size_t) const override { return get().gain_db; }
   double getGain(const int dir, const size_t ch, const std::string &) const override { return getGain(dir, ch); }
-  SoapySDR::Range getGainRange(const int, const size_t) const override { return {0, kGainMax, kGainStep}; }
+  SoapySDR::Range getGainRange(const int, const size_t) const override {
+    return {0, gain_max(_cu), gain_step(_cu)};
+  }
   SoapySDR::Range getGainRange(const int dir, const size_t ch, const std::string &) const override {
     return getGainRange(dir, ch);
   }
@@ -355,8 +388,10 @@ public:
   }
 
 private:
-  // USB 2 carries ~44 MB/s of C2H (5 MS/s at 8 B/sample); USB 3 carries 40 MS/s (320 MB/s).
-  int min_rate_sel() const { return _s->superspeed() ? 1 : 4; }
+  // USB 2 carries ~44 MB/s of C2H (5 MS/s at 8 B/sample); USB 3 carries 40 MS/s (320 MB/s). The
+  // 8812CU streamer is verified on USB 2 only.
+  int min_rate_sel() const { return _s->superspeed() && !_cu ? 1 : 4; }
+  size_t nch() const { return _cu ? 2 : 1; }
 
   Settings get() const {
     std::lock_guard<std::mutex> l(_setm);
@@ -382,7 +417,12 @@ private:
 
   // Owns the device while active: (re)configure, stream until a setting changes or a fault, repeat.
   void worker() {
-    std::vector<cf> x(Stream8822b::kBankSamples);
+    constexpr size_t kN = Stream8822b::kBankSamples;
+    static_assert(kN == Stream8822c::kBankSamples);
+    const std::vector<size_t> chans = _chans;
+    const size_t w = chans.size();
+    std::vector<std::vector<cf>> x(w, std::vector<cf>(kN));
+    std::vector<cf> frames(kN * w);
     while (_active) {
       // Let a burst of setter calls settle before restarting.
       for (;;) {
@@ -419,30 +459,42 @@ private:
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         continue;
       }
-      DcBlock dc;
-      Nco nco;
-      nco.set(shift, src);
+      std::vector<DcBlock> dc(w);
+      std::vector<Nco> nco(w);
+      for (auto &n : nco)
+        n.set(shift, src);
       StreamCfg c;
       c.la.rate_sel = cur.rate_sel;
-      c.depth = cur.rate_sel <= 2 ? 256 : 64; // >= 20 MS/s needs ~13 ms of posted URBs (FINDINGS §4)
-      c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db);
+      // >= 20 MS/s needs ~13 ms of posted URBs; the 8812CU wants ~100 ms (FINDINGS §4)
+      c.depth = _cu || cur.rate_sel <= 2 ? 256 : 64;
+      c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _cu);
       c.la.no_cca = !cur.agc;
-      c.la.dfir = width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path)
-      Stream8822b st(*_s, c);
-      const StreamStats ss = st.run(
-          [&](const uint8_t *bank, const BankInfo &) {
-            for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
-              uint64_t w;
-              std::memcpy(&w, bank + 8 * i, 8);
-              x[i] = cf(static_cast<float>(la_i(w)), static_cast<float>(la_q(w)));
-            }
-            if (cur.dc_remove)
-              dc.process(x.data(), x.size());
-            nco.process(x.data(), x.size());
-            _ring.push(x.data(), x.size());
-            return _active.load();
-          },
-          &_restart);
+      c.la.dfir = width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path); 8822B only
+      const auto on_bank = [&](const uint8_t *bank, const BankInfo &) {
+        for (size_t i = 0; i < kN; i++) {
+          uint64_t v;
+          std::memcpy(&v, bank + 8 * i, 8);
+          for (size_t k = 0; k < w; k++)
+            x[k][i] = chans[k] == 0 ? cf(static_cast<float>(la_i(v)), static_cast<float>(la_q(v)))
+                                    : cf(static_cast<float>(la_ib(v)), static_cast<float>(la_qb(v)));
+        }
+        for (size_t k = 0; k < w; k++) {
+          if (cur.dc_remove)
+            dc[k].process(x[k].data(), kN);
+          nco[k].process(x[k].data(), kN);
+        }
+        if (w == 1) {
+          _ring.push(x[0].data(), kN);
+        } else {
+          for (size_t i = 0; i < kN; i++)
+            for (size_t k = 0; k < w; k++)
+              frames[i * w + k] = x[k][i];
+          _ring.push(frames.data(), frames.size());
+        }
+        return _active.load();
+      };
+      const StreamStats ss = _cu ? Stream8822c(*_s, c).run(on_bank, &_restart)
+                                 : Stream8822b(*_s, c).run(on_bank, &_restart);
       if (!ss.error.empty() && !_restart && _active) {
         SoapySDR::logf(SOAPY_SDR_WARNING, "wsdr: stream fault after %llu banks (%s); restarting",
                        static_cast<unsigned long long>(ss.banks), ss.error.c_str());
@@ -452,6 +504,8 @@ private:
   }
 
   std::unique_ptr<Session> _s;
+  bool _cu = false;              // RTL8812CU (8822C)
+  std::vector<size_t> _chans{0}; // channels of the active stream
   int _channel = 36;
   int _width = 20;
   mutable std::mutex _setm;
@@ -475,7 +529,13 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
   const ssize_t n = libusb_get_device_list(ctx, &list);
   for (ssize_t i = 0; i < n; i++) {
     libusb_device_descriptor d{};
-    if (libusb_get_device_descriptor(list[i], &d) != 0 || d.idVendor != kVid || d.idProduct != kPid8812bu)
+    if (libusb_get_device_descriptor(list[i], &d) != 0 || d.idVendor != kVid ||
+        (d.idProduct != kPid8812bu && d.idProduct != kPid8812cu))
+      continue;
+    const bool cu = d.idProduct == kPid8812cu;
+    char pid[8];
+    std::snprintf(pid, sizeof pid, "0x%04x", d.idProduct);
+    if (args.count("pid") && std::stoul(args.at("pid"), nullptr, 0) != d.idProduct)
       continue;
     uint8_t ports[8];
     const int np = libusb_get_port_numbers(list[i], ports, sizeof ports);
@@ -490,7 +550,9 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
       continue;
     SoapySDR::Kwargs k;
     k["driver"] = "wsdr";
-    k["label"] = "RTL8812BU (RTL8822B) :: bus " + bus + " port " + port + (ss ? " (USB 3: replug for USB 2)" : "");
+    k["label"] = std::string(cu ? "RTL8812CU (RTL8822C)" : "RTL8812BU (RTL8822B)") + " :: bus " + bus + " port " + port +
+                 (ss ? " (USB 3)" : " (USB 2)");
+    k["pid"] = pid;
     k["bus"] = bus;
     k["port"] = port;
     k["usb"] = ss ? "3" : "2";
@@ -499,6 +561,7 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
   if (list)
     libusb_free_device_list(list, 1);
   libusb_exit(ctx);
+  std::stable_sort(out.begin(), out.end(), [](const auto &a, const auto &b) { return a.at("pid") < b.at("pid"); });
   return out;
 }
 

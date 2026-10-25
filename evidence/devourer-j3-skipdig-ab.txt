@@ -1,0 +1,9 @@
+# OpenIPC/devourer#498 review: Jaguar3 DIG during an RX session with the runtime thread off. 8812CU, ch36, rxdemo 14 s each, branch pr/jaguar3-runtime-thread-optional + skip_dig on J3
+## arm: DEVOURER_J3_RUNTIME=0
+dig lines: 1  runtime-skipped log: 0  frames-ish lines: 27
+devourer [I] Jaguar3 dig: IGI=0x1e (fa=78 cca=511)
+## arm: DEVOURER_J3_RUNTIME=0 DEVOURER_SKIP_DIG=1
+dig lines: 0  runtime-skipped log: 0  frames-ish lines: 26
+## arm: default
+dig lines: 1  runtime-skipped log: 0  frames-ish lines: 25
+devourer [I] Jaguar3 dig: IGI=0x1e (fa=34 cca=394)

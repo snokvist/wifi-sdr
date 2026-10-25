@@ -288,3 +288,13 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   SMM 0x4000 / PKT 0x8000), compiled out for RLT MACs in the vendor driver but likely present [I/?].
 - The adapter wedged and dropped off xHCI 67:00.4 during the first devourer bring-up (verified: port
   8-1 does not enumerate). Needs a physical replug, preferably on another port. `notes/mt7612u-sdr.md`.
+
+## 2026-10-25 13:30 — 8812CU fixed gain + SoapySDR; #498 review fixed
+- 8822C fixed gain: OFDM CCA off 0x1D58[11:3] = 0x1FF + CCK 0x1A14[9:8] = 3 + IGI 0x1D70; ~1.0 dB per
+  IGI step; CCA on compresses frames 6–8 dB at the same IGI, CCA off does not.
+- Soapy module drives both adapters (`pid=0xc812` picks the 8812CU; 8812BU stays the default) and
+  gives the 8812CU two coherent channels. 20 s two-channel 5 MS/s, retune/gain/re-open, no overflows.
+- #498 qodo review: StartRxLoop's phydm worker still ran DIG with the runtime thread off (reproduced:
+  IGI=0x1e). Fix 4afa386: skip_dig honoured on Jaguar3; docs scoped. Replied and resolved.
+  `evidence/devourer-j3-skipdig-ab.txt`.
+

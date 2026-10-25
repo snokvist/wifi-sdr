@@ -20,7 +20,8 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
   - C2H works: host 1600/1600 16 KiB; CPU bench 44.7 MB/s on USB2.
   - The C2H→TX address map is known (`notes/cu-custom-code.md`).
   - **Streamer done:** `wsdr_cu stream` (2.5/5 MS/s, 60 s, zero faults; both paths with `--path ab`).
-    FINDINGS §4 "Continuous streaming on the 8822C". Next on the CU: Soapy front end, fixed gain.
+    FINDINGS §4 "Continuous streaming on the 8822C". Fixed gain (`--no-cca`) and the Soapy module
+    (`driver=wsdr,pid=0xc812`, two channels) done.
 - **MT7612U:** static RE done (`notes/mt7612u-sdr.md`); no capture yet. Candidate path: PBF ADC
   dump; custom NDS32 code via the stock firmware's arbitrary read/write commands. The adapter
   dropped off the bus during bring-up and needs a replug. Probe: `tools/mt_build.sh` → `build-mt/mtsdr`.
@@ -43,7 +44,8 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
     it also builds on master, but then the 8822C C2H reader loses packets to devourer's coex thread.
   - Open upstream PRs:
     - **OpenIPC/devourer#497**: 8822B RX DFIR by width.
-    - **OpenIPC/devourer#498**: optional Jaguar3 runtime thread (opened 2026-10-25, ctest 83/83).
+    - **OpenIPC/devourer#498**: optional Jaguar3 runtime thread (opened 2026-10-25). qodo review
+      (RX-session DIG) fixed in 4afa386: `skip_dig` now works on Jaguar3; thread resolved.
   - Local master is 0bf1957 (upstream), 37 ahead of the fork's master, unpushed. `build-dfir/` is a
     scratch build dir (gitignored).
 

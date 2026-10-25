@@ -59,4 +59,6 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
   clean. `--path ab` records both paths (B leads A by 401 ns). Use depth 256 (default).
 - Run: `cmake -S . -B build-cu && cmake --build build-cu --target wsdr_cu`, then
   `sudo build-cu/wsdr_cu stream --pid 0xc812 --channel 36 --rate 4 --seconds 60 --path ab --out captures/x`.
-- Open: front-end integration (Soapy/rtl_tcp), an 8822C fixed-gain (CCA-off) mode, DFIR/wide tap.
+- [V] Fixed gain: `--no-cca --igi N` (0x1D58[11:3] = 0x1FF, 0x1A14[9:8] = 3, 0x1D70); ~1.0 dB/step.
+- [V] SoapySDR: `driver=wsdr,pid=0xc812`, channels 0/1 = paths A/B (`evidence/phase5-cu-soapy.txt`).
+- Open: rtl_tcp front end, DFIR / wide tap on the 8822C.

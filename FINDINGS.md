@@ -309,8 +309,17 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 - **Host queue depth matters:** with 32 queued transfers and two output files one bank ended 26 ms
   late (a host write stall back-pressures the chip's C2H engine); 256 (the new default, ~100 ms at
   5 MS/s) ran clean.
-- Gain: devourer's bring-up IGI with the J3 runtime thread off (no DIG updates), noise ≈130–160 LSB
-  RMS at ch36. A CCA-off fixed-gain mode for the 8822C is not done yet (`--igi` pins 0x1D70).
+- **Fixed gain (8822C):** Jaguar3 phydm_stop_ic_trx / phydm_dis_cck_trx: OFDM RX CCA off
+  `0x1D58[11:3] = 0x1FF`, CCK RxIQ weighting `0x1A14[9:8] = 3`, IGI pinned in `0x1D70[6:0]/[14:8]`
+  (`--no-cca --igi N`). IGI sweep at ch36 (`evidence/phase5-cu-igi-sweep-ch36.txt`): ≈1.0 dB per step
+  on the noise floor over 0x20–0x3C (floor 98.6 → 3.9 LSB RMS); maximum gain for IGI ≤ 0x1C; above
+  0x3C the thermal floor sinks under the ADC's ~3 LSB floor, while frame peaks keep falling ≈1.1 dB per
+  step to 0x50. CCA on vs off at the same IGI: CCA on, the AGC compresses frame peaks 6–8 dB (p99.9
+  1126 vs 2855 at 0x24), so CCA off holds the gain.
+- **SoapySDR on the 8812CU** (`driver=wsdr,pid=0xc812`): 2.5 / 5 MS/s, gain 0–52 dB (1 dB), two
+  coherent RX channels (0 = path A, 1 = path B). 20 s two-channel at 5 MS/s with no overflows, a live
+  retune and gain change, and a re-open; offline 190 beacons on the grid, 0 slips
+  (`evidence/phase5-cu-soapy.txt`).
 
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
