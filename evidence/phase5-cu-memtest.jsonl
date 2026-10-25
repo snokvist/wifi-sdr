@@ -1,0 +1,7 @@
+{"ev":"memtest","hop":"H1 txbuf window write/read","bytes":4096,"bad":0,"first_bad":-1,"sample":"","error":""}
+{"ev":"memtest","hop":"H2 ddma txbuf->txbuf","bytes":4096,"bad":0,"first_bad":-1,"sample":"","error":""}
+{"ev":"memtest","hop":"H3 ddma txbuf->DMEM+0x8000->txbuf","bytes":4096,"bad":0,"first_bad":-1,"sample":"","error":""}
+{"ev":"memtest","hop":"H4 ddma txbuf->IMEM+0x0->txbuf","bytes":4096,"bad":4081,"first_bad":0,"sample":"want 8404040c got 30f0216c","error":""}
+{"ev":"memtest","hop":"H5 ddma txbuf->IMEM+0x1000->txbuf","bytes":4096,"bad":4080,"first_bad":0,"sample":"want a505c143 got bcf6144a","error":""}
+{"ev":"memtest","hop":"H6 ddma txbuf->IMEM chksum","ch0ctrl":"0x60001000","own_cleared":1,"chksum_sts_bit27":0}
+{"ev":"memtest.done","alive":1}

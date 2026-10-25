@@ -109,7 +109,12 @@ void Reg::ddma(uint32_t src, uint32_t dst, uint32_t len, unsigned timeout_ms) {
     throw std::invalid_argument("ddma length");
   // The three channel registers are consecutive; CTRL (with OWN) must land last.
   const uint32_t cmd[3] = {src, dst, 0x80000000u | len};
-  block_write(kRegDdmaCh0, cmd, sizeof cmd);
+  if (_cap >= sizeof cmd) {
+    block_write(kRegDdmaCh0, cmd, sizeof cmd);
+  } else {
+    for (int i = 0; i < 3; i++)
+      w32(static_cast<uint16_t>(kRegDdmaCh0 + 4 * i), cmd[i]);
+  }
   const auto t0 = std::chrono::steady_clock::now();
   for (;;) {
     const uint32_t c = r32(kRegDdmaCh0 + 8);

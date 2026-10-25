@@ -44,6 +44,8 @@ public:
   void block_read(uint16_t a, void *buf, size_t n);
   void block_write(uint16_t a, const void *buf, size_t n);
   size_t cap() const { return _cap; }
+  // Lower the block-transfer size (the 8822C hangs on large packet-buffer window reads; 4 is safe).
+  void set_cap(size_t n) { _cap = n ? n : 4; }
 
   // OCP SRAM (0x18xxxxxx) through the debug window; any length, page-split internally.
   void sram_read(uint32_t ocp, void *buf, size_t n);

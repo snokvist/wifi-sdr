@@ -245,6 +245,14 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   rate_sel 0 duplicates ~48 % of samples at every width (true ceiling 40 MS/s). Width switching works
   (0x8ac = …0/…5/…6), but the sampled noise floor stays ±10 MHz (−3 dB ≈ 18.4 MHz) at every width for
   dbg 0x880 and 0x0, so the tap is after a ~20 MHz filter. `evidence/phase3-bw-*.txt`.
+- **Correction — the ~20 MHz limit is the RX DFIR, not the tap.** Devourer writes the BW20 DFIR set at
+  every width. With the vendor values (0x948[29:28] / 0x94c[29:28] / 0xc20[31]=0xe20[31] = BW40 1/0/0,
+  BW80 2/1/0; `LaRingCfg::dfir`): BW40 at 40 MS/s gives a ±20 MHz floor (streamed 10 s over USB3, 0
+  faults); BW80 at rate_sel 0 is a genuine 80 MS/s tap (adjacent duplicates 0.0), floor ±37 MHz
+  (snapshot only: 640 MB/s exceeds the ~391 MB/s C2H ceiling). 0xc20[31] = 1 forces the narrow,
+  doubled path whatever 0x948/0x94c hold. dma_type 11 is the raw ADC (int8, both paths, 160 MS/s per
+  path, pre-DFIR). `--channel` is the primary channel (centre ch+2 at BW40, ch+6 at BW80).
+  `notes/wide-tap.md`, `evidence/phase3-widetap-*`.
 
 ### Continuous streaming over USB2 (Phase 3, 2026-10-25)
 - **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at

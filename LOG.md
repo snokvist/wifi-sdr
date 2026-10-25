@@ -229,3 +229,19 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   clean at every rate. Offline (20 MS/s): 47 beacons, 0 slips.
 - `tools/stream_check.py`: a slip is now a persistent step against the TBTT grid (a deferred beacon is
   one outlier); reports AP clock drift (−16…−21 ppm). Earlier evidence re-checked: 0 slips.
+
+## 2026-10-25 14:10 — wide tap found (RX DFIR); 40 MHz streams at 40 MS/s; custom code on the 8822C
+- Research agent (Opus): the ~20 MHz limit is the **RX DFIR**, which devourer programs with the BW20
+  set at every width. With the vendor `phydm_rxdfirpar_by_bw_8822b` values (`LaRingCfg::dfir`,
+  `--dfir 40|80`): BW40 rate_sel 1 → ±20 MHz floor; BW80 rate_sel 0 → genuine 80 MS/s (adjacent
+  duplicates 0.0 vs 0.47), floor ±37 MHz. dma_type 11 = raw ADC, int8, both paths, 160 MS/s/path,
+  pre-DFIR (snapshot only). 0x8fc selector does not change the sampled data. Off-centre L-LTF checks
+  confirm the wide band is real. `--channel` is the primary 20 MHz channel: BW40 centre = ch+2,
+  BW80 centre = ch+6. Notes: `notes/wide-tap.md`; evidence `evidence/phase3-widetap-*`.
+- Verified independently here (adj_dup / −6 dB floor) and **streamed 40 MS/s at BW40 with the vendor
+  DFIR for 10 s over USB3: 48,828 banks, 0 faults, floor ±20.0 MHz around 5190 MHz.**
+- 8812CU: the fork built `wsdr_cu` + the 8822C loader; I found the 8822C hangs on 4 KiB EP0 window
+  reads (needs a replug to recover) and IMEM does not read back over DDMA. With 4-byte transfers and no
+  IMEM read-back, **the marker runs on the 8822C** (magic, 5.33 M loops/s, exact µs counter, same ISA).
+  C2H: trigger clears but no bulk-IN packet yet. `notes/cu-custom-code.md`, `evidence/phase5-cu-*`.
+- `Reg::set_cap()` (block-transfer size) and a 3×w32 fallback in `Reg::ddma` for small caps.

@@ -1,0 +1,3 @@
+{"ev":"cpu.loaded","bytes":176,"prog":116,"r80_before":"0xc078"}
+{"ev":"cpu.marker","ok":1,"magic":"0xcafe0c22","count_a":111977,"count_b":1214595,"loops_per_s":5333292,"timer_a":4150358,"timer_b":4357100,"timer_delta":206742,"wall_us":206742,"r80":"0x4078","lui_ori":"0x00005678","lui_xori":"0x000000ff","lui_andi":"0xffff0000","alu_probe":"0x5","cpu_r80":"0x00604078"}
+{"ev":"marker.done","alive":1}

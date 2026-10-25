@@ -1,0 +1,10 @@
+locked 8812cu
+=== CU c2h --count 64 --bytes 1024
+c2h: no verified bulk-IN completion
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+{"ev":"c2h.done","alive":1}
+=== CU c2h --count 1600 --bytes 16352
+c2h: no verified bulk-IN completion
+{"ev":"c2h.fail","completed":0,"stray":0,"timeouts":64,"r294":"0x00001000","r288":"0x00000000"}
+{"ev":"c2h.done","alive":1}
+unlocked 8812cu

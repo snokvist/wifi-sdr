@@ -6,7 +6,8 @@ _Last updated: 2026-10-25 12:40 CET_
 **40 MS/s for 60 s** with zero faults over USB3, once the 8812BU is on the right port (xHCI
 0000:67:00.3; the other controller, 65:00.3, wedges C2H). USB2 gives 2.5/5 MS/s on any port. Front ends:
 `wsdr_tcp` (rtl_tcp, 2.5/5 MS/s) and the SoapySDR module (2.5/5 MS/s on USB2, up to 40 MS/s on USB3).
-Usable bandwidth is ~18.4 MHz at any rate/width (the LA tap sits after a ~20 MHz filter). Interim write-up:
+Bandwidth: ~18.4 MHz by default; **40 MHz at 40 MS/s with `--bw 40 --dfir 40`** (streams over USB3);
+80 MHz / 80 MS/s with `--bw 80 --dfir 80 --rate 0` (snapshot only). 8812CU: custom code runs; C2H open. Interim write-up:
 [REPORT.md](REPORT.md).
 
 ### Using it
@@ -62,8 +63,9 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
   8822C in this vendor tree).
 
 ## Not done yet
-- Wider spans than ~20 MHz: the known LA taps are filtered to ~20 MHz at any channel width; a wider tap
-  (other debug-port selectors) is open research. 80 MHz would also exceed the 40 MS/s LA ceiling.
+- Front ends do not yet pass `dfir`/channel width (Soapy/wsdr_tcp are BW20); centre→primary-channel
+  mapping at 40/80 MHz. 80 MS/s and raw-ADC (dma 11) snapshot modes are not exposed.
+- 8812CU: C2H transport (trigger clears, no bulk-IN packet), then an 8822C streamer.
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),
   Phase 6 (8812EU).

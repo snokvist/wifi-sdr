@@ -1,0 +1,132 @@
+devourer [I] USB adapter 1-1 locked for exclusive access
+devourer [I] Creating RtlJaguar3Device (PID 0xc812, chip-id 0x13)
+devourer [I] USB device 0bda:c812
+devourer [I] Running USB bus at 480MBit/s
+devourer [I] selected USB interface 0
+devourer [I] endpoint[0]: addr=0x84 attrs=0x2 bulk=1 in=1
+devourer [I] selected bulk IN endpoint: 0x84
+devourer [I] endpoint[1]: addr=0x5 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[2]: addr=0x6 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[3]: addr=0x87 attrs=0x3 bulk=0 in=1
+devourer [I] endpoint[4]: addr=0x8 attrs=0x2 bulk=1 in=0
+devourer [I] bulk OUT endpoints: 0x05 0x06 0x08 
+devourer [I] libusb_clear_halt(bulk IN 0x84) rc=0
+devourer [I] OutEpQueueSel(7), OutEpNumber(3)
+devourer [I] Boot from EFUSE, Autoload OK !
+devourer [I] RtlJaguar3Device constructed (8822C/CU)
+devourer [I] Jaguar3: pre_init_system_cfg done (ported)
+{"ev":"init.timing","stage":"j3hal.pre_init_system_cfg","ms":5,"xfers":15}
+devourer [I] Jaguar3: power-off (card-disable) sequence applied
+devourer [I] Jaguar3: power-on sequence complete (card active)
+{"ev":"init.timing","stage":"j3hal.power_on","ms":27,"xfers":72}
+devourer [I] Jaguar3 chip: 8822C cut=5 (UMC) 2T2R (SYS_CFG1=0x0c495d37)
+{"ev":"init.timing","stage":"j3hal.chip_version","ms":0,"xfers":1}
+{"ev":"init.timing","stage":"j3hal.efuse_cache","ms":0,"xfers":0}
+devourer [I] Jaguar3: rfe_type=0x03
+{"ev":"init.timing","stage":"j3hal.efuse_rfe","ms":813,"xfers":2170}
+devourer [I] Jaguar3: init_system_cfg done (ported, bw=0 cut=5)
+{"ev":"init.timing","stage":"j3hal.init_system_cfg","ms":3,"xfers":10}
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 1856 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 2456 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 3880 bytes
+devourer [I] Jaguar3 DLFW: download OK, CPU enabled — polling FW boot
+devourer [I] Jaguar3 DLFW: FW ready (0x80 = 0xC078)
+devourer [I] Jaguar3: firmware booted (structured)
+{"ev":"init.timing","stage":"j3hal.dlfw","ms":284,"xfers":757}
+devourer [I] Jaguar3: HalMAC init_mac_cfg done (ported, bw=0)
+{"ev":"init.timing","stage":"j3hal.init_mac_cfg","ms":51,"xfers":138}
+devourer [I] Jaguar3: init_usb_cfg (RXDMA_MODE=0x1e, RX-agg EN) — RX DMA to bulk-IN
+{"ev":"init.timing","stage":"j3hal.usb_cfg_bbrf","ms":6,"xfers":18}
+devourer [I] Jaguar3: applying BB phy_reg table (3020 words)
+{"ev":"init.timing","stage":"j3hal.table_phy_reg","ms":483,"xfers":1289}
+devourer [I] Jaguar3: applying AGC table (3734 words)
+{"ev":"init.timing","stage":"j3hal.table_agc","ms":168,"xfers":450}
+devourer [I] Jaguar3: applying RF radioA (40130 words) + radioB (40766 words)
+{"ev":"init.timing","stage":"j3hal.table_rf_ab","ms":705,"xfers":1473}
+devourer [I] Jaguar3: BB/AGC/RF tables applied
+{"ev":"init.timing","stage":"j3hal.pa_bias","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3hal.phydm_param_init","ms":5,"xfers":14}
+devourer [I] Jaguar3: cal_init (2464 pairs) applied
+{"ev":"init.timing","stage":"j3hal.rfk_init","ms":926,"xfers":2472}
+devourer [I] Jaguar3: DACK (DAC calibration) complete
+{"ev":"init.timing","stage":"j3hal.dack","ms":602,"xfers":1536}
+devourer [I] Jaguar3: bf_init (NDPA/MU TX setup) applied
+devourer [I] Jaguar3: monitor RX config applied (accept-all + phystatus)
+devourer [I] Jaguar3: TX path enabled (OFDM/CCK block + AGC/path bits)
+{"ev":"init.timing","stage":"j3hal.bf_rx_tx_cfg","ms":8,"xfers":23}
+{"ev":"init.timing","stage":"j3hal.total","ms":4094,"xfers":10438}
+devourer [I] Jaguar3: bring-up complete
+{"ev":"init.timing","stage":"j3init.hal_init","ms":4094,"xfers":10438}
+devourer [I] Jaguar3: central ch 36 (pri idx 0) RF18=0x13124
+devourer [I] Jaguar3: central ch 36 / 20 MHz set (RF18=0x13124) + BB reset
+{"ev":"init.timing","stage":"j3init.set_channel","ms":31,"xfers":85}
+devourer [I] Jaguar3: IQK done (LOK fail A/B=0/0, TXK A/B=0/0, RXK A/B=0/0)
+{"ev":"init.timing","stage":"j3init.iqk","ms":1086,"xfers":2878}
+{"ev":"init.timing","stage":"j3init.rx_path_rfe_channel","ms":0,"xfers":0}
+devourer [I] Jaguar3: TX power reference set to 0x28 (both paths) (per-rate diffs zeroed)
+{"ev":"init.timing","stage":"j3init.txpower_pre","ms":41,"xfers":112}
+devourer [I] Jaguar3: coex WiFi-only init applied (antenna locked to WL)
+{"ev":"init.timing","stage":"j3init.coex_wlan_only_init","ms":20,"xfers":56}
+{"ev":"init.timing","stage":"j3init.rfe_pinmux","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3init.fw_pwr_mode","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_query","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_tdma_off","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.filters_cca","ms":1,"xfers":3}
+devourer [I] Jaguar3: TX power reference set to 0x28 (both paths) (per-rate diffs kept)
+{"ev":"init.timing","stage":"j3init.txpower_post","ms":6,"xfers":16}
+{"ev":"init.timing","stage":"j3init.dpdt_ack_misc","ms":0,"xfers":1}
+{"ev":"init.timing","stage":"j3init.total","ms":5287,"xfers":13598}
+devourer [I] Jaguar3: ready for TX (monitor inject)
+marker: IMEM read-back mismatch after DDMA load
+devourer [I] Jaguar3 dig: IGI=0x1e (fa=25 cca=183)
+devourer [I] Jaguar3 edcca: L2H=48 H2L=40
+devourer [I] Jaguar3 coex: tick 1 (bulk-IN reads=1, C2H=0)
+{"ev":"session","chip":"RTL8822C","superspeed":0,"channel":36,"r80":"0xc078"}
+{"ev":"marker.done","alive":1}
