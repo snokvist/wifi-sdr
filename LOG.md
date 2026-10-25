@@ -178,3 +178,16 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 - Small packets are not a workaround: 1 KiB wedged at 5751/20000, 2 KiB at 243/1600 (on-chip
   4–7 µs per packet when it runs). Per-packet hazard that grows with size; no host-side xHCI errors.
 - Evidence: `evidence/phase3-c2h-usb3-{pacing,small}.txt`, `evidence/phase3-stream-usb3.txt`.
+
+## 2026-10-25 11:40 — USB3 wedge: not devourer, not libusb — the RX DMA / bulk-IN path locks
+- Register diff on USB3 (`wsdr_probe regs`, rtw88 debugfs mac_* in monitor mode so IPS keeps the MAC on):
+  differences in RX aggregation (0x010c bits 0/2, 0x0280 = 0x100), FIFO page boundaries, 0xFE58
+  (USB HRPWM), a few SYS bits. rtw88's RX-agg values applied to the C2H test (`c2h --set`): still
+  wedges (9/488/23).
+- Decisive: C2H with **rtw88 owning the chip** (its own init, kernel URBs; requests through debugfs
+  write_reg, packets counted with usbmon; `tools/rtw88_c2h_test.py`) wedges too: 287, 43, then 0.
+  After the wedge rtw88's own Wi-Fi RX is dead (0 packets/3 s vs 517/2 s fresh) until a MAC re-init.
+- So: large C2H packets on USB3 lock the chip's RX DMA → USB3 bulk-IN path, independent of driver.
+  Remaining separators: another xHCI (this host has four AMD controllers; the 8812BU is on 65:00.3,
+  the 8812CU's port is on 67:00.3), another board (N6), a hub in between.
+- Evidence: `evidence/usb3-regdiff/`.

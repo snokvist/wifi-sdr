@@ -18,6 +18,9 @@
 //   wsdr_probe latime --pid 0xb812 [--rate 5] [--d-us 2000]
 //       Run latime8822b.S: the CPU arms the LA ring, waits D us on REG 0x568 and fires the trigger;
 //       the ring position at stop vs D * fs gives the sample rate and arm-to-first-sample latency.
+//   wsdr_probe regs --pid 0xb812 --dump PREFIX
+//       Dump MAC 0x000-0x7ff, 0x1000-0x17ff and 0xfe00-0xfe7f after bring-up (PREFIX-init.txt) and after
+//       the C2H RX-path setup (PREFIX-c2h.txt), in rtw88 debugfs mac_N layout, for register diffs.
 //   wsdr_probe stream --pid 0xb812 [--rate 5] [--seconds 10] [--out PREFIX] [--synthetic] [--guard-us 20]
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A.
@@ -73,6 +76,7 @@ struct Args {
   int rw_release = -1;       // c2h: 0/1 = force 0x0284 BIT18 (RW_RELEASE_EN), -1 = leave
   bool unique = false;       // c2h: fresh payload every request (rules out stale-match/duplicate ambiguity)
   bool check_desc = false;   // c2h: verify descriptor bytes 0..11 before each request
+  std::vector<std::pair<uint16_t, uint32_t>> sets; // c2h: --set ADDR=VAL (32-bit writes after setup)
   int bytes = 16352;         // c2h/c2hbench: C2H payload size
   int depth = 16;            // c2h/c2hbench: async bulk-IN queue depth
   int xfer = 16384;          // c2h/c2hbench: bulk-IN transfer size
@@ -128,6 +132,13 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--rw-release") a.rw_release = static_cast<int>(num(v()));
     else if (k == "--unique") a.unique = true;
     else if (k == "--check-desc") a.check_desc = true;
+    else if (k == "--set") {
+      std::string sv = v();
+      const size_t eq = sv.find('=');
+      if (eq == std::string::npos) { std::fprintf(stderr, "--set needs ADDR=VAL\n"); return false; }
+      a.sets.push_back({static_cast<uint16_t>(num(sv.substr(0, eq).c_str())),
+                        static_cast<uint32_t>(num(sv.substr(eq + 1).c_str()))});
+    }
     else if (k == "--igi") a.la.igi = static_cast<int>(std::strtol(v(), nullptr, 0));
     else if (k == "--ofdm") a.la.ofdm_off = num(v()) == 0;
     else if (k == "--nocca") a.la.no_cca = true;
@@ -326,6 +337,8 @@ int cmd_c2h(Session &s, const Args &a) {
       for (unsigned f = 48; f <= 49; f++)
         libusb_control_transfer(s.handle(), 0x00, 1, static_cast<uint16_t>(f), 0, nullptr, 0, 1000);
     }
+    for (auto [addr, val] : a.sets)
+      r.w32(addr, val);
     if (a.rw_release >= 0) {
       uint32_t v = r.r32(0x0284);
       v = a.rw_release ? (v | (1u << 18)) : (v & ~(1u << 18));
@@ -565,6 +578,36 @@ int cmd_latime(Session &s, const Args &a) {
   return rc;
 }
 
+void dump_regs(Reg &r, const std::string &fn) {
+  FILE *f = std::fopen(fn.c_str(), "w");
+  if (!f)
+    throw std::runtime_error("cannot write " + fn);
+  for (uint32_t base : {0x0000u, 0x1000u})
+    for (uint32_t a = base; a < base + 0x800; a += 16) {
+      std::fprintf(f, "%08x  ", a);
+      for (uint32_t o = 0; o < 16; o += 4)
+        std::fprintf(f, "%08x    ", r.r32(static_cast<uint16_t>(a + o)));
+      std::fprintf(f, "\n");
+    }
+  for (uint32_t a = 0xfe00; a < 0xfe80; a += 4)
+    std::fprintf(f, "0x%x reg 0x%x: 0x%08x\n", a, a, r.r32(static_cast<uint16_t>(a)));
+  std::fclose(f);
+}
+
+int cmd_regs(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  if (a.dump.empty())
+    throw std::runtime_error("regs needs --dump PREFIX");
+  dump_regs(r, a.dump + "-init.txt");
+  C2hRxPath rx(r);
+  rx.apply(a.rx_on);
+  dump_regs(r, a.dump + "-c2h.txt");
+  rx.restore();
+  std::printf("{\"ev\":\"regs\",\"files\":\"%s-{init,c2h}.txt\",\"alive\":%d}\n", a.dump.c_str(),
+              r.alive() ? 1 : 0);
+  return 0;
+}
+
 std::atomic<bool> g_stop{false};
 
 int cmd_stream(Session &s, const Args &a) {
@@ -647,7 +690,7 @@ int main(int argc, char **argv) {
   Args a;
   if (!parse(argc, argv, a)) {
     std::fprintf(stderr,
-                 "usage: wsdr_probe ring|snap|marker|c2h|c2hbench|latime|stream --pid 0xNNNN [options] "
+                 "usage: wsdr_probe ring|snap|marker|c2h|c2hbench|latime|stream|regs --pid 0xNNNN [options] "
                  "(see source header)\n");
     return 2;
   }
@@ -677,6 +720,8 @@ int main(int argc, char **argv) {
     return cmd_latime(s, a);
   if (a.cmd == "stream")
     return cmd_stream(s, a);
+  if (a.cmd == "regs")
+    return cmd_regs(s, a);
   std::fprintf(stderr, "unknown command %s\n", a.cmd.c_str());
   return 2;
 }

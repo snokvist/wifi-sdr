@@ -229,6 +229,12 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   per-packet hazard (1 KiB: 5751/20000; 2 KiB: 243/1600). The streamer on USB3 ships a bank in 181 µs
   (enough for 20 MS/s) but wedges after 5–26 banks. No xHCI errors are logged. Remaining leads:
   rtw88-initialized chip without devourer init (E3), another host controller (E2), another board (E6).
+- **USB3, driver ruled out:** with rtw88 owning the chip (its init, its kernel URBs; requests via debugfs,
+  usbmon counting) 16 KiB C2H wedges at 287 and 43 requests, and rtw88's normal RX dies with it until
+  the MAC is re-initialized. Applying rtw88's RX aggregation registers (0x10c = 0xf5a5, 0x280 = 0x100)
+  to our path does not help either. The fault is in the chip's RX DMA → USB3 bulk-IN path when it
+  carries C2H packets, on this board / this AMD xHCI (1022:15b9). Next separators: another xHCI
+  controller, another 8822BU board, a USB3 hub in between. `evidence/usb3-regdiff/`.
 
 ### Continuous streaming over USB2 (Phase 3, 2026-10-25)
 - **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at

@@ -1,0 +1,9 @@
+=== USB3 rtw88 RX-agg (0x10c=f5a5 0x280=100) 1
+{"ev":"session","chip":"RTL8822B","superspeed":1,"channel":36}
+{"ev":"c2h.fail","completed":9,"desc_bad":0,"stray":1,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000100","r10c":"0x0000f5a5","r284":"0x00000000"}
+=== USB3 rtw88 RX-agg (0x10c=f5a5 0x280=100) 2
+{"ev":"session","chip":"RTL8822B","superspeed":1,"channel":36}
+{"ev":"c2h.fail","completed":488,"desc_bad":0,"stray":0,"timeouts":62,"retries":0,"r294":"0x00001000","r288":"0x00000000","r280":"0x00000100","r10c":"0x0000f5a5","r284":"0x00020000"}
+=== USB3 rtw88 RX-agg (0x10c=f5a5 0x280=100) 3
+{"ev":"session","chip":"RTL8822B","superspeed":1,"channel":36}
+{"ev":"c2h.fail","completed":23,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000100","r10c":"0x0000f5a5","r284":"0x00000000"}

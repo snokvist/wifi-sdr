@@ -1,0 +1,10 @@
+rtw88-owned C2H test, 8812BU on USB3 (2-1, xHCI 0000:65:00.3 AMD 1022:15b9), 2026-10-25
+rtw88_8822bu bound, monitor mode ch36 (MAC on), requests via debugfs write_reg 0x294, packet staged in
+TXFF 0x20000 (C2H 0x16000), 16352 B payload (zeros, C2H id 0), usbmon counts 16376-byte bulk-IN completions.
+run 1: {'requests_completed': 287, 'wedge_at': 287, 'packets_seen_usbmon': 287, 'r294': '0x1016000', 'r288': '0x0', 'ms_per_request': 0.81}
+  after the wedge rtw88's own RX stopped: rx_packets +0 in 3 s (fresh load: +517 in 2 s)
+rmmod/modprobe (fresh MAC init):
+run 2: {'requests_completed': 43, 'wedge_at': 43, 'packets_seen_usbmon': 43, 'r294': '0x1016000', 'r288': '0x1', 'ms_per_request': 4.77}
+run 3 (no re-init): {'requests_completed': 0, 'wedge_at': 0, 'r288': '0x81'}  -> still wedged, RX dead
+Conclusion: the wedge does not depend on devourer's init or libusb. Large C2H on USB3 locks the RX DMA /
+bulk-IN path; normal RX dies with it; only a MAC re-init recovers.
