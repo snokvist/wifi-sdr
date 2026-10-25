@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -70,7 +71,7 @@ StreamStats Stream8822c::run(const std::function<bool(const uint8_t *, const Ban
                              const std::atomic<bool> *stop) {
   StreamStats st;
   Reg &r = _s.reg();
-  C2hRxPath rx(r);
+  std::optional<C2hRxPath> rx; // its constructor reads registers: built inside the try (unplug -> error)
   La8822c la(r);
   Cpu8822c cpu(r);
   InOrderReader rd(_s.handle(), _s.context(), _c.depth);
@@ -85,8 +86,9 @@ StreamStats Stream8822c::run(const std::function<bool(const uint8_t *, const Ban
   bool seen[2] = {false, false};
   const auto t0 = clk::now();
   try {
+    rx.emplace(r);
     cpu.load(stream8822c_bin, stream8822c_bin_len);
-    rx.apply(true); // MAC RX on, no frames accepted
+    rx->apply(true); // MAC RX on, no frames accepted
     la.configure(_c.la);
     if (_c.synthetic) {
       std::vector<uint8_t> pat(kBankBytes);
@@ -201,7 +203,8 @@ StreamStats Stream8822c::run(const std::function<bool(const uint8_t *, const Ban
   }
   rd.stop();
   la.restore();
-  rx.restore();
+  if (rx)
+    rx->restore();
   return st;
 }
 

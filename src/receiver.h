@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// Receiver: one adapter (RTL8812BU / RTL8812CU) as a tunable receiver, for applications.
+//
+// Owns the Session and a worker thread that applies settings between stream runs (the chip is never
+// touched while it streams), tunes (5 MHz synthesizer grid; the residual is reported for a digital
+// shift), runs the chip's streamer and hands every completed 64 KiB LA bank to a sink.
+//
+// The sink runs on the stream thread, which is also the libusb event thread: it must only copy (a
+// stall there becomes a chip-side deadline fault). Unpacking (la_i/la_q, la_ib/la_qb), DC removal and
+// the residual shift belong on the consumer's thread; BankMeta carries what they need.
+//
+// Faults restart the stream; an unplugged or dead adapter moves the state to Lost and the worker ends.
+// Logic follows src/soapy/SoapyWsdr.cpp (measured behaviour: FINDINGS §4).
+#pragma once
+
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+#include "logger.h"
+#include "session.h"
+
+namespace wsdr {
+
+constexpr uint16_t kPid8812bu = 0xb812;
+constexpr uint16_t kPid8812cu = 0xc812;
+
+struct RxSettings {
+  double freq = 5180e6; // requested centre
+  int rate_sel = 5;     // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s
+  bool wide = true;     // at 40 MS/s (8812BU): 40 MHz channel width + vendor BW40 RX DFIR
+  bool agc = false;     // true: chip AGC; false: fixed gain (OFDM CCA off, IGI pinned)
+  double gain_db = 30;
+};
+
+struct RxCaps {
+  uint16_t pid = 0;
+  bool cu = false;          // RTL8822C: two paths per LA word, USB 2 rates only
+  bool superspeed = false;
+  std::string chip;
+  int min_rate_sel = 5;     // fastest supported rate index
+  int paths = 1;            // 2 on the 8812CU (A, B)
+  double gain_max = 0, gain_step = 1;
+};
+
+enum class RxState { Closed, Opening, Starting, Streaming, Lost, Error };
+const char *rx_state_name(RxState s);
+
+struct BankMeta {
+  uint64_t seq = 0;      // banks delivered since start()
+  uint32_t gen = 0;      // settings generation (changes on every applied settings change)
+  double fs = 0;         // sample rate
+  double centre_hz = 0;  // hardware centre frequency
+  double shift_hz = 0;   // requested freq - hardware centre; Nco::set(shift_hz, fs) brings the requested
+                         // frequency to 0 Hz (as the Soapy module does)
+  int paths = 1;
+  bool cu = false;
+};
+
+using BankSink = std::function<void(const uint8_t *bank, size_t bytes, const BankMeta &)>;
+
+struct RxStatus {
+  RxState state = RxState::Closed;
+  uint64_t banks = 0, restarts = 0;
+  int channel = 0, width = 20;
+  double centre_hz = 0, fs = 0;
+  std::string error;     // last fault (cleared on a clean run start)
+};
+
+class Receiver {
+public:
+  explicit Receiver(Logger_t log);
+  ~Receiver();
+  Receiver(const Receiver &) = delete;
+  Receiver &operator=(const Receiver &) = delete;
+
+  // Blocking (~5 s bring-up). Throws OpenError (not found / permission / busy) or runtime_error.
+  void open(uint16_t pid, const RxSettings &initial = {});
+  void close(); // stop + release the adapter
+  bool is_open() const { return _s != nullptr; }
+  RxCaps caps() const { return _caps; }
+
+  void start(BankSink sink); // worker thread; no-op if running
+  void stop();               // joins the worker
+  void set(const RxSettings &s);
+  RxSettings settings() const;
+  RxStatus status() const;
+
+  // Pure helpers (also used by tests and UIs).
+  static double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
+  static int width_of(const RxSettings &s, bool cu) { return !cu && s.rate_sel == 1 && s.wide ? 40 : 20; }
+  static int channel_for(double freq, int width);   // primary channel (5 MHz grid)
+  static double centre_of(int channel, int width);  // hardware centre for that primary channel
+  static int igi_for(double db, bool cu);
+  static double gain_step(bool cu) { return cu ? 1.0 : 0.95; }
+  static double gain_max(bool cu) { return (0x50 - 0x1C) * gain_step(cu); }
+
+private:
+  void worker();
+  void set_state(RxState s, const std::string &err = {});
+
+  Logger_t _log;
+  std::unique_ptr<Session> _s;
+  RxCaps _caps;
+  mutable std::mutex _m; // settings, status strings
+  RxSettings _set;
+  uint32_t _gen = 0;
+  std::chrono::steady_clock::time_point _last_change{};
+  RxStatus _st;
+  int _hw_channel = 0, _hw_width = 20;
+  BankSink _sink;
+  std::atomic<bool> _active{false}, _restart{false};
+  std::thread _worker;
+};
+
+} // namespace wsdr

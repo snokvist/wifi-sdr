@@ -8,14 +8,7 @@
 
 namespace wsdr {
 
-// Jaguar3 (8822C/E): devourer starts a coex/phydm runtime thread after bring-up that keeps a bulk-IN
-// read posted (it steals C2H packets from our reader) and rewrites DIG/IGI every ~2 s. All wifi-sdr
-// tools own bulk-IN and want fixed gain, so turn it off where devourer has the switch
-// (tuning.j3_runtime_thread, proposed upstream); older devourer builds compile without it.
-template <class T> auto no_j3_runtime(T &t, int) -> decltype(t.j3_runtime_thread = false, void()) {
-  t.j3_runtime_thread = false;
-}
-template <class T> void no_j3_runtime(T &, long) {}
+
 
 static ChannelWidth_t width_of(int bw) {
   switch (bw) {
@@ -39,14 +32,30 @@ void Session::open(const OpenOpts &o) {
   if (libusb_init(&ctx) < 0)
     throw std::runtime_error("libusb_init failed");
   _s.adopt_context(ctx);
-  libusb_device_handle *h = libusb_open_device_with_vid_pid(ctx, o.vid, o.pid);
-  if (!h)
-    throw std::runtime_error("adapter not found");
+  libusb_device_handle *h = nullptr;
+  {
+    libusb_device **list = nullptr;
+    const ssize_t n = libusb_get_device_list(ctx, &list);
+    int rc = LIBUSB_ERROR_NOT_FOUND;
+    for (ssize_t i = 0; i < n && rc == LIBUSB_ERROR_NOT_FOUND; i++) {
+      libusb_device_descriptor d{};
+      if (libusb_get_device_descriptor(list[i], &d) == 0 && d.idVendor == o.vid && d.idProduct == o.pid)
+        rc = libusb_open(list[i], &h);
+    }
+    if (list)
+      libusb_free_device_list(list, 1);
+    if (rc == LIBUSB_ERROR_NOT_FOUND)
+      throw OpenError(OpenError::NotFound, "adapter not found");
+    if (rc == LIBUSB_ERROR_ACCESS)
+      throw OpenError(OpenError::Permission, "permission denied opening the adapter (udev rule missing?)");
+    if (rc != 0)
+      throw OpenError(OpenError::Other, std::string("libusb_open: ") + libusb_error_name(rc));
+  }
   std::shared_ptr<devourer::UsbDeviceLock> lock;
   if (devourer::claim_interface_then_reset(h, devourer::find_wifi_interface(h), _log, o.reset,
                                            lock) != 0) {
     _s.adopt_handle(h);
-    throw std::runtime_error("claim failed (adapter busy?)");
+    throw OpenError(OpenError::Busy, "claim failed (adapter busy?)");
   }
   _s.adopt_handle(h);
   _s.adopt_lock(lock);
@@ -54,7 +63,11 @@ void Session::open(const OpenOpts &o) {
 
   devourer::DeviceConfig cfg;
   cfg.tuning.thermal_track = o.thermal_track;
-  no_j3_runtime(cfg.tuning, 0);
+  // Jaguar3 (8822C/E): devourer starts a coex/phydm runtime thread after bring-up that keeps a bulk-IN
+  // read posted (it steals C2H packets from our reader) and rewrites DIG/IGI every ~2 s. All wifi-sdr
+  // users own bulk-IN and want fixed gain. The switch (tuning.j3_runtime_thread, OpenIPC/devourer#498)
+  // is required: the pinned devourer (external/devourer) has it, and a build without it must fail.
+  cfg.tuning.j3_runtime_thread = false;
   WiFiDriver driver(_log);
   auto dev = driver.CreateRadio(h, ctx, lock, cfg);
   if (!dev)

@@ -305,3 +305,14 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   MT7612U. Mtk79ICAP (MT7921AU, RBIST/ICAP, 80 MS/s) is the MediaTek route.
 - 8812CU live two-path viewer `tools/cu_live.py` shown on the desktop.
 
+## 2026-10-25 14:45 — core as a library for wsdr-studio
+- devourer pinned as submodule `external/devourer` (fork 4afa386); the J3 runtime switch is now
+  mandatory at compile time (no silent SFINAE fallback).
+- CMake subproject-safe (3.21, CURRENT_SOURCE/BINARY_DIR, `wsdr_fw`); `wsdrcore` streams both chips
+  (8822C pieces moved in); tools/Soapy only when top-level. Verified with an empty consumer project.
+- `Session::open` throws `OpenError` (not found / permission / busy). Streamers build `C2hRxPath`
+  inside the try (an unplug becomes a stream error).
+- `Receiver` (src/receiver.*): app-facing open/start/set/status with raw-bank sink, lost/error states.
+  `wsdr_rxtest`: 8812BU 40 MS/s 10 s with a ch36→44 retune, 48253 banks, 0 restarts, sink 1.1 µs/bank.
+- 8812CU unplugged at ~13:57 (clean USB disconnect, not during a test); its regression is pending.
+

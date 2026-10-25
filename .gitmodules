@@ -1,0 +1,3 @@
+[submodule "external/devourer"]
+	path = external/devourer
+	url = https://github.com/snokvist/devourer

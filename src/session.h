@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "DeviceSession.h"
@@ -24,11 +25,18 @@ struct OpenOpts {
   bool thermal_track = true; // devourer's ~2 s RF thermal tick; off for timing-critical probes
 };
 
+// Session::open failures the caller can act on (e.g. "install the udev rule" for Permission).
+struct OpenError : std::runtime_error {
+  enum Kind { NotFound, Permission, Busy, Other } kind;
+  OpenError(Kind k, const std::string &what) : std::runtime_error(what), kind(k) {}
+};
+
 class Session {
 public:
   explicit Session(Logger_t logger);
   ~Session();
-  // Open, claim, CreateRadio, InitWrite(channel). Throws on failure.
+  // Open, claim, CreateRadio, InitWrite(channel). Throws OpenError (not found / permission / busy) or
+  // std::runtime_error (bring-up failure).
   void open(const OpenOpts &o);
   IRadio *radio() const { return _s.device(); }
   libusb_device_handle *handle() const { return _s.handle(); }

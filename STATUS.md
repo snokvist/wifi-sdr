@@ -12,6 +12,7 @@ Bandwidth: ~18.4 MHz by default; **40 MHz at 40 MS/s with `--bw 40 --dfir 40`** 
 
 ### Using it
 ```sh
+git submodule update --init external/devourer   # pinned devourer (not --recursive: its submodules are reference trees)
 cmake -S . -B build && cmake --build build -j
 sudo build/wsdr_tcp --pid 0xb812 --freq-offset 5e9      # take the 8812bu lock first
 gqrx: device "rtl_tcp=127.0.0.1:1234", Input controls → LNB LO 5000 MHz, then tune 5180 MHz
