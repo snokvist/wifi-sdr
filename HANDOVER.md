@@ -19,7 +19,8 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
   - Custom code runs on its CPU (loader `src/cpu8822c.*`, tool `build-cu/wsdr_cu`).
   - C2H works: host 1600/1600 16 KiB; CPU bench 44.7 MB/s on USB2.
   - The C2H→TX address map is known (`notes/cu-custom-code.md`).
-  - **Next task: the 8822C streamer (not started).**
+  - **Streamer done:** `wsdr_cu stream` (2.5/5 MS/s, 60 s, zero faults; both paths with `--path ab`).
+    FINDINGS §4 "Continuous streaming on the 8822C". Next on the CU: Soapy front end, fixed gain.
 - **MT7612U:** an Opus research agent was launched (background) on raw-IQ feasibility.
   - Expected output: `notes/mt7612u-sdr.md`, `evidence/phase6-mt-*`, `src/mt76sdr/`, `tools/mt_*`,
     `build-mt/`.
@@ -43,11 +44,11 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
     it also builds on master, but then the 8822C C2H reader loses packets to devourer's coex thread.
   - Open upstream PRs:
     - **OpenIPC/devourer#497**: 8822B RX DFIR by width.
-    - **OpenIPC/devourer#498**: optional Jaguar3 runtime thread.
+    - **OpenIPC/devourer#498**: optional Jaguar3 runtime thread (opened 2026-10-25, ctest 83/83).
   - Local master is 0bf1957 (upstream), 37 ahead of the fork's master, unpushed. `build-dfir/` is a
     scratch build dir (gitignored).
 
-## Next task: the 8822C streamer (design notes)
+## The 8822C streamer (built 2026-10-25; original design notes, kept for reference)
 1. **LA ring on the 8822C, Jaguar3 dialect** (port from devourer `src/LaCapture.cpp` setup_bb /
    setup_dbg_port / setup_mac, GPL-2.0):
    - Registers:

@@ -1,13 +1,13 @@
 # STATUS
 
-_Last updated: 2026-10-25 12:40 CET_
+_Last updated: 2026-10-25 12:45 CET_
 
 **Current phase:** **Phase 3 done** (2026-10-25): continuous streaming at **20 MS/s for 60 s** and
 **40 MS/s for 60 s** with zero faults over USB3, once the 8812BU is on the right port (xHCI
 0000:67:00.3; the other controller, 65:00.3, wedges C2H). USB2 gives 2.5/5 MS/s on any port. Front ends:
 `wsdr_tcp` (rtl_tcp, 2.5/5 MS/s) and the SoapySDR module (2.5/5 MS/s on USB2, up to 40 MS/s on USB3).
 Bandwidth: ~18.4 MHz by default; **40 MHz at 40 MS/s with `--bw 40 --dfir 40`** (streams over USB3);
-80 MHz / 80 MS/s with `--bw 80 --dfir 80 --rate 0` (snapshot only). 8812CU: custom code runs; C2H open. Interim write-up:
+80 MHz / 80 MS/s with `--bw 80 --dfir 80 --rate 0` (snapshot only). **8812CU: continuous two-path streaming at 2.5 and 5 MS/s for 60 s, zero faults** (USB2, `build-cu/wsdr_cu stream`). Interim write-up:
 [REPORT.md](REPORT.md).
 
 ### Using it
@@ -58,6 +58,11 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
 - **Phase 3 on USB2, 8812BU:** continuous streaming of path A at 2.5 MS/s and 5 MS/s, 60 s each, zero
   faults, recorded to `.cs16` and checked offline (FINDINGS §4 "Continuous streaming over USB2";
   `evidence/phase3-stream-*`).
+- **Phase 5, 8812CU (RTL8822C) streaming** (FINDINGS §4 "Continuous streaming on the 8822C"):
+  `wsdr_cu stream` + `src/fw/stream8822c.S`, five C2H packets per bank around the 0x6000 segment
+  split. 60 s at 5 MS/s and 60 s at 2.5 MS/s, zero faults; offline 567/552 beacons on the grid, 0
+  slips. Path B rides in the same word: B leads A by 401 ns, coherent in bursts
+  (`evidence/phase5-cu-stream*`).
 - **Firmware study** `notes/fw-disasm.md`: the 8822B PSD engine, the 8822C IQK read-out and the
   register names are cross-checked into FINDINGS §3, with one correction (no PSD registers on the
   8822C in this vendor tree).
@@ -65,13 +70,14 @@ Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom to
 ## Not done yet
 - Front ends do not yet pass `dfir`/channel width (Soapy/wsdr_tcp are BW20); centre→primary-channel
   mapping at 40/80 MHz. 80 MS/s and raw-ADC (dma 11) snapshot modes are not exposed.
-- 8812CU: C2H partly works (packets leave only with RX traffic; aggregation interplay on Jaguar3),
-  then an 8822C streamer. devourer DFIR fix: OpenIPC/devourer#497 (open).
+- 8812CU: the streamer is not yet behind the Soapy/rtl_tcp front ends; no fixed-gain (CCA-off) mode
+  for the 8822C yet (IGI pin exists, `--igi`); wide-tap/DFIR untested on the 8822C. Upstream:
+  OpenIPC/devourer#497 (8822B DFIR) and #498 (optional Jaguar3 runtime thread), both open.
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),
   Phase 6 (8812EU).
-- 8812CU streaming would be USB-2-limited (≈35–40 MB/s) unless the board supports the runtime USB 3
-  switch (open).
+- 8812CU streaming is USB-2-limited (44.7 MB/s C2H → 5 MS/s, both paths in the same word) unless
+  the board supports the runtime USB 3 switch (open).
 
 ## Open needs (NEEDS.md)
 N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch) RTL8812EU. N1 is resolved

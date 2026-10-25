@@ -129,4 +129,58 @@ void La8822b::restore() {
   }
 }
 
+namespace {
+const uint16_t kTouchedJ3[] = {
+    0x0100, 0x0608, 0x0290, 0x010C, 0x06A0, 0x06A4, // MAC RX path (0x6A0 dword covers 0x6A2)
+    0x07CC,                                         // [30] full-buffer mode
+    0x1CE4, 0x1CF4, 0x1EB4, 0x1C3C, 0x1CE8, 0x1CF0, // LA engine / dbg port
+    0x1D70,                                         // IGI paths A/B
+};
+} // namespace
+
+void La8822c::snapshot() {
+  _saved.clear();
+  for (uint16_t a : kTouchedJ3)
+    _saved.push_back({a, _r.r32(a)});
+}
+
+void La8822c::configure(const LaRingCfg &c) {
+  if (!saved())
+    snapshot();
+  stop();
+  if (c.filter_rx) {
+    _r.w16(0x0100, static_cast<uint16_t>(_r.r16(0x0100) | 0x8A));
+    _r.w32(0x0608, (_r.r32(0x0608) | 0x80000u) & ~0xFFFFu);
+    _r.w16(0x06A0, 0);
+    _r.w16(0x06A2, 0);
+    _r.w16(0x06A4, 0);
+    _r.w8(0x0290, 14);
+    _r.w8(0x010C, static_cast<uint8_t>(_r.r8(0x010C) & ~4u)); // aggregation off: C2H needs it
+  }
+  if (c.igi >= 0)
+    _r.m32(0x1D70, 0x7F7Fu, static_cast<uint32_t>(c.igi) * 0x101u);
+  _r.m32(0x07CC, 1u << 30, 0);
+  _r.m32(0x1EB4, 1u << 23, 1u << 23);
+  _r.m32(0x1CF4, 1u << 23, 1u << 23);
+  _r.m32(0x1CE8, (1u << 5) | 0x3C0u | (1u << 15) | 0xF0000u | (1u << 25) | (1u << 26), 0);
+  _r.w32(0x1CF0, 0);
+  _r.m32(0x1C3C, 0xFFF00u, (c.dbg_port & 0xFFFu) << 8);
+  _r.m32(0x1CE4, 0xFC03E7FFu,
+         static_cast<uint32_t>(c.dma_type & 0x3F) | (static_cast<uint32_t>(c.rate_sel & 7) << 8) |
+             (3u << 13)); // trig sel 3, MAC-PHY timing 0, edge 0, adv trigger off
+}
+
+void La8822c::restore() {
+  try {
+    stop();
+  } catch (...) {
+  }
+  for (auto it = _saved.rbegin(); it != _saved.rend(); ++it) {
+    try {
+      _r.w32(it->first, it->second);
+    } catch (...) {
+    }
+  }
+}
+
 } // namespace wsdr

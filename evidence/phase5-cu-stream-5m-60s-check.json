@@ -1,0 +1,29 @@
+{
+ "file": "captures/phase5/cu-stream-5m-60s",
+ "fs": 5000000,
+ "samples": 299999232,
+ "banks": 36621,
+ "seconds": 59.9998464,
+ "duplicate_banks": 0,
+ "ring_lag_identical": 1.526420603887326e-05,
+ "adjacent_identical": 1.4303369997638427e-05,
+ "step_mean_all": 145.37510681152344,
+ "step_mean_bank_boundary": 141.43910217285156,
+ "step_mean_chunk_boundary": 146.3178253173828,
+ "step_mean_prefix_boundary": 141.26571655273438,
+ "bursts": 3520,
+ "beacon_train": {
+  "beacons": 567,
+  "interval_tu100_multiples": [
+   1,
+   2,
+   3
+  ],
+  "resid_samples_median": 0.0,
+  "resid_samples_max_abs": 2800.0,
+  "resid_us_max_abs": 560.0,
+  "clock_drift_ppm": -7.030341786850306,
+  "grid_outliers_over_half_bank": 0,
+  "bank_slips": 0
+ }
+}

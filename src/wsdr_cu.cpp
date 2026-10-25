@@ -9,7 +9,18 @@
 //       bulk-IN completion.
 //   wsdr_cu c2hbench --pid 0xc812 [--bytes 16352] [--count 1024] [--depth 16]
 //       Run c2hbench8822c.S: per-request C2H latency from REG 0x568, read back from DMEM.
+//   wsdr_cu ring     --pid 0xc812 [--rate 2] [--dbg 0x880] [--halt-cpu]
+//       Configure the Jaguar3 free-running LA ring, arm it, read four 4 KiB slices twice: is it live?
+//   wsdr_cu latime   --pid 0xc812 [--rate 2] [--dur-us 500]
+//       Run latime8822c.S: CPU arms the ring, waits D us on REG 0x568, triggers; the finish address
+//       gives the true sample rate and the arm latency on the chip's own clock.
+//   wsdr_cu stream   --pid 0xc812 [--rate 5] [--seconds 10] [--synthetic] [--igi N] [--out PREFIX]
+//       Run stream8822c.S (Stream8822c): continuous ring banks over C2H. --out writes PREFIX.cs16
+//       (path A, or --path b; --path ab adds PREFIX-b.cs16) and PREFIX.json.
 #include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <csignal>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -21,9 +32,12 @@
 #include "c2h88xx.h"
 #include "c2hbench8822c.h"
 #include "cpu8822c.h"
+#include "la88xx.h"
+#include "latime8822c.h"
 #include "logger.h"
 #include "marker8822c.h"
 #include "session.h"
+#include "stream_cu.h"
 
 using namespace wsdr;
 using clk = std::chrono::steady_clock;
@@ -49,7 +63,20 @@ struct Args {
   int count = 0;
   int depth = 16;
   int rx_off = 0x1000;
+  int rate = -1;             // LA rate index (80 MHz >> rate)
+  int dma = 0;
+  uint32_t dbg = 0x880;
+  int igi = -1;
+  bool halt_cpu = false;     // ring: halt the vendor CPU first
+  int dur_us = 0;            // latime
+  double seconds = 10;       // stream
+  bool synthetic = false;    // stream
+  int guard_us = 20;         // stream
+  std::string out;           // stream
+  std::string path = "a";    // stream --out: a | b | ab
 };
+
+std::atomic<bool> g_stop{false};
 
 unsigned long num(const char *s) { return std::strtoul(s, nullptr, 0); }
 
@@ -82,6 +109,17 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--count") a.count = static_cast<int>(num(v()));
     else if (k == "--depth") a.depth = static_cast<int>(num(v()));
     else if (k == "--rx-off") a.rx_off = static_cast<int>(num(v()));
+    else if (k == "--rate") a.rate = static_cast<int>(num(v()));
+    else if (k == "--dma") a.dma = static_cast<int>(num(v()));
+    else if (k == "--dbg") a.dbg = static_cast<uint32_t>(num(v()));
+    else if (k == "--igi") a.igi = static_cast<int>(num(v()));
+    else if (k == "--halt-cpu") a.halt_cpu = true;
+    else if (k == "--dur-us") a.dur_us = static_cast<int>(num(v()));
+    else if (k == "--seconds") a.seconds = std::strtod(v(), nullptr);
+    else if (k == "--synthetic") a.synthetic = true;
+    else if (k == "--guard-us") a.guard_us = static_cast<int>(std::strtol(v(), nullptr, 0));
+    else if (k == "--out") a.out = v();
+    else if (k == "--path") a.path = v();
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return false; }
   }
   return a.open.pid != 0;
@@ -479,12 +517,213 @@ int cmd_c2hbench(Session &s, const Args &a) {
   return rc;
 }
 
+LaRingCfg la_cfg(const Args &a, int default_rate) {
+  LaRingCfg c;
+  c.rate_sel = a.rate >= 0 ? a.rate : default_rate;
+  c.dma_type = a.dma;
+  c.dbg_port = a.dbg;
+  c.igi = a.igi;
+  return c;
+}
+
+// Free-running ring liveness: identical-word fraction between two reads of the same slices
+// (frozen ring >= 95 %), plus path A / B RMS.
+int cmd_ring(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  C2hRxPath rx(r);
+  La8822c la(r);
+  Cpu8822c cpu(r);
+  int rc = 1;
+  try {
+    if (a.halt_cpu)
+      cpu.halt();
+    rx.apply(true);
+    la.configure(la_cfg(a, 2));
+    la.arm();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    const uint32_t offs[4] = {0x0000, 0x8000, 0x10000, 0x18000};
+    constexpr size_t kN = 512; // 4 KiB
+    std::vector<uint64_t> x(4 * kN), y(4 * kN);
+    const auto t0 = clk::now();
+    for (int i = 0; i < 4; i++)
+      r.sram_read(La8822c::kRingOcp + offs[i], x.data() + i * kN, kN * 8);
+    const double read_ms = ms_since(t0);
+    for (int i = 0; i < 4; i++)
+      r.sram_read(La8822c::kRingOcp + offs[i], y.data() + i * kN, kN * 8);
+    const uint32_t r7c0 = r.r32(0x07C0);
+    size_t same = 0, zero = 0;
+    double ea = 0, eb = 0;
+    for (size_t i = 0; i < x.size(); i++) {
+      same += x[i] == y[i];
+      zero += x[i] == 0;
+      ea += double(la_i(x[i])) * la_i(x[i]) + double(la_q(x[i])) * la_q(x[i]);
+      eb += double(la_ib(x[i])) * la_ib(x[i]) + double(la_qb(x[i])) * la_qb(x[i]);
+    }
+    const double frac = double(same) / x.size();
+    std::printf("{\"ev\":\"cu.ring\",\"live\":%d,\"identical\":%.4f,\"zero\":%zu,\"words\":%zu,\"rms_a\":%.1f,"
+                "\"rms_b\":%.1f,\"r7c0\":\"0x%08x\",\"r1ce4\":\"0x%08x\",\"r1c3c\":\"0x%08x\",\"read_ms\":%.1f,"
+                "\"w0\":\"0x%016llx\",\"w1\":\"0x%016llx\",\"w2\":\"0x%016llx\"}\n",
+                frac < 0.5 ? 1 : 0, frac, zero, x.size(), std::sqrt(ea / x.size()), std::sqrt(eb / x.size()), r7c0,
+                r.r32(0x1CE4), r.r32(0x1C3C), read_ms, static_cast<unsigned long long>(x[0]),
+                static_cast<unsigned long long>(x[1]), static_cast<unsigned long long>(x[2]));
+    rc = frac < 0.5 ? 0 : 1;
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "ring: %s\n", e.what());
+  }
+  la.restore();
+  rx.restore();
+  std::printf("{\"ev\":\"cu.ring.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
+int cmd_latime(Session &s, const Args &a) {
+  Reg &r = s.reg();
+  C2hRxPath rx(r);
+  La8822c la(r);
+  Cpu8822c cpu(r);
+  const LaRingCfg c = la_cfg(a, 2);
+  const double fs_nom = 80e6 / (1u << c.rate_sel);
+  // default: ~60 % of the 16384-sample ring
+  const uint32_t D = a.dur_us > 0 ? static_cast<uint32_t>(a.dur_us) : static_cast<uint32_t>(0.6 * 16384 / fs_nom * 1e6);
+  int rc = 1;
+  try {
+    cpu.load(latime8822c_bin, latime8822c_bin_len);
+    rx.apply(true);
+    la.configure(c);
+    const uint32_t seed[7] = {0, 0, 0, 0, 0, 0, D};
+    cpu.dmem_write(kBlock, seed, sizeof seed);
+    cpu.start();
+    std::this_thread::sleep_for(std::chrono::microseconds(D) + std::chrono::milliseconds(30));
+    uint32_t blk[8];
+    cpu.dmem_read(kBlock, blk, sizeof blk);
+    uint32_t r7c0 = 0;
+    bool done = false;
+    for (int i = 0; i < 50 && !done; i++) {
+      r7c0 = r.r32(0x07C0);
+      done = !(r7c0 & 0x02);
+    }
+    const uint32_t fin = (r7c0 & 0x7FFF0000u) >> 16;
+    const bool wrap = (r7c0 >> 31) & 1;
+    const long samples = static_cast<long>((fin + 2) * 8) - 0x20000;
+    const double t_us = static_cast<double>(blk[3] - blk[2]);
+    const double fs = samples / 8.0 / (t_us * 1e-6);
+    std::printf("{\"ev\":\"cu.latime\",\"ok\":%d,\"magic\":\"0x%08x\",\"cpu_done\":%u,\"rate_sel\":%d,\"D_us\":%u,"
+                "\"arm_to_trig_us\":%.0f,\"arm_write_us\":%u,\"r7c0\":\"0x%08x\",\"engine_done\":%d,\"wrap\":%d,"
+                "\"samples\":%ld,\"fs_meas\":%.0f,\"fs_nom\":%.0f,\"ratio\":%.4f}\n",
+                blk[0] == 0x1A7E0001u && blk[4] == 1 && done && !wrap, blk[0], blk[4], c.rate_sel, D, t_us,
+                blk[2] - blk[1], r7c0, done, wrap, samples / 8, fs, fs_nom, fs / fs_nom);
+    rc = blk[0] == 0x1A7E0001u && blk[4] == 1 && done && !wrap ? 0 : 1;
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "latime: %s\n", e.what());
+  }
+  try {
+    cpu.halt();
+  } catch (...) {
+  }
+  la.restore();
+  rx.restore();
+  std::printf("{\"ev\":\"cu.latime.done\",\"alive\":%d}\n", r.alive() ? 1 : 0);
+  return rc;
+}
+
+int cmd_stream(Session &s, const Args &a) {
+  StreamCfg c;
+  c.la = la_cfg(a, 5);
+  c.synthetic = a.synthetic;
+  // Deep queue (256 x 16 KiB = ~100 ms at 5 MS/s): a host-side write stall must not back-pressure
+  // the chip's C2H engine (measured: depth 32 + two output files -> one bank 26 ms late).
+  c.depth = std::clamp(a.depth > 16 ? a.depth : 256, 4, 512);
+  c.guard_us = a.guard_us;
+  Stream8822c st(s, c);
+  const uint64_t want = static_cast<uint64_t>(a.seconds * st.fs() / Stream8822c::kBankSamples + 0.5);
+  FILE *f = nullptr;
+  if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
+    std::fprintf(stderr, "stream: cannot open %s.cs16\n", a.out.c_str());
+    return 1;
+  }
+  const bool pb = a.path == "b", both = a.path == "ab";
+  FILE *fb = nullptr;
+  if (f && both && !(fb = std::fopen((a.out + "-b.cs16").c_str(), "wb"))) {
+    std::fprintf(stderr, "stream: cannot open %s-b.cs16\n", a.out.c_str());
+    std::fclose(f);
+    return 1;
+  }
+  std::signal(SIGINT, [](int) { g_stop = true; });
+  std::vector<int16_t> iq(2 * Stream8822c::kBankSamples), iqb(both ? iq.size() : 0);
+  const uint64_t every = std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822c::kBankSamples));
+  double ea2 = 0, eb2 = 0;
+  uint64_t n = 0;
+  const StreamStats ss = st.run(
+      [&](const uint8_t *bank, const BankInfo &bi) {
+        double acc = 0, accb = 0;
+        for (size_t i = 0; i < Stream8822c::kBankSamples; i++) {
+          uint64_t w;
+          std::memcpy(&w, bank + 8 * i, 8);
+          const int I = la_i(w), Q = la_q(w), Ib = la_ib(w), Qb = la_qb(w);
+          iq[2 * i] = static_cast<int16_t>((pb ? Ib : I) * 16);
+          iq[2 * i + 1] = static_cast<int16_t>((pb ? Qb : Q) * 16);
+          if (both) {
+            iqb[2 * i] = static_cast<int16_t>(Ib * 16);
+            iqb[2 * i + 1] = static_cast<int16_t>(Qb * 16);
+          }
+          acc += double(I) * I + double(Q) * Q;
+          accb += double(Ib) * Ib + double(Qb) * Qb;
+        }
+        ea2 += acc;
+        eb2 += accb;
+        if (f && std::fwrite(iq.data(), 2, iq.size(), f) != iq.size())
+          return false;
+        if (fb && std::fwrite(iqb.data(), 2, iqb.size(), fb) != iqb.size())
+          return false;
+        if (++n % every == 0) {
+          std::printf("{\"ev\":\"stream.tick\",\"banks\":%llu,\"seq\":%u,\"rms_a\":%.1f,\"rms_b\":%.1f,"
+                      "\"late_us\":%.1f,\"ship_us\":%.1f,\"end_us\":%.1f,\"stale\":%d}\n",
+                      static_cast<unsigned long long>(n), bi.seq, std::sqrt(acc / Stream8822c::kBankSamples),
+                      std::sqrt(accb / Stream8822c::kBankSamples), bi.late_us, bi.ship_us, bi.end_us,
+                      bi.stale ? 1 : 0);
+          std::fflush(stdout);
+        }
+        return n < want;
+      },
+      &g_stop);
+  if (f)
+    std::fclose(f);
+  if (fb)
+    std::fclose(fb);
+  const double secs = ss.banks * Stream8822c::kBankSamples / st.fs();
+  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && ss.banks >= want;
+  const double ns = n ? double(n) * Stream8822c::kBankSamples : 1;
+  char summary[1024];
+  std::snprintf(summary, sizeof summary,
+                "{\"ev\":\"stream\",\"ok\":%d,\"synthetic\":%d,\"rate_sel\":%d,\"fs\":%.0f,\"channel\":%d,"
+                "\"banks\":%llu,\"samples\":%llu,\"stream_s\":%.3f,\"wall_s\":%.3f,\"mbps_wire\":%.2f,"
+                "\"strays\":%u,\"stale\":%u,\"pattern_bad\":%u,\"late_max_us\":%.1f,\"ship_max_us\":%.1f,"
+                "\"end_max_us\":%.1f,\"budget_us\":%.1f,\"rms_a\":%.1f,\"rms_b\":%.1f,\"error\":\"%s\"}",
+                ok ? 1 : 0, c.synthetic ? 1 : 0, c.la.rate_sel, st.fs(), a.open.channel,
+                static_cast<unsigned long long>(ss.banks),
+                static_cast<unsigned long long>(ss.banks * Stream8822c::kBankSamples), secs, ss.wall_s,
+                ss.wall_s > 0 ? ss.banks * 65536.0 / ss.wall_s / 1e6 : 0.0, ss.strays, ss.stale, ss.pattern_bad,
+                ss.late_max_us, ss.ship_max_us, ss.end_max_us, st.period_us() - c.guard_us, std::sqrt(ea2 / ns),
+                std::sqrt(eb2 / ns), ss.error.c_str());
+  std::printf("%s\n", summary);
+  if (!a.out.empty())
+    if (FILE *j = std::fopen((a.out + ".json").c_str(), "w")) {
+      std::fprintf(j, "{\"format\":\"cs16\",\"layout\":\"int16 I,Q interleaved, 12-bit LA value << 4\","
+                      "\"sample_rate\":%.0f,\"chip\":\"RTL8822C\",\"path\":\"%s\",\"channel\":%d,"
+                      "\"igi\":%d,\"result\":%s}\n",
+                   st.fs(), pb ? "B" : both ? "A (B in -b.cs16)" : "A", a.open.channel, a.igi, summary);
+      std::fclose(j);
+    }
+  std::printf("{\"ev\":\"stream.done\",\"alive\":%d}\n", s.reg().alive() ? 1 : 0);
+  return ok ? 0 : 1;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
   Args a;
   if (!parse(argc, argv, a)) {
-    std::fprintf(stderr, "usage: wsdr_cu marker|c2h|c2hbench --pid 0xc812 [options] (see source header)\n");
+    std::fprintf(stderr, "usage: wsdr_cu marker|c2h|c2hbench|c2hmap|memtest|ring|latime|stream --pid 0xc812 [options] (see source header)\n");
     return 2;
   }
   a.open.thermal_track = false; // no host register traffic from devourer's thermal tick
@@ -510,6 +749,12 @@ int main(int argc, char **argv) {
     return cmd_c2h(s, a);
   if (a.cmd == "c2hbench")
     return cmd_c2hbench(s, a);
+  if (a.cmd == "ring")
+    return cmd_ring(s, a);
+  if (a.cmd == "latime")
+    return cmd_latime(s, a);
+  if (a.cmd == "stream")
+    return cmd_stream(s, a);
   std::fprintf(stderr, "unknown command %s\n", a.cmd.c_str());
   return 2;
 }

@@ -1,0 +1,16 @@
+{
+ "file": "captures/phase5/cu-stream-5m-ab",
+ "fs": 5000000,
+ "bursts": 200,
+ "lag_samples_median": 2.0073204040527344,
+ "lag_ns_median": 401.4640808105469,
+ "lag_samples_iqr": [
+  1.9540724754333496,
+  2.153928756713867
+ ],
+ "coherence_burst_median": 0.5789754390716553,
+ "coherence_burst_p10": 0.4956697255373001,
+ "coherence_noise": 0.021036699414253235,
+ "rms_a": 132.11782836914062,
+ "rms_b": 142.53921508789062
+}

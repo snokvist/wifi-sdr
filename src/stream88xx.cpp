@@ -5,9 +5,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
-#include <deque>
 #include <stdexcept>
 
+#include "bulkin88xx.h"
 #include "c2h88xx.h"
 #include "cpu88xx.h"
 #include "stream8822b.h"
@@ -49,99 +49,6 @@ uint8_t fill(int bank, size_t i) { // synthetic pattern
   return static_cast<uint8_t>(x >> 24);
 }
 
-// Bulk-IN EP 0x84 transfers reaped strictly in submission order (one transfer = one C2H packet).
-class InOrderReader {
-public:
-  InOrderReader(libusb_device_handle *h, libusb_context *ctx, int depth) : _h(h), _ctx(ctx) {
-    _slots.resize(static_cast<size_t>(depth));
-  }
-  ~InOrderReader() { stop(); }
-
-  void start() {
-    for (size_t i = 0; i < _slots.size(); i++) {
-      Slot &s = _slots[i];
-      s.buf.resize(16384);
-      s.x = libusb_alloc_transfer(0);
-      if (!s.x)
-        throw std::runtime_error("libusb_alloc_transfer");
-      libusb_fill_bulk_transfer(s.x, _h, 0x84, s.buf.data(), static_cast<int>(s.buf.size()), cb, &s, 0);
-      submit(i);
-    }
-  }
-  // Next completed transfer (head of the queue); nullptr on timeout.
-  struct Done {
-    const uint8_t *data;
-    int len;
-    int status;
-  };
-  bool next(Done &d, unsigned timeout_ms) {
-    const size_t i = _fifo.front();
-    const auto dl = clk::now() + std::chrono::milliseconds(timeout_ms);
-    while (_slots[i].busy) {
-      if (clk::now() >= dl)
-        return false;
-      timeval tv{0, 2000};
-      const int rc = libusb_handle_events_timeout_completed(_ctx, &tv, nullptr);
-      if (rc < 0 && rc != LIBUSB_ERROR_INTERRUPTED)
-        throw std::runtime_error(std::string("libusb events: ") + libusb_error_name(rc));
-    }
-    d = {_slots[i].buf.data(), _slots[i].x->actual_length, _slots[i].x->status};
-    return true;
-  }
-  void release() { // resubmit the head transfer at the tail
-    const size_t i = _fifo.front();
-    _fifo.pop_front();
-    submit(i);
-  }
-  void drain(unsigned ms) {
-    const auto end = clk::now() + std::chrono::milliseconds(ms);
-    Done d;
-    while (clk::now() < end)
-      if (next(d, 1))
-        release();
-  }
-  void stop() {
-    for (auto &s : _slots)
-      if (s.x && s.busy)
-        libusb_cancel_transfer(s.x);
-    for (int n = 0; n < 500; n++) {
-      bool any = false;
-      for (auto &s : _slots)
-        any |= s.x && s.busy;
-      if (!any)
-        break;
-      timeval tv{0, 2000};
-      libusb_handle_events_timeout_completed(_ctx, &tv, nullptr);
-    }
-    for (auto &s : _slots)
-      if (s.x && !s.busy) {
-        libusb_free_transfer(s.x);
-        s.x = nullptr;
-      }
-    _fifo.clear();
-  }
-
-private:
-  struct Slot {
-    libusb_transfer *x = nullptr;
-    std::vector<uint8_t> buf;
-    bool busy = false;
-  };
-  static void LIBUSB_CALL cb(libusb_transfer *x) { static_cast<Slot *>(x->user_data)->busy = false; }
-  void submit(size_t i) {
-    _slots[i].busy = true;
-    if (const int rc = libusb_submit_transfer(_slots[i].x)) {
-      _slots[i].busy = false;
-      throw std::runtime_error(std::string("bulk-IN submit: ") + libusb_error_name(rc));
-    }
-    _fifo.push_back(i);
-  }
-
-  libusb_device_handle *_h;
-  libusb_context *_ctx;
-  std::vector<Slot> _slots;
-  std::deque<size_t> _fifo;
-};
 } // namespace
 
 StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const BankInfo &)> &on_bank,

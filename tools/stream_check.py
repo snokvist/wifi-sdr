@@ -22,6 +22,8 @@ import numpy as np
 
 BANK = 8192
 CHUNKS = [16, 16 + 2044, 16 + 2 * 2044, 16 + 3 * 2044]  # sample offsets of chunk starts (128 B prefix)
+# 8822C (stream_cu.h kChunkOff / 8): segment A [128, 0x6000), segment B from 0x6018 (24 B head in the trailer)
+CHUNKS_8822C = [16, 1544, 3075, 4781, 6487]
 
 
 def main():
@@ -30,6 +32,7 @@ def main():
     ap.add_argument("--json")
     a = ap.parse_args()
     meta = json.load(open(a.prefix + ".json"))
+    chunks = CHUNKS_8822C if meta.get("chip") == "RTL8822C" else CHUNKS
     fs = meta["sample_rate"]
     raw = np.fromfile(a.prefix + ".cs16", dtype="<i2").reshape(-1, 2)
     x = (raw[:, 0].astype(np.float32) + 1j * raw[:, 1].astype(np.float32)) / 16.0
@@ -59,8 +62,8 @@ def main():
     pos = idx % BANK
     out["step_mean_all"] = float(d.mean())
     out["step_mean_bank_boundary"] = float(d[pos == 0].mean())
-    out["step_mean_chunk_boundary"] = float(d[np.isin(pos, CHUNKS[1:])].mean())
-    out["step_mean_prefix_boundary"] = float(d[pos == CHUNKS[0]].mean())
+    out["step_mean_chunk_boundary"] = float(d[np.isin(pos, chunks[1:])].mean())
+    out["step_mean_prefix_boundary"] = float(d[pos == chunks[0]].mean())
 
     # beacon timing: 20 us power envelope, onsets above a robust threshold
     w = max(1, int(round(fs * 20e-6)))

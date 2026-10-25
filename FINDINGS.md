@@ -284,6 +284,34 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   which leaves a small DC line at this radio's low noise floor (gqrx "DC remove" clears it). Retune or
   gain change costs ~150 ms of samples (stream restart + devourer retune).
 
+### Continuous streaming on the 8822C (Phase 5, 2026-10-25)
+- **Working:** `wsdr_cu stream` + `src/fw/stream8822c.S` (`Stream8822c`, `src/stream_cu.*`) on the
+  8812CU over USB 2. 60 s at **5 MS/s** (36,621 banks) and 60 s at **2.5 MS/s** (18,311 banks), zero
+  strays, zero stale banks, framing and trailer sequence checked on every bank; shipping starts
+  ≤ 0.8 µs after the bank is due and takes 1481–1484 µs per bank (USB 2 wire time) against
+  1618.4 / 3256.8 µs. A synthetic run (host-filled banks) matched the pattern exactly.
+  `evidence/phase5-cu-stream.txt`, `-60s.jsonl`.
+- **Layout:** the 8822C's C2H window splits each bank at 0x6000 (map in `notes/cu-custom-code.md`),
+  so a bank ships as five packets that never cross the split: [128, 12352), [12352, 0x6000),
+  [0x6018, 0x9568), [0x9568, 0xCAB8), [0xCAB8, 0x10000), plus a trailer carrying the 128 B prefix
+  and the 24 B at 0x6000 (both overwritten by descriptors).
+- **LA ring, Jaguar3 dialect (`La8822c`):** 0x1CE4 ([5:0] dma, [10:8] rate, [17:13] trig sel 3),
+  0x1CF4[23], 0x1EB4[23], 0x1C3C[19:8] = dbg port 0x880, 0x7CC[30] = 0, arm 0x7C0 = 0xCB. Live with
+  the vendor CPU running or halted (0 % identical words between reads). **Rate:** CPU-timed
+  (`latime8822c.S`) fs = 80 MHz >> rate for rate 1–5 (ratio 1.0003–1.0012, i.e. a few samples of arm
+  latency); the ring starts at TXFF 0x20000 at the arm write, as on the 8822B.
+- **Offline** (`tools/stream_check.py`, now 8822C-layout aware): 567 / 552 beacons of the ch36 AP on
+  the 102.4 ms grid (median residual 0 samples), 0 bank slips, 0 duplicate banks; steps at bank,
+  chunk and prefix boundaries equal the overall mean. sha256 in `evidence/phase5-cu-stream-60s.sha256`.
+- **Two paths for free:** `--path ab` writes both. B leads A by **2.0 samples = 401 ns** at 5 MS/s
+  (Phase 1: ≈370 ns); single-tap coherence 0.58 in frame bursts vs 0.02 in noise
+  (`tools/cu_twopath.py`, `evidence/phase5-cu-stream-5m-ab-twopath.json`).
+- **Host queue depth matters:** with 32 queued transfers and two output files one bank ended 26 ms
+  late (a host write stall back-pressures the chip's C2H engine); 256 (the new default, ~100 ms at
+  5 MS/s) ran clean.
+- Gain: devourer's bring-up IGI with the J3 runtime thread off (no DIG updates), noise ≈130–160 LSB
+  RMS at ch36. A CCA-off fixed-gain mode for the 8822C is not done yet (`--igi` pins 0x1D70).
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.

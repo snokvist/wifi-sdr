@@ -1,7 +1,7 @@
 # RTL8812CU (RTL8822C cut 5): custom on-chip code
 
-Status 2026-10-25: **custom code runs on the 8822C's embedded CPU** (RAM only). C2H transport not yet
-working. Tool: `build-cu/wsdr_cu` (`cmake -S . -B build-cu && cmake --build build-cu --target wsdr_cu`;
+Status 2026-10-25: **custom code runs on the 8822C's embedded CPU** (RAM only), C2H works, and
+**the LA ring streams continuously** (2.5 / 5 MS/s, 60 s, zero faults; FINDINGS §4). Tool: `build-cu/wsdr_cu` (`cmake -S . -B build-cu && cmake --build build-cu --target wsdr_cu`;
 CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
 
 ## Loader (`src/cpu8822c.{h,cpp}`)
@@ -47,12 +47,16 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
   Each 64 KiB bank maps in two segments split at offset 0x6000; the 8822B aliases (0x16000/0x6000
   for the bank bases) do **not** apply.
 
-## Toward an 8822C streamer
-- C2H works and the alias map is known. Ring: TXFF 0x20000–0x40000 (devourer la_regs_jgr3, half mode).
-- Chunk layout must not cross the 0x6000 split inside a bank: e.g. segment A [128, 0x6000) as two
-  chunks and segment B [0x6000+24, 0x10000) as three, with the 24 bytes at 0x6000 saved like the
-  prefix (the segment-B descriptor overwrites them). Descriptor and payload must share a segment.
-- Still to do: an 8822C LA ring config (Jaguar3 dialect 0x1ce4/0x1cf4/0x1c3c, devourer LaCapture),
-  the streamer firmware at 0x8003003c with a 5-chunk table, and the two-path word layout
-  (path B at Q[43:32]/I[55:44]).
-- USB 2 only on this board (480M): ~44 MB/s → 5 MS/s at 8 B/sample, both paths in the same word.
+## Streamer (`src/fw/stream8822c.S`, `src/stream_cu.*`, `wsdr_cu ring|latime|stream`)
+- [V] LA ring, Jaguar3 dialect (`La8822c` in `src/la88xx.*`): 0x1CE4 [5:0] dma / [10:8] rate /
+  [17:13] trig sel 3, 0x1CF4[23], 0x1EB4[23], 0x1C3C[19:8] = 0x880, 0x7CC[30] = 0, arm 0x7C0 = 0xCB.
+  Live with the vendor CPU running or halted.
+- [V] Rate (latime8822c): fs = 80 MHz >> rate (rate 1–5), ring starts at TXFF 0x20000 at the arm.
+- [V] Five packets per bank: [128, 12352), [12352, 0x6000), [0x6018, 0x9568), [0x9568, 0xCAB8),
+  [0xCAB8, 0x10000); trailer (RX SRAM 0x1000) = 128 B prefix + 24 B at 0x6000 + stamps. The CPU
+  reads and writes TXFF at 0xB87A0000/0xB87B0000 and RX SRAM at 0xB8701000 as on the 8822B.
+- [V] 60 s at 5 MS/s and at 2.5 MS/s, zero faults, 1483 µs per bank on USB 2; offline beacon grid
+  clean. `--path ab` records both paths (B leads A by 401 ns). Use depth 256 (default).
+- Run: `cmake -S . -B build-cu && cmake --build build-cu --target wsdr_cu`, then
+  `sudo build-cu/wsdr_cu stream --pid 0xc812 --channel 36 --rate 4 --seconds 60 --path ab --out captures/x`.
+- Open: front-end integration (Soapy/rtl_tcp), an 8822C fixed-gain (CCA-off) mode, DFIR/wide tap.

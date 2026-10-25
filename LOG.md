@@ -271,3 +271,11 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   sets it via SFINAE): host C2H 1600/1600 at 16 KiB; CPU bench 1024/1024 ×3 at 44.7 MB/s.
 - C2H→TX map on the 8822C (`wsdr_cu c2hmap`): each bank splits at offset 0x6000; table in
   `notes/cu-custom-code.md`. Next: 8822C LA ring config + streamer with a 5-chunk layout.
+
+## 2026-10-25 12:45 — 8822C streamer works (USB 2, both paths)
+- `La8822c` (Jaguar3 LA dialect) gives a live free-running ring; `latime8822c.S` confirms fs = 80 MHz
+  >> rate. `stream8822c.S` ships each bank as five C2H packets around the 0x6000 segment split.
+- Synthetic 5 s exact; live 60 s at 5 MS/s and 60 s at 2.5 MS/s, zero faults; offline beacon grid
+  clean, 0 slips. Dual-path recording: B leads A by 401 ns. One 26 ms-late bank with depth 32 and two
+  output files → default depth 256.
+- Opened OpenIPC/devourer#498 (optional Jaguar3 runtime thread). MT7612U research agent running.

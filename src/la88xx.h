@@ -59,4 +59,29 @@ private:
   std::vector<std::pair<std::pair<uint16_t, int>, uint32_t>> _saved; // ((addr, width), value)
 };
 
+// The 8822C (Jaguar3) dialect of the same free-running ring (devourer LaCapture setup_bb /
+// setup_dbg_port, la_regs_jgr3): engine 0x1CE4 ([5:0] dma, [7:6] MAC-PHY timing, [10:8] rate,
+// [17:13] trig sel, [26] edge, [27]/[31:28] adv trigger), 0x1CF4[23] LA on, 0x1EB4[23] report
+// update, 0x1C3C[19:8] dbg port, 0x1CE8/0x1CF0 adv-trigger AND gates. MAC side (0x7C0) as on the
+// 8822B; 0x7CC[30] = 0 keeps the half-size ring at TXFF 0x20000..0x40000. Rate index as devourer's
+// (0 = 80M, 1 = 40M, 2 = 20M ...); measured with latime8822c. Ignores the 11AC-only fields
+// (cck_off/no_cca/dbgport_clk/dfir); igi pins 0x1D70[6:0]/[14:8].
+class La8822c {
+public:
+  static constexpr uint32_t kRingOcp = 0x187A0000;
+  static constexpr uint32_t kRingBytes = 0x20000;
+
+  explicit La8822c(Reg &r) : _r(r) {}
+  void snapshot();
+  void configure(const LaRingCfg &c);
+  void arm() { _r.w8(0x07C0, 0xCB); }
+  void stop() { _r.w8(0x07C0, 0x00); }
+  void restore();
+  bool saved() const { return !_saved.empty(); }
+
+private:
+  Reg &_r;
+  std::vector<std::pair<uint16_t, uint32_t>> _saved; // 32-bit (addr, value)
+};
+
 } // namespace wsdr
