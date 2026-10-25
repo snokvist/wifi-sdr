@@ -1,0 +1,6 @@
+bw 20 rate_sel 0: adjacent-duplicate 0.4854 rms 5.7
+bw 20 rate_sel 1: adjacent-duplicate 0.0307 rms 3.9
+bw 40 rate_sel 0: adjacent-duplicate 0.4723 rms 5.4
+bw 40 rate_sel 1: adjacent-duplicate 0.0117 rms 23.2
+bw 80 rate_sel 0: adjacent-duplicate 0.4823 rms 20.7
+bw 80 rate_sel 1: adjacent-duplicate 0.0191 rms 4.6

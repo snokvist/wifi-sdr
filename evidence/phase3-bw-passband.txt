@@ -1,0 +1,7 @@
+40 MS/s LA ring, fixed gain IGI 0x30, CCA off; noise-floor width from the median PSD of 3x16384 samples
+dbg 0x880 bw 20: -3 dB  -9.22.. +9.38 MHz, -10 dB -10.78..+10.70 MHz, rms 20.2
+dbg 0x880 bw 40: -3 dB -10.08..+10.31 MHz, -10 dB -11.41..+11.41 MHz, rms 35.1
+dbg 0x880 bw 80: -3 dB -12.27..+10.47 MHz, -10 dB -12.34..+11.41 MHz, rms 29.8
+dbg 0x0   bw 20: -3 dB  -9.14.. +9.22 MHz, -10 dB -10.70..+10.70 MHz, rms 28.7
+dbg 0x0   bw 40: -3 dB  -9.77..+10.23 MHz, -10 dB -11.33..+11.56 MHz, rms 107.9
+dbg 0x0   bw 80: -3 dB -12.27..+10.23 MHz, -10 dB -12.34..+11.56 MHz, rms 57.3

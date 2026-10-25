@@ -12,13 +12,16 @@
 // What the client sees:
 //   frequency    a double, so 5 GHz needs no tricks; snapped to the 5 MHz synthesizer grid
 //                (2.4 GHz ch1..14, 5 GHz ch16..233), the residual (<= 2.5 MHz) shifted digitally
-//   sample rate  2.5 MS/s or 5 MS/s (LA rate_sel 5 / 4), native, no resampling; bandwidth = rate
+//   sample rate  native LA rates, no resampling: 2.5 / 5 MS/s on USB 2; on USB 3 also 10 / 20 / 40 MS/s.
+//                The LA tap sits after a ~20 MHz filter at every channel width (FINDINGS §4), so the
+//                reported bandwidth is min(rate, 18.4 MHz)
 //   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (fixed-gain mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)
 //   format       CS16 (native: 12-bit << 4) or CF32 (/2048); one RX channel (path A); DC removed
 //                unless DC offset mode is turned off
 // Every setting change restarts the stream (tens of ms; ~150 ms for a retune), so the chip is never
-// touched while it streams. The stream needs USB 2 (16 KiB C2H wedges on USB 3; FINDINGS §4).
+// touched while it streams. USB 3 works on a good host controller (here xHCI 67:00.3; 65:00.3 wedges
+// C2H, FINDINGS §4); a wedged stream is logged and restarted.
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Formats.hpp>
 #include <SoapySDR/Logger.hpp>
@@ -56,13 +59,14 @@ constexpr double kGainStep = 0.95;  // measured dB per IGI step (FINDINGS §4)
 
 struct Settings {
   double freq = 5180e6;
-  int rate_sel = 5; // 5 = 2.5 MS/s, 4 = 5 MS/s
+  int rate_sel = 5; // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s
   bool agc = false;
   double gain_db = 30;
   bool dc_remove = true;
 };
 
 double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
+constexpr double kAnalogBw = 18.4e6; // measured -3 dB width of the LA tap (+-9.2 MHz), any channel width
 
 int igi_for(double db) {
   return std::clamp(0x50 - static_cast<int>(std::lround(db / kGainStep)), 0x1C, 0x50);
@@ -95,10 +99,10 @@ public:
         _ovf = true;
         return;
       }
-      for (size_t i = 0; i < n; i++) {
-        _buf[_head] = x[i];
-        _head = (_head + 1) % _buf.size();
-      }
+      const size_t first = std::min(n, _buf.size() - _head);
+      std::memcpy(&_buf[_head], x, first * sizeof(cf));
+      std::memcpy(&_buf[0], x + first, (n - first) * sizeof(cf));
+      _head = (_head + n) % _buf.size();
       _count += n;
     }
     _cv.notify_one();
@@ -115,10 +119,10 @@ public:
     if (!_count)
       return active ? 0 : -2;
     const size_t k = std::min(n, _count);
-    for (size_t i = 0; i < k; i++) {
-      out[i] = _buf[_tail];
-      _tail = (_tail + 1) % _buf.size();
-    }
+    const size_t first = std::min(k, _buf.size() - _tail);
+    std::memcpy(out, &_buf[_tail], first * sizeof(cf));
+    std::memcpy(out + first, &_buf[0], (k - first) * sizeof(cf));
+    _tail = (_tail + k) % _buf.size();
     _count -= k;
     return static_cast<int>(k);
   }
@@ -148,9 +152,8 @@ public:
     _s = std::make_unique<Session>(std::make_shared<Logger>());
     _s->open(o); // throws on failure; SoapySDR reports it to the client
     _channel = o.channel;
-    if (_s->superspeed())
-      SoapySDR::log(SOAPY_SDR_WARNING,
-                    "wsdr: adapter is on USB 3, where 16 KiB C2H wedges; replug it so it enumerates at USB 2");
+    SoapySDR::logf(SOAPY_SDR_INFO, "wsdr: %s on USB %d, sample rates up to %.1f MS/s", _s->chip().c_str(),
+                   _s->superspeed() ? 3 : 2, rate_of(min_rate_sel()) / 1e6);
   }
 
   ~SoapyWsdr() override { stop_worker(); }
@@ -203,7 +206,7 @@ public:
       return SOAPY_SDR_NOT_SUPPORTED;
     if (_active)
       return 0;
-    _ring.reset(static_cast<size_t>(rate_of(4) / 2)); // 0.5 s at the highest rate
+    _ring.reset(static_cast<size_t>(rate_of(min_rate_sel()) / 4)); // 0.25 s at the fastest rate
     _active = true;
     _restart = false;
     _worker = std::thread([this] { worker(); });
@@ -305,23 +308,39 @@ public:
 
   // ---- sample rate / bandwidth ----
   void setSampleRate(const int, const size_t, const double rate) override {
-    const int rs = std::abs(rate - rate_of(4)) < std::abs(rate - rate_of(5)) ? 4 : 5;
+    int rs = 5;
+    for (int r = 5; r >= min_rate_sel(); r--)
+      if (std::abs(rate - rate_of(r)) < std::abs(rate - rate_of(rs)))
+        rs = r;
     if (std::abs(rate - rate_of(rs)) > 1)
       SoapySDR::logf(SOAPY_SDR_WARNING, "wsdr: %.0f S/s not supported, using %.0f", rate, rate_of(rs));
     update([&](Settings &s) { s.rate_sel = rs; });
   }
   double getSampleRate(const int, const size_t) const override { return rate_of(get().rate_sel); }
-  std::vector<double> listSampleRates(const int, const size_t) const override { return {rate_of(5), rate_of(4)}; }
+  std::vector<double> listSampleRates(const int, const size_t) const override {
+    std::vector<double> v;
+    for (int r = 5; r >= min_rate_sel(); r--)
+      v.push_back(rate_of(r));
+    return v;
+  }
   SoapySDR::RangeList getSampleRateRange(const int, const size_t) const override {
-    return {SoapySDR::Range(rate_of(5), rate_of(5)), SoapySDR::Range(rate_of(4), rate_of(4))};
+    SoapySDR::RangeList v;
+    for (int r = 5; r >= min_rate_sel(); r--)
+      v.emplace_back(rate_of(r), rate_of(r));
+    return v;
   }
   void setBandwidth(const int, const size_t, const double) override {}
-  double getBandwidth(const int dir, const size_t ch) const override { return getSampleRate(dir, ch); }
+  double getBandwidth(const int dir, const size_t ch) const override {
+    return std::min(getSampleRate(dir, ch), kAnalogBw);
+  }
   std::vector<double> listBandwidths(const int dir, const size_t ch) const override {
-    return {getSampleRate(dir, ch)};
+    return {getBandwidth(dir, ch)};
   }
 
 private:
+  // USB 2 carries ~44 MB/s of C2H (5 MS/s at 8 B/sample); USB 3 carries 40 MS/s (320 MB/s).
+  int min_rate_sel() const { return _s->superspeed() ? 1 : 4; }
+
   Settings get() const {
     std::lock_guard<std::mutex> l(_setm);
     return _set;
@@ -385,6 +404,7 @@ private:
       nco.set(shift, src);
       StreamCfg c;
       c.la.rate_sel = cur.rate_sel;
+      c.depth = cur.rate_sel <= 2 ? 256 : 64; // >= 20 MS/s needs ~13 ms of posted URBs (FINDINGS §4)
       c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db);
       c.la.no_cca = !cur.agc;
       Stream8822b st(*_s, c);

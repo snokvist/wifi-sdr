@@ -215,3 +215,17 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 - Offline (20 MS/s, 10 s): 93 beacons, max residual 20 µs, 0 slips, no duplicates; boundary steps
   equal control positions (paired log-ratio −0.086 vs −0.087).
 - Evidence: `evidence/phase3-c2h-usb3-xhci2.txt`, `evidence/phase3-stream-usb3-20m*`.
+
+## 2026-10-25 13:10 — channel width and the LA tap; SoapySDR at 10/20/40 MS/s on USB3
+- LA writer rate is 80 MHz >> rate_sel at 20/40/80 MHz channel width (latime), and rate_sel 0
+  duplicates ~48 % of samples at every width → the LA tap is 40 MS/s at most.
+- Devourer's width switch takes effect (0x8ac low bits 0/5/6), but the sampled noise floor is ~±10 MHz
+  (−3 dB ≈ 18.4 MHz) at every width with both known taps (dbg 0x880, 0x0): the tap sits after a
+  ~20 MHz filter. 40 MS/s is an oversampled 20 MHz channel, not a 40 MHz span. 80 MHz is out (tap
+  rate), 160 MHz is out (chip). A wider tap would need another debug-port selector (research).
+- SoapySDR module: 2.5/5 MS/s on USB2, plus 10/20/40 MS/s on USB3; bandwidth reported as
+  min(rate, 18.4 MHz); 256 URBs at ≥ 20 MS/s; block-copy ring. Python readStream on USB3: 10/20/40 MS/s
+  clean for 10/5/10 s at 10,000,844 / 20,002,360 / 40,000,111 S/s, 0 overflows; retune/gain/re-open
+  clean at every rate. Offline (20 MS/s): 47 beacons, 0 slips.
+- `tools/stream_check.py`: a slip is now a persistent step against the TBTT grid (a deferred beacon is
+  one outlier); reports AP clock drift (−16…−21 ppm). Earlier evidence re-checked: 0 slips.

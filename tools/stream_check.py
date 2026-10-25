@@ -11,7 +11,8 @@ continuous time series:
                          a splice of non-adjacent data would raise the boundary mean
   * beacon timing        burst onsets of the strongest periodic emitter; intervals should be
                          integer multiples of 102.4 ms (one TU x 100) = 256000 samples at 2.5 MS/s.
-                         A dropped or repeated bank shifts an interval by 8192 samples.
+                         A dropped or repeated bank shifts every later beacon by 8192 samples (a
+                         persistent step, counted as a slip); a deferred beacon is a lone outlier.
 Usage: stream_check.py PREFIX [--json OUT]
 """
 import argparse
@@ -87,13 +88,24 @@ def main():
             iv = np.diff(train)
             m = np.round(iv / tu100)
             resid = iv - m * tu100
+            # Residual of each beacon against the TBTT grid, with the AP/our clock drift removed. A
+            # dropped or repeated bank shifts every later beacon by a bank (persistent step); a beacon
+            # deferred by a busy medium is a single outlier.
+            k = np.round((train - train[0]) / tu100)
+            g = (train - train[0]) - k * tu100
+            drift = np.polyfit(k, g, 1) if len(k) > 3 else [0.0, 0.0]
+            g = g - np.polyval(drift, k)
+            steps = [i for i in range(3, len(g) - 2)
+                     if abs(np.median(g[i:i + 3]) - np.median(g[i - 3:i])) > BANK / 2]
             best = {
                 "beacons": int(len(train)),
                 "interval_tu100_multiples": [int(v) for v in np.unique(m)],
                 "resid_samples_median": float(np.median(resid)),
                 "resid_samples_max_abs": float(np.max(np.abs(resid))),
                 "resid_us_max_abs": float(np.max(np.abs(resid)) / fs * 1e6),
-                "bank_slips": int(np.sum(np.abs(resid) > BANK / 2)),
+                "clock_drift_ppm": float(drift[0] / tu100 * 1e6),
+                "grid_outliers_over_half_bank": int(np.sum(np.abs(g) > BANK / 2)),
+                "bank_slips": len(steps),
             }
     out["beacon_train"] = best
     print(json.dumps(out, indent=1))

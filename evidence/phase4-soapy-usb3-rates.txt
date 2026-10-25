@@ -1,0 +1,24 @@
+=== Soapy USB3 rate 10e6
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+{"hw": "RTL8822B", "rates": [2500000.0, 5000000.0, 10000000.0, 20000000.0, 40000000.0], "freq_ranges": ["2.4e+09, 2.5e+09", "5.08e+09, 6.165e+09"], "gains": ["IGI"], "gain_range": "0, 49.4, 0.95", "has_agc": true, "formats": ["CS16", "CF32"]}
+read back: 5180000000.0 10000000.0 30.0
+{"samples": 99532800, "seconds": 10.001, "first_sample_s": 0.048, "rate_avg": 10000844, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 77299712, "seconds": 8.0, "first_sample_s": 0.036, "rate_avg": 9706622, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 29540352, "seconds": 3.001, "first_sample_s": 0.047, "rate_avg": 10002755, "overflows": 0, "timeouts": 0, "errors": 0}
+=== Soapy USB3 rate 20e6
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+{"hw": "RTL8822B", "rates": [2500000.0, 5000000.0, 10000000.0, 20000000.0, 40000000.0], "freq_ranges": ["2.4e+09, 2.5e+09", "5.08e+09, 6.165e+09"], "gains": ["IGI"], "gain_range": "0, 49.4, 0.95", "has_agc": true, "formats": ["CS16", "CF32"]}
+read back: 5180000000.0 20000000.0 30.0
+{"samples": 99008512, "seconds": 5.0, "first_sample_s": 0.051, "rate_avg": 20002360, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 154738688, "seconds": 8.0, "first_sample_s": 0.04, "rate_avg": 19439771, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 59023360, "seconds": 3.0, "first_sample_s": 0.049, "rate_avg": 20002845, "overflows": 0, "timeouts": 0, "errors": 0}
+=== Soapy USB3 rate 40e6
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+[INFO] wsdr: RTL8822B on USB 3, sample rates up to 40.0 MS/s
+{"hw": "RTL8822B", "rates": [2500000.0, 5000000.0, 10000000.0, 20000000.0, 40000000.0], "freq_ranges": ["2.4e+09, 2.5e+09", "5.08e+09, 6.165e+09"], "gains": ["IGI"], "gain_range": "0, 49.4, 0.95", "has_agc": true, "formats": ["CS16", "CF32"]}
+read back: 5180000000.0 40000000.0 30.0
+{"samples": 398024704, "seconds": 10.0, "first_sample_s": 0.05, "rate_avg": 40000111, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 309739520, "seconds": 8.0, "first_sample_s": 0.038, "rate_avg": 38900082, "overflows": 0, "timeouts": 0, "errors": 0}
+{"samples": 118095872, "seconds": 3.0, "first_sample_s": 0.048, "rate_avg": 40002282, "overflows": 0, "timeouts": 0, "errors": 0}

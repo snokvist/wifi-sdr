@@ -103,6 +103,7 @@ bool parse(int argc, char **argv, Args &a) {
     if (k == "--pid") a.open.pid = static_cast<uint16_t>(num(v()));
     else if (k == "--vid") a.open.vid = static_cast<uint16_t>(num(v()));
     else if (k == "--channel") a.open.channel = static_cast<int>(num(v()));
+    else if (k == "--bw") a.open.bw = static_cast<int>(num(v()));
     else if (k == "--no-reset") a.open.reset = false;
     else if (k == "--no-thermal") a.open.thermal_track = false;
     else if (k == "--rate") { a.la.rate_sel = static_cast<int>(num(v())); a.rate_given = true; }
@@ -167,8 +168,10 @@ int cmd_ring(Session &s, const Args &a) {
   try {
     la.configure(a.la);
     la.arm();
-    std::printf("{\"ev\":\"ring.cfg\",\"igi_a\":\"0x%02x\",\"igi_b\":\"0x%02x\",\"r808\":\"0x%08x\",\"r95c\":\"0x%08x\"}\n",
-                r.r32(0x0C50) & 0x7F, r.r32(0x0E50) & 0x7F, r.r32(0x0808), r.r32(0x095C));
+    std::printf("{\"ev\":\"ring.cfg\",\"igi_a\":\"0x%02x\",\"igi_b\":\"0x%02x\",\"r808\":\"0x%08x\",\"r95c\":\"0x%08x\","
+                "\"r8ac\":\"0x%08x\",\"r8c4\":\"0x%08x\"}\n",
+                r.r32(0x0C50) & 0x7F, r.r32(0x0E50) & 0x7F, r.r32(0x0808), r.r32(0x095C), r.r32(0x08AC),
+                r.r32(0x08C4));
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     const size_t n = La8822b::kRingBytes / 8;
     std::vector<std::vector<uint64_t>> rd(static_cast<size_t>(a.reads), std::vector<uint64_t>(n));
@@ -704,8 +707,8 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "open/bring-up failed: %s\n", e.what());
     return 3;
   }
-  std::printf("{\"ev\":\"session\",\"chip\":\"%s\",\"superspeed\":%d,\"channel\":%d}\n", s.chip().c_str(),
-              s.superspeed() ? 1 : 0, a.open.channel);
+  std::printf("{\"ev\":\"session\",\"chip\":\"%s\",\"superspeed\":%d,\"channel\":%d,\"bw\":%d}\n",
+              s.chip().c_str(), s.superspeed() ? 1 : 0, a.open.channel, a.open.bw);
   if (a.cmd == "ring")
     return cmd_ring(s, a);
   if (a.cmd == "snap")

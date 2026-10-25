@@ -241,6 +241,10 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   The failing controller is 0000:65:00.3 (AMD 1022:15b9). At 40 MS/s the host needs a deep URB queue
   (256 × 16 KiB ≈ 13 ms); with 64 one bank once took 560 µs (> 202.8 µs budget) after 39 s.
   `evidence/phase3-c2h-usb3-xhci2.txt`, `evidence/phase3-stream-usb3-20m*`.
+- **Channel width vs the LA tap:** the LA writer runs at 80 MHz >> rate_sel at 20/40/80 MHz width, and
+  rate_sel 0 duplicates ~48 % of samples at every width (true ceiling 40 MS/s). Width switching works
+  (0x8ac = …0/…5/…6), but the sampled noise floor stays ±10 MHz (−3 dB ≈ 18.4 MHz) at every width for
+  dbg 0x880 and 0x0, so the tap is after a ~20 MHz filter. `evidence/phase3-bw-*.txt`.
 
 ### Continuous streaming over USB2 (Phase 3, 2026-10-25)
 - **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at
