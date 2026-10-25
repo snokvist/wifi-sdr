@@ -15,6 +15,9 @@ gqrx: device "rtl_tcp=127.0.0.1:1234", Input controls → LNB LO 5000 MHz, then 
 sudo build/wsdr_probe stream --pid 0xb812 --seconds 60 --out captures/x   # record .cs16 + .json
 ```
 Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom tools) need no offset.
+**Better: SoapySDR** (true 5 GHz, 16-bit samples): `cmake -S . -B build-soapy -DWSDR_SOAPY=ON && cmake
+--build build-soapy -j --target wsdrSupport`, then `SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy gqrx` with device
+`soapy=0,driver=wsdr` (or SDR++'s SoapySDR source). Non-root access: `tools/99-wsdr.rules` (not installed).
 
 ## Hardware
 

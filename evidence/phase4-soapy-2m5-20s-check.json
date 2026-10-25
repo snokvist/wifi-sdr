@@ -1,0 +1,26 @@
+{
+ "file": "captures/phase3/soapy-ch36-2m5-20s",
+ "fs": 2500000.0,
+ "samples": 49733632,
+ "banks": 6071,
+ "seconds": 19.8934528,
+ "duplicate_banks": 0,
+ "ring_lag_identical": 0.00021457342128027682,
+ "adjacent_identical": 0.000463951646723723,
+ "step_mean_all": 38.90043258666992,
+ "step_mean_bank_boundary": 38.39341354370117,
+ "step_mean_chunk_boundary": 38.924991607666016,
+ "step_mean_prefix_boundary": 36.913307189941406,
+ "bursts": 1123,
+ "beacon_train": {
+  "beacons": 192,
+  "interval_tu100_multiples": [
+   1,
+   2
+  ],
+  "resid_samples_median": 0.0,
+  "resid_samples_max_abs": 800.0,
+  "resid_us_max_abs": 320.0,
+  "bank_slips": 0
+ }
+}

@@ -65,3 +65,6 @@ target_link_libraries(iqdsp_test iqdsp)
 
 add_executable(wsdr_tcp src/wsdr_tcp.cpp)
 target_link_libraries(wsdr_tcp wsdrcore iqdsp Threads::Threads)
+
+# Optional SoapySDR driver module (cmake/soapy.cmake builds it when SoapySDR is found).
+include(cmake/soapy.cmake OPTIONAL)

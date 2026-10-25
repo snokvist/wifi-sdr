@@ -191,3 +191,14 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   Remaining separators: another xHCI (this host has four AMD controllers; the 8812BU is on 65:00.3,
   the 8812CU's port is on 67:00.3), another board (N6), a hub in between.
 - Evidence: `evidence/usb3-regdiff/`.
+
+## 2026-10-25 12:05 — SoapySDR module "wsdr" (Phase 4)
+- `src/soapy/SoapyWsdr.cpp` + `cmake/soapy.cmake` (opt-in `-DWSDR_SOAPY=ON`, `build-soapy/libwsdrSupport.so`),
+  written by a Claude fork, tested here: RX path A, CS16/CF32, 2.5/5 MS/s, frequency as a double
+  (2.40–2.50, 5.080–6.165 GHz; no u32 limit, no LNB trick), gain element "IGI" 0–49.4 dB + AGC mode.
+- Hardware (8812BU moved to xHCI 67:00.3, USB2): `tools/soapy_check.py` 20 s at 2,500,381 S/s, 0
+  overflows; retune 5180→5200→5180 + gain change while streaming, no errors (~0.1 s per restart);
+  close/re-open clean. Offline: 192 beacons on the 102.4 ms grid, 0 slips. gqrx via
+  `soapy=0,driver=wsdr` live at 5180.000 MHz (`evidence/phase4-soapy-gqrx-ch36.png`).
+- python3-soapysdr 0.8.1 quirk: `SoapySDR.Device(dict(...))` fails with "no match"; use the string form.
+- USB2 streaming also holds on the second controller (10 s, 3052 banks, 0 faults).
