@@ -21,10 +21,9 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
   - The C2H→TX address map is known (`notes/cu-custom-code.md`).
   - **Streamer done:** `wsdr_cu stream` (2.5/5 MS/s, 60 s, zero faults; both paths with `--path ab`).
     FINDINGS §4 "Continuous streaming on the 8822C". Next on the CU: Soapy front end, fixed gain.
-- **MT7612U:** an Opus research agent was launched (background) on raw-IQ feasibility.
-  - Expected output: `notes/mt7612u-sdr.md`, `evidence/phase6-mt-*`, `src/mt76sdr/`, `tools/mt_*`,
-    `build-mt/`.
-  - Review, then commit and push it. If it left a `cmake/mt.cmake`, add its include line.
+- **MT7612U:** static RE done (`notes/mt7612u-sdr.md`); no capture yet. Candidate path: PBF ADC
+  dump; custom NDS32 code via the stock firmware's arbitrary read/write commands. The adapter
+  dropped off the bus during bring-up and needs a replug. Probe: `tools/mt_build.sh` → `build-mt/mtsdr`.
 
 ## Hardware and ports (this host has four AMD xHCI controllers)
 | Adapter | Where | Notes |

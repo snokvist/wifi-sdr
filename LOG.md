@@ -279,3 +279,12 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   clean, 0 slips. Dual-path recording: B leads A by 401 ns. One 26 ms-late bank with depth 32 and two
   output files → default depth 256.
 - Opened OpenIPC/devourer#498 (optional Jaguar3 runtime thread). MT7612U research agent running.
+
+## 2026-10-25 13:10 — MT7612U research (Opus agent, static RE; no capture yet)
+- MCU is Andes NDS32; firmware download has no signature check, and the stock firmware's in-band
+  commands 8–12 (burst/random read/write) reach any MCU-bus address → RAM-only custom code looks
+  feasible without a modified image [I].
+- No IQ ring like Realtek's LA mode. Best candidate: the PBF "ADC dump" capture (0x0440 / 0x0400[14],
+  SMM 0x4000 / PKT 0x8000), compiled out for RLT MACs in the vendor driver but likely present [I/?].
+- The adapter wedged and dropped off xHCI 67:00.4 during the first devourer bring-up (verified: port
+  8-1 does not enumerate). Needs a physical replug, preferably on another port. `notes/mt7612u-sdr.md`.

@@ -1,0 +1,40 @@
+[21698.641313] usb 8-1: device not accepting address 2, error -62
+[21704.065446] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21709.697885] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21709.906054] usb 8-1: device not accepting address 2, error -62
+[21715.329706] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21720.962242] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21721.170127] usb 8-1: device not accepting address 2, error -62
+[21726.593928] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21732.226423] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21732.434374] usb 8-1: device not accepting address 2, error -62
+[21732.450891] usb 8-1: USB disconnect, device number 2
+[21737.859367] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21743.490490] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21743.698295] usb 8-1: device not accepting address 3, error -62
+[21749.123412] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21754.754553] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21754.962507] usb 8-1: device not accepting address 4, error -62
+[21754.970561] usb usb8-port1: attempt power cycle
+[21760.898680] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21766.530794] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21766.738774] usb 8-1: device not accepting address 5, error -62
+[21772.162939] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21777.795060] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21778.003037] usb 8-1: device not accepting address 6, error -62
+[21778.011134] usb usb8-port1: unable to enumerate USB device
+[21781.026883] xhci_hcd 0000:67:00.4: Refused to change power state from D0 to D3hot
+[21787.011246] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21792.643376] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21792.851333] usb 8-1: device not accepting address 7, error -62
+[21798.275489] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21803.907612] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21804.115594] usb 8-1: device not accepting address 8, error -62
+[21804.123686] usb usb8-port1: attempt power cycle
+[21810.051735] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21815.683885] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21815.891912] usb 8-1: device not accepting address 9, error -62
+[21821.316521] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21826.948131] xhci_hcd 0000:67:00.4: Timeout while waiting for setup device command
+[21827.156095] usb 8-1: device not accepting address 10, error -62
+[21827.164231] usb usb8-port1: unable to enumerate USB device
