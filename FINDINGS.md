@@ -29,8 +29,12 @@ Evidence: `evidence/phase0/doctor-8812{bu,cu}-*.{jsonl,stderr}`.
 - The 8812BU was already in USB 3 mode because `rtw88_8822bu` performs the USB2→USB3 mode switch at probe
   and it persists until power loss. A cold-plugged unit enumerates USB 2 first (ac54 `tools/usb3.c`;
   rtw88 `rtw_usb_switch_mode_new`). **Not a permanent change** — a register write, lost on power-off.
-- The 8812CU came up on a USB 2 root port with bcdUSB 2.00. Whether this die/board supports the same
-  runtime switch is **open** (to check: PAD_CTRL2 0xc4 bit 20 / 0xff, read-only).
+- The 8812CU came up on a USB 2 root port with bcdUSB 2.00. **This board cannot switch to USB 3**
+  (2026-10-25): in the 8812BU's USB 3 port (xHCI 0000:67:00.3, SS bus 6) it enumerates at 480M, and
+  `rtw88_8822cu` (kernel 7.0, `switch_usb_mode=Y`, `debug_mask` on) logs "Switching to USB 3 mode
+  disabled by chip's efuse". The board does not appear to be wired for USB 3 either. So this 8812CU
+  is USB 2 only: continuous streaming tops out at 5 MS/s (both paths, 40 MB/s); wider spans would
+  need gapped capture (burst at 40 MS/s, ship over USB 2, ~12 % duty).
 - USB-2 ceiling: ~35–40 MB/s of bulk payload in practice → 20 Msps of 16-bit IQ (80 MB/s) cannot fit;
   12-bit packed at 20 Msps (60 MB/s) cannot either. Without USB 3 the 8812CU tops out near 10 Msps (24-bit)
   — to be measured, not assumed.
