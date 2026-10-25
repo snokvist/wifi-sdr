@@ -37,9 +37,9 @@ struct RxSettings {
   int rate_sel = 5;     // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s
   bool wide = true;     // at 40 MS/s: 40 MHz channel width (8812BU: + vendor BW40 RX DFIR; 8822C: devourer's
                         // BW40 set opens its filter, flat to +-17 MHz, measured)
-  bool allow_gapped = false; // 8812CU: rate_sel below min_rate_sel streams gapped (see BankMeta::gapped)
   bool agc = false;     // true: chip AGC; false: fixed gain (OFDM CCA off, IGI pinned)
   double gain_db = 30;
+  bool allow_gapped = false; // 8812CU: rate_sel below min_rate_sel streams gapped (see BankMeta::gapped)
 };
 
 struct RxCaps {
