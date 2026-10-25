@@ -1,0 +1,28 @@
+{
+ "file": "captures/phase3/stream-ch36-5m-30s-g20",
+ "fs": 5000000,
+ "samples": 150003712,
+ "banks": 18311,
+ "seconds": 30.0007424,
+ "duplicate_banks": 0,
+ "ring_lag_identical": 0.01681278701091335,
+ "adjacent_identical": 0.018881166213281217,
+ "step_mean_all": 7.9642839431762695,
+ "step_mean_bank_boundary": 8.415674209594727,
+ "step_mean_chunk_boundary": 7.859262466430664,
+ "step_mean_prefix_boundary": 8.511021614074707,
+ "bursts": 1380,
+ "beacon_train": {
+  "beacons": 264,
+  "interval_tu100_multiples": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "resid_samples_median": 0.0,
+  "resid_samples_max_abs": 2800.0,
+  "resid_us_max_abs": 560.0,
+  "bank_slips": 0
+ }
+}

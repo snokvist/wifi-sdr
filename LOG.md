@@ -115,3 +115,40 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 ## 2026-10-25 12:20 — coord channel; visualization paused
 - Added coord/ (one-writer message files + mkdir locks) and tools/coord.sh for the parallel opencode session.
 - Started an offline visualization tool (tools/viz_capture.py); the response was stopped by a safety classifier mid-write. Partial file deleted, not retried. Claude session paused.
+
+## 2026-10-25 08:30 — C2H large-packet result (8812BU)
+- Host C2H works on RX SRAM and both TX-bank aliases (8/8 each). On-chip 16 KiB latency: 38–46 µs
+  (p50 41), one 1024/1024 run at 387 MB/s — not reproducible.
+- Sustained 16 KiB C2H wedges randomly after 3–1563 requests (10 of 11 1600-request runs failed;
+  two failure signatures, trigger stuck or packet lost). 256 B/1024 B were 2000/2000; 4/8 KiB flaky;
+  16 KiB unusable. CPU-driven and host-driven, single URB, unique payloads, varying addresses, TX
+  source, RXDMA modes, LPM, FWFF off, agg threshold, CR, thermal off, retries: all negative.
+  Forcing 0x284 BIT18 (RW_RELEASE_EN) blocks C2H entirely.
+- New files: `src/fw/c2hbench8822b.S`, `src/c2h88xx.{h,cpp}`, `wsdr_probe c2h|c2hbench`; evidence
+  `evidence/phase3-c2h-{bench,tail}.*`, `evidence/phase3-c2h-wedge-matrix.txt`.
+- Handoff/research brief: `notes/c2h-wedge-handoff.md`. Recommended order: snapshot front end first,
+  C2H investigation in parallel; USB2 replug test is the top experiment.
+
+## 2026-10-25 09:55 — E1: C2H over USB2 is reliable (8812BU)
+- Replugged the 8812BU with the rtw88 guard ON → enumerates at 480M (1-1); devourer does no USB3 switch.
+- 16 KiB C2H, RX source: 1600/1600 ×3 and a 20000/20000 soak, 0 timeouts. TX0/TX1 aliases 1600/1600 ×2
+  each. 4 KiB and 8 KiB 2000/2000. On-chip c2hbench 1024/1024 ×3: 347–365 µs/packet, 44.7 MB/s
+  (USB2 wire limit). Same code/binary that wedged 10 of 11 runs on USB3.
+- Caveat (open): on USB2 the engine is wire-paced ~9× slower (365 vs 41 µs/packet), so "USB3 link"
+  and "back-to-back request rate" are not yet separated. The matrix has no `--gap-us` evidence; the
+  host-driven depth-1 USB3 runs (~host-RTT paced) still wedged, which leans towards USB3.
+- Budget: LA ring is 8 B/sample, so 5 MS/s = 40 MB/s (~90 % of measured USB2; bank 1638 µs vs
+  ~1.47 ms ship time) and 2.5 MS/s = 20 MB/s (comfortable). A USB2 continuous mode is unblocked.
+- Evidence: `evidence/phase3-c2h-usb2-{16k,bench,sources}.txt`.
+
+## 2026-10-25 10:30 — continuous streaming over USB2 (8812BU)
+- New: `src/fw/latime8822b.S` + `wsdr_probe latime` (CPU-timed LA arm→trigger), `src/fw/stream8822b.S`
+  + `src/stream88xx.{h,cpp}` + `wsdr_probe stream` (bank-scheduled C2H streamer, in-order bulk reader,
+  per-bank framing/deadline/staleness checks, `.cs16` + JSON recorder), `tools/stream_check.py`
+  (offline continuity: beacon timing, duplicate banks, boundary steps).
+- latime: rate_sel 5 = exactly 2.5 MS/s, writer starts within ~1 µs of the arm, no drift over 5 s.
+- Results: 60 s at 2.5 MS/s and 60 s at 5 MS/s, zero faults; ship 1475 µs max per bank (45 % / 91 %
+  of the budget). Offline: 455 beacons on exact 102.4 ms multiples, 0 bank slips.
+- Found: CPU stores into the bank the ADC is filling are corrupted (bytes 8..15 = copy of 0..7);
+  shipping 1 ms early reproduces it. Frozen-writer control (`--ofdm 0`) flags 303/305 banks stale.
+- Captures in `captures/phase3/` (not tracked); evidence `evidence/phase3-stream-*`.

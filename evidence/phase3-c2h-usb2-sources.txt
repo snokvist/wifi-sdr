@@ -1,0 +1,12 @@
+=== tx0 run 1
+{"ev":"c2h.host","source":"tx0","bytes":16352,"count":1600,"verified":1600,"stray":3,"timeouts":0,"retries":0,"ms":1800.1,"mbps":14.53}
+=== tx0 run 2
+{"ev":"c2h.host","source":"tx0","bytes":16352,"count":1600,"verified":1600,"stray":3,"timeouts":0,"retries":0,"ms":1799.6,"mbps":14.54}
+=== tx1 run 1
+{"ev":"c2h.host","source":"tx1","bytes":16352,"count":1600,"verified":1600,"stray":4,"timeouts":0,"retries":0,"ms":1802.0,"mbps":14.52}
+=== tx1 run 2
+{"ev":"c2h.host","source":"tx1","bytes":16352,"count":1600,"verified":1600,"stray":3,"timeouts":0,"retries":0,"ms":1801.7,"mbps":14.52}
+=== rx 4096
+{"ev":"c2h.host","source":"rx","bytes":4096,"count":2000,"verified":2000,"stray":5,"timeouts":0,"retries":0,"ms":1506.6,"mbps":5.44}
+=== rx 8192
+{"ev":"c2h.host","source":"rx","bytes":8192,"count":2000,"verified":2000,"stray":3,"timeouts":0,"retries":0,"ms":1504.6,"mbps":10.89}

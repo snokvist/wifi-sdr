@@ -1,0 +1,18 @@
+=== run 1
+devourer [I] Jaguar2: ready for TX (monitor inject, ch=36)
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.host","source":"rx","bytes":16352,"count":1600,"verified":1600,"stray":3,"timeouts":0,"retries":0,"ms":1800.0,"mbps":14.53}
+{"ev":"c2h.done","alive":1}
+exit=0
+=== run 2
+devourer [I] Jaguar2: ready for TX (monitor inject, ch=36)
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.host","source":"rx","bytes":16352,"count":1600,"verified":1600,"stray":5,"timeouts":0,"retries":0,"ms":1806.9,"mbps":14.48}
+{"ev":"c2h.done","alive":1}
+exit=0
+=== run 3
+devourer [I] Jaguar2: ready for TX (monitor inject, ch=36)
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.host","source":"rx","bytes":16352,"count":1600,"verified":1600,"stray":5,"timeouts":0,"retries":0,"ms":1799.8,"mbps":14.54}
+{"ev":"c2h.done","alive":1}
+exit=0

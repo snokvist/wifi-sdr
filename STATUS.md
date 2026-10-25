@@ -1,10 +1,12 @@
 # STATUS
 
-_Last updated: 2026-10-25 12:45 CET_
+_Last updated: 2026-10-25 10:30 CET_
 
-**Current phase:** Phase 3 (8812BU continuous streaming), groundwork done, streaming in progress in a
-parallel session (opencode; lane in `coord/from-opencode.md`). Phases 0–2 complete; Phase 1 done on both
-chips. Interim write-up: [REPORT.md](REPORT.md).
+**Current phase:** Phase 3 (8812BU continuous streaming). **USB2 continuous streaming works**
+(2026-10-25): `wsdr_probe stream` delivers 60 s at 2.5 MS/s and 60 s at 5 MS/s with zero faults,
+independently checked for continuity (beacon timing, no slips). 16 KiB C2H is reliable on USB2 and
+wedges on USB3, so 20/40 Msps still waits on the USB3 investigation. The 8812BU is enumerated at 480M
+(1-1). Phases 0–2 complete. Interim write-up: [REPORT.md](REPORT.md).
 
 ## Hardware
 
@@ -39,13 +41,17 @@ chips. Interim write-up: [REPORT.md](REPORT.md).
   - Contiguous snapshot capture (`wsdr_probe snap`): 819 µs per snapshot, ~12.5 ms readback.
   - **Custom code runs on the embedded CPU.** The REG 0x568 µs counter is verified and the ISA subset
     characterized.
+- **Phase 3 on USB2, 8812BU:** continuous streaming of path A at 2.5 MS/s and 5 MS/s, 60 s each, zero
+  faults, recorded to `.cs16` and checked offline (FINDINGS §4 "Continuous streaming over USB2";
+  `evidence/phase3-stream-*`).
 - **Firmware study** `notes/fw-disasm.md`: the 8822B PSD engine, the 8822C IQK read-out and the
   register names are cross-checked into FINDINGS §3, with one correction (no PSD registers on the
   8822C in this vendor tree).
 
 ## Not done yet
-- Continuous streaming: 20 Msps for 60 s with zero faults, and the 40 Msps result. In progress in
-  the parallel session.
+- Continuous streaming at 20 Msps for 60 s and the 40 Msps result: needs USB3, where 16 KiB C2H wedges.
+  Next: the USB3 rate-vs-link test (pace C2H to the USB2 rate on USB3), then the devourer-vs-rtw88
+  register diff (`notes/c2h-wedge-handoff.md`). Done on USB2: 2.5 and 5 MS/s for 60 s (FINDINGS §4).
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
 - Phase 4 front ends (rtl_tcp, SoapySDR, recorder), Phase 5 (8812CU port), Phase 6 (8812EU).
 - 8812CU streaming would be USB-2-limited (≈35–40 MB/s) unless the board supports the runtime USB 3
@@ -56,5 +62,9 @@ N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch
 (8812CU plugged in).
 
 ## Next steps
-See REPORT.md §7: Phase 3 streaming and its integrity harness at 10 → 20 → 40 Msps, then the tuning
-table, the Phase 4 front ends and the 8812CU port.
+Updated 2026-10-25 10:30: (1) **front end on the continuous stream**: an rtl_tcp/SpyServer-lite server fed by
+`Stream8822b` at 2.5 MS/s (the snapshot-mode server is no longer the only option); the `.cs16` + JSON
+recorder exists (`wsdr_probe stream --out`); (2) **USB3 rate-vs-link test**: needs the adapter switched
+back to USB3 via a short rtw88 probe under the `rtw88-guard` lock; (3) 20/40 Msps only after the USB3
+transport holds. The 8812CU port is deprioritized. The tuning table can proceed with the stream or
+snapshots. Details: `notes/c2h-wedge-handoff.md` §9.

@@ -146,7 +146,8 @@ vendor sources (`~/dev/snokvist/devourer/reference/rtl88x2cu/hal/`) on 2026-10-2
 
 ## 4. Continuous streaming data path (ac54, 8822B) — Phase 2
 
-Source: ac54 (`notes/ac54-analysis.md` §2–§8). Status: **documented, not yet reproduced on our units.**
+Source: ac54 (`notes/ac54-analysis.md` §2–§8). Status: **transport reproduced on our 8812BU; the
+large-packet path is not yet sustainable (see the C2H subsection below).**
 
 ```
  ADC (BW20: 40 Msps) ─LA block (free-running, never triggered)─► 128 KiB ring in TX-FIFO SRAM
@@ -198,6 +199,56 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   MIPS16e2 extended-LI group is implemented — ORI/XORI behave as LI, ANDI 0xffff as LUI 0xffff — so 32-bit
   constants must be LUI + ADDIU. After our code starts, 0x80 reads 0x4078 (no vendor ready bit 15).
 
+### C2H large-packet transport on our 8812BU (Phase 3, 2026-10-25)
+- **Working:** host-driven C2H and the on-chip bench. RX SRAM and both TX-bank aliases (TX0 0x16000,
+  TX1 0x6000) deliver 8/8 packets; on-chip 16 KiB latency is 38–46 µs (min/p50/p99/max =
+  38/41/45/46, mean 41.4) — inside the 204.8 µs 40 Msps bank window. One 1024-request run completed
+  1024/1024 at 387 MB/s; it is **not reproducible**.
+- **Blocked:** sustained 16 KiB C2H wedges after a random 3–1563 requests. Ten of eleven 1600-request
+  runs failed (720, 0, 166, 813, 394, 56, 369, 428, 405, 323 completed); two signatures: the 0x294
+  BIT16 trigger stays set with no packet, or the trigger clears and the packet never arrives. Retry,
+  abort, restage, gap and descriptor checks do not recover; only a fresh bring-up does.
+  `r288` overflow (BIT7) appears only after retries; `r280=0x0a03`, `r10c=0xf5a0`, `r284=0`.
+- **Size dependence:** 256 B and 1024 B were 2000/2000 (two runs each); 4 KiB and 8 KiB were flaky
+  (one 2000 pass, one early fail each); 16 KiB is unusable.
+- **Ruled out (all negative):** CPU-driven vs host-driven, single vs 16 outstanding URBs, unique
+  payload per request, rotating 16 KiB addresses, TX source, MAC RX on/off, CR force, RXDMA modes
+  0/2/12/14, USB LPM clear, agg-threshold low byte, FWFF off, thermal thread off, RW_RELEASE_EN=0.
+  Forcing Rw release (0x284 BIT18) sets RXDMA_IDLE and blocks C2H entirely (0 completions).
+- **Handoff / next experiments:** `notes/c2h-wedge-handoff.md` (USB2 replug test first, then a
+  devourer-vs-rtw88 register diff, a second host controller/board, and a wedge recovery without
+  re-open). Matrix: `evidence/phase3-c2h-wedge-matrix.txt`.
+- **USB2 (2026-10-25, E1):** after a replug with the rtw88 guard on, the 8812BU enumerates at 480M and
+  the same 16 KiB C2H is reliable: 1600/1600 ×3, a 20000/20000 soak, TX0/TX1 1600/1600 ×2, 4/8 KiB
+  2000/2000, c2hbench 1024/1024 ×3 at 347–365 µs/packet = 44.7 MB/s (wire-limited). Open: on USB2 the
+  engine is paced ~9× slower, so "USB3 link" vs "back-to-back rate" is not yet separated (the matrix
+  has no `--gap-us` run). Evidence: `evidence/phase3-c2h-usb2-*.txt`.
+
+### Continuous streaming over USB2 (Phase 3, 2026-10-25)
+- **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at
+  **2.5 MS/s** (rate_sel 5, 20 MB/s) and 60 s at **5 MS/s** (rate_sel 4, 40 MB/s): 18311 / 36621 banks,
+  zero strays, zero stale banks, every bank's framing and trailer sequence checked; on-chip shipping
+  start is 0–0.8 µs after the bank is due; a bank ships in 1454–1475 µs (4 × 16376 B + 168 B trailer,
+  USB2 wire time) against a 3256.8 / 1618.4 µs budget (45 % / 91 %). `evidence/phase3-stream-*`.
+- **Offline continuity** (`tools/stream_check.py`, 60 s 2.5 MS/s capture, sha256 in evidence): 455 beacons
+  of the ch36 AP, all intervals exact multiples of 102.4 ms (median residual 0 samples, max 320 µs
+  CSMA jitter), 0 bank slips; no duplicate banks; sample steps at bank/chunk boundaries equal those at
+  control offsets (paired log-ratio −0.07 ± 0.004 everywhere). The ~1.7 % "identical to one ring
+  earlier" rate is lag-independent: it is the narrow noise-floor value distribution, not stale data.
+- **Rate selectors:** 0x95c[7:5] = 4, 5, 6 all give live, non-duplicated data at BW20. `latime` (CPU
+  arms, waits D µs on REG 0x568, triggers) measures rate 5 as exactly 2.5 MS/s; the writer starts at
+  TXFF 0x20000 within ~1 µs of the arm write; after 5 s (12.5 M samples) the predicted ring position is
+  exact (no ADC/REG 0x568 drift). So an open-loop bank schedule from the µs counter is exact.
+- **Hazard (measured):** CPU 32-bit stores into the ring bank the ADC is *currently filling* are
+  corrupted even far from the write pointer: a descriptor's bytes 8..15 came back as a copy of bytes
+  0..7 (consistent with a 64-bit read-modify-write conflict). Shipping 1 ms early reproduces it every
+  time (framing fault, run stops). CPU writes into a bank are therefore only safe while the ADC is in
+  the other bank; the schedule keeps descriptor and sentinel writes inside that window (at 5 MS/s with
+  ~160 µs to spare).
+- **Integrity controls:** a frozen LA writer (`--ofdm 0`) is flagged stale on 303/305 banks (descriptor
+  + last-sample sentinel survive a revolution); the synthetic mode (host-filled banks, LA stopped)
+  matches the fill pattern byte for byte. 10 Msps (80 MB/s) cannot fit USB2.
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.
@@ -206,7 +257,11 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 3. Gain: no manual AGC freeze path known (ac54 open item; devourer has IGI control — test pinning it).
    **Resolved (8822B):** the fixed-gain recipe above. The 8822C is untested.
 4. The TX-SRAM→C2H address alias (bank bases 0x16000/0x6000) — empirical on one ASUS unit; confirm here.
+   **Resolved (8822B):** both aliases deliver on our cut; the remaining blocker is the 16 KiB wedge.
 5. Linux usbfs tail latency vs WinUSB RAW_IO — whether 20 Msps holds and where 40 Msps breaks.
+   **Open:** the 16 KiB wedge is the immediate blocker; a USB2 run and a host-stack comparison are the
+   next tests (handoff note). The measured on-chip latency is inside the 40 Msps window, so tail
+   latency is not the current limiter.
 6. Whether the MIPS16e2-only / 0x230 splice behaviour holds on our cut (same die/cut 3 as ac54: likely).
    **Partly resolved:** code spliced at 0x230 runs on our unit; the implemented MIPS16e2 subset is
    characterized above.

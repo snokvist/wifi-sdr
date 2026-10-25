@@ -1,0 +1,7 @@
+# guard -1000 us (ship 1 ms early): CPU descriptor writes into the bank the ADC is still filling are corrupted
+stream: stray bank 1 part 1 len 16376: e0 3f 00 80 00 00 00 00 e0 3f 00 80 00 00 00 00 00 00 00 00 00 00 00 00
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":5,"fs":2500000,"channel":36,"banks":1,"samples":8192,"stream_s":0.003,"wall_s":0.074,"mbps_wire":0.88,"strays":1,"stale":0,"pattern_bad":0,"late_max_us":0.2,"ship_max_us":1456.0,"end_max_us":1456.2,"budget_us":4276.8,"rms":244.1,"error":"framing: bank 1 part 3 len 168 desc 90.00.00.80.00.00.00.00.00.00.00.10"}
+# frozen LA writer (--ofdm 0): stale detector must fire
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":5,"fs":2500000,"channel":36,"banks":305,"samples":2498560,"stream_s":0.999,"wall_s":1.069,"mbps_wire":18.70,"strays":0,"stale":303,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":1475.0,"end_max_us":1475.8,"budget_us":3256.8,"rms":1444.0,"error":""}
+# synthetic, final firmware
+{"ev":"stream","ok":1,"synthetic":1,"rate_sel":5,"fs":2500000,"channel":36,"banks":1526,"samples":12500992,"stream_s":5.000,"wall_s":5.110,"mbps_wire":19.57,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":1475.0,"end_max_us":1475.6,"budget_us":3256.8,"rms":1666.6,"error":""}

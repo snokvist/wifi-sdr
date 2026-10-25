@@ -1,0 +1,19 @@
+=== bench 1
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.bench","n":1024,"issued":1024,"verified":1024,"stray":3,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":347,"p50_us":365,"p90_us":365,"p99_us":365,"max_us":365,"over_204us":1024,"mean_us":363.3,"wall_ms":374.3,"mbps":44.73}
+{"ev":"c2h.bench.done","alive":1}
+exit=0
+=== bench 2
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.bench","n":1024,"issued":1024,"verified":1024,"stray":3,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":347,"p50_us":365,"p90_us":365,"p99_us":365,"max_us":365,"over_204us":1024,"mean_us":363.3,"wall_ms":374.3,"mbps":44.73}
+{"ev":"c2h.bench.done","alive":1}
+exit=0
+=== bench 3
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.bench","n":1024,"issued":1024,"verified":1024,"stray":4,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":347,"p50_us":365,"p90_us":365,"p99_us":365,"max_us":365,"over_204us":1024,"mean_us":363.3,"wall_ms":374.4,"mbps":44.73}
+{"ev":"c2h.bench.done","alive":1}
+exit=0
+=== soak 20000
+{"ev":"session","chip":"RTL8822B","superspeed":0,"channel":36}
+{"ev":"c2h.host","source":"rx","bytes":16352,"count":20000,"verified":20000,"stray":3,"timeouts":0,"retries":0,"ms":22496.4,"mbps":14.54}
+{"ev":"c2h.done","alive":1}
