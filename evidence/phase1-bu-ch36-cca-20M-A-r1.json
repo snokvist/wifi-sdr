@@ -1,0 +1,42 @@
+{
+ "file": "captures/phase1/bu-ch36-cca-20M-A-r1.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 30765,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    -14.00457763671875,
+    6.49365234375
+   ],
+   "rms": 111.25044877798598,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 1.0279187164018535,
+   "noise_floor_db": 39.16809394283265,
+   "n_bursts": 1,
+   "burst_us": [
+    6.6
+   ],
+   "duty": 0.01055908203125,
+   "ltf_hits": 0,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.411670842418333,
+   "ltf_corr_max_conj": 0.40423694573392416,
+   "ltf_detail": [],
+   "orientation": "undetermined",
+   "burst_psd_centroid_mhz": -0.00195929627056975,
+   "burst_occupied_mhz": [
+    -0.78125,
+    0.78125
+   ]
+  }
+ }
+}

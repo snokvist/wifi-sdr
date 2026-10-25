@@ -1,0 +1,42 @@
+{"ev":"adapter.caps","supported":1,"chip":"RTL8822C","names":"RTL8812CU/RTL8822CU","chip_id":"0x13","gen":"jaguar3","variant":"C8822C","transport":"usb","tx_chains":2,"rx_chains":2,"n_ss":2,"stbc":1,"ldpc":1,"sgi":1,"bw_max":80,"bw":[5,10,20,40,80],"txpwr_max":127,"txpwr_step_qdb":1,"txpwr_step_measured":1,"txpwr_min_qdb":-127,"txpwr_max_qdb":127,"txpwr_rate_diffs":1,"txpwr_rate_diffs_hw":1,"txpwr_rate_diffs_measured":1,"tune_2g4":[2412,2484],"tune_5g":[5080,6165],"char_2g4":[2412,2484],"char_5g":[5180,5825],"ldpc_rx_ht":1,"ldpc_rx_vht":1,"ldpc_rx_flag":1,"vht_2g4":1,"per_pkt_txpwr":1,"per_pkt_txpwr_steps":0,"per_pkt_txpwr_step_qdb":4,"per_pkt_txpwr_min_qdb":-256,"per_pkt_txpwr_max_qdb":252,"per_pkt_txpwr_measured":1,"narrowband":1,"fastretune":1,"ack_responder":1,"station_mode":1,"tx_retry_limit":1,"tx_no_agg":1,"he_er_su":0,"per_chain_rssi":1,"hw_rx_tsf":1,"hw_beacon_txtsf":1,"tsf_write":1,"tbtt_follows_tsf":0,"xtal_cap_max":127,"xtal_cap_default":32}
+{"ev":"init.timing","stage":"j3hal.pre_init_system_cfg","ms":5,"xfers":15}
+{"ev":"init.timing","stage":"j3hal.power_on","ms":26,"xfers":72}
+{"ev":"init.timing","stage":"j3hal.chip_version","ms":0,"xfers":1}
+{"ev":"init.timing","stage":"j3hal.efuse_cache","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3hal.efuse_rfe","ms":813,"xfers":2170}
+{"ev":"init.timing","stage":"j3hal.init_system_cfg","ms":2,"xfers":7}
+{"ev":"init.timing","stage":"j3hal.dlfw","ms":284,"xfers":757}
+{"ev":"init.timing","stage":"j3hal.init_mac_cfg","ms":51,"xfers":138}
+{"ev":"init.timing","stage":"j3hal.usb_cfg_bbrf","ms":6,"xfers":18}
+{"ev":"init.timing","stage":"j3hal.table_phy_reg","ms":483,"xfers":1289}
+{"ev":"init.timing","stage":"j3hal.table_agc","ms":168,"xfers":450}
+{"ev":"init.timing","stage":"j3hal.table_rf_ab","ms":706,"xfers":1473}
+{"ev":"init.timing","stage":"j3hal.pa_bias","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3hal.phydm_param_init","ms":5,"xfers":14}
+{"ev":"init.timing","stage":"j3hal.rfk_init","ms":926,"xfers":2472}
+{"ev":"init.timing","stage":"j3hal.dack","ms":587,"xfers":1496}
+{"ev":"init.timing","stage":"j3hal.bf_rx_tx_cfg","ms":8,"xfers":23}
+{"ev":"init.timing","stage":"j3hal.total","ms":4079,"xfers":10395}
+{"ev":"init.timing","stage":"j3init.hal_init","ms":4079,"xfers":10395}
+{"ev":"init.timing","stage":"j3init.set_channel","ms":31,"xfers":85}
+{"ev":"init.timing","stage":"j3init.iqk","ms":1086,"xfers":2878}
+{"ev":"init.timing","stage":"j3init.rx_path_rfe_channel","ms":15,"xfers":41}
+{"ev":"init.timing","stage":"j3init.txpower_pre","ms":42,"xfers":112}
+{"ev":"init.timing","stage":"j3init.coex_wlan_only_init","ms":20,"xfers":56}
+{"ev":"init.timing","stage":"j3init.rfe_pinmux","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3init.fw_pwr_mode","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_query","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_tdma_off","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.filters_cca","ms":0,"xfers":0}
+{"ev":"init.timing","stage":"j3init.txpower_post","ms":5,"xfers":16}
+{"ev":"init.timing","stage":"j3init.dpdt_ack_misc","ms":0,"xfers":1}
+{"ev":"init.timing","stage":"j3init.total","ms":5286,"xfers":13593}
+
+== adapter doctor ==
+bring-up:        yes
+efuse MAC:       40:a5:ef:2f:22:9b
+efuse stability: 4 reads, 0 mismatched, 0 bad-id (last id 0x8129)
+fw boot:         checksum yes, MCU ready yes
+rx smoke:        2676 ok / 0 corrupt in 8 s
+verdict:         HEALTHY
+{"ev":"doctor.verdict","verdict":"HEALTHY","reasons":"0x0","efuse_reads":4,"efuse_mismatch":0,"efuse_bad_id":0,"efuse_id":"0x8129","fw_attempted":1,"fw_ready":1,"rx_ok":2676,"rx_crc":0,"init":1}

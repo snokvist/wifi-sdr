@@ -1,0 +1,101 @@
+{
+ "file": "captures/phase1/cu-ch36-cca-20M-r3.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 0,
+  "n": 2325,
+  "finish_addr": 18709,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    4.130322580645161,
+    -1.1664516129032259
+   ],
+   "rms": 594.4296299708695,
+   "clip_frac": 0.015483870967741935,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9900943218968842,
+   "noise_floor_db": 45.86542821287055,
+   "n_bursts": 2,
+   "burst_us": [
+    3.8,
+    4.4
+   ],
+   "duty": 0.07010752688172044,
+   "ltf_hits": 2,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.7777915051287622,
+   "ltf_corr_max_conj": 0.4425290285153932,
+   "ltf_detail": [
+    {
+     "idx": 465,
+     "corr": 0.7169765116559871,
+     "corr2": 0.7140070117361659,
+     "cfo_khz": 47.70555923686549
+    },
+    {
+     "idx": 1699,
+     "corr": 0.7752235654047478,
+     "corr2": 0.7777915051287622,
+     "cfo_khz": 39.144829114814065
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": -0.20080106569824438,
+   "burst_occupied_mhz": [
+    -10.0,
+    8.28125
+   ]
+  },
+  "b": {
+   "dc": [
+    2.0744086021505375,
+    -5.77247311827957
+   ],
+   "rms": 661.4143622638206,
+   "clip_frac": 0.031827956989247314,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9756265629462392,
+   "noise_floor_db": 46.35433048587939,
+   "n_bursts": 2,
+   "burst_us": [
+    3.8,
+    4.2
+   ],
+   "duty": 0.06838709677419355,
+   "ltf_hits": 2,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.9309951981941574,
+   "ltf_corr_max_conj": 0.43822913420726023,
+   "ltf_detail": [
+    {
+     "idx": 457,
+     "corr": 0.8831503180811044,
+     "corr2": 0.8839263796451594,
+     "cfo_khz": 47.53355900210922
+    },
+    {
+     "idx": 1692,
+     "corr": 0.9265779632234196,
+     "corr2": 0.9309951981941574,
+     "cfo_khz": 39.14354901797635
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": -0.18971835917819307,
+   "burst_occupied_mhz": [
+    -10.0,
+    9.84375
+   ]
+  }
+ },
+ "ab_coherence": {
+  "mag": 0.05257715730820025,
+  "phase_deg": 132.32484499176817
+ }
+}

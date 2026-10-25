@@ -27,6 +27,13 @@ Common options:
   --json        machine-readable report on stdout
   --ac54 DIR    also write ac54_sdr-style vendor-imem.bin / vendor-dmem.bin
                 (bodies WITHOUT checksum trailer, exactly as tools/fw_inspect.py)
+                from the first image after --select filtering
+  --select STR  keep only images whose name contains STR
+
+Examples (see tools/extract_vendor_fw.sh for the full regeneration):
+  rtkfw88xx.py info /lib/firmware/rtw88/rtw8822b_fw.bin.zst --ac54 vendor/ac54
+  rtkfw88xx.py carray hal8822b_fw.c --select fw_nic --out vendor/88x2bu
+  rtkfw88xx.py scan rtwlanu.sys --select 0x005ba7e0 --ac54 vendor/win/ac54
 """
 from __future__ import annotations
 
@@ -41,7 +48,7 @@ from pathlib import Path
 HDR_SIZE = 64
 CHK_SIZE = 8
 KNOWN_SIGS = {0x8822: "8822B/8822C family", 0x8821: "8821C", 0x8812: "8812F",
-              0x8814: "8814B", 0x8197: "8197F", 0x88E2: "8822E?"}
+              0x8814: "8814A/8814B", 0x8197: "8197F", 0x88E2: "8822E?"}
 
 
 def sha256(b: bytes) -> str:
@@ -161,6 +168,8 @@ def fmt_report(r: dict) -> str:
            f"  word@0x28 0x{h['word_0x28']:08x}  word@0x2c 0x{h['word_0x2c']:08x}",
            f"  hdr dmem_addr 0x{h['dmem_addr']:08x} imem_addr 0x{h['imem_addr']:08x}"
            f" emem_addr 0x{h['emem_addr']:08x}"]
+    if "imem_prefix" in r:
+        out.append(f"  imem[0:0x{r['imem_prefix']['len']:x}] sha256 {r['imem_prefix']['sha256']}")
     for s in r["sections"]:
         out.append(f"  {s['name']}: off 0x{s['file_offset']:06x} size {s['size']:7d} (0x{s['size']:05x})"
                    f" -> OCP 0x{s['load_addr_ocp']:08x}  xor16 0x{s['xor16_calc']:04x}"
@@ -224,6 +233,9 @@ def main() -> int:
     ap.add_argument("--out", type=Path)
     ap.add_argument("--ac54", type=Path, help="write vendor-imem.bin/vendor-dmem.bin (first/selected image)")
     ap.add_argument("--prefix", default="", help="filename prefix for --out")
+    ap.add_argument("--select", help="only images whose name contains this substring")
+    ap.add_argument("--boot-prefix", type=lambda s: int(s, 0), default=0,
+                    help="also hash IMEM[0:N) (ac54_sdr keeps N=0x230 of the vendor IMEM)")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
@@ -243,9 +255,15 @@ def main() -> int:
             for off in scan(blob):
                 h = parse_header(blob, off)
                 images.append((f"{p.stem}@0x{off:08x}", blob[off:off + total_size(h)]))
+    if a.select:
+        images = [(n, b) for n, b in images if a.select in n]
     ac54_done = False
     for name, img in images:
         rep = analyse(img, name)
+        if a.boot_prefix:
+            im = next(s for s in rep["sections"] if s["name"] == "imem")
+            body = img[im["file_offset"]:im["file_offset"] + min(a.boot_prefix, im["size"])]
+            rep["imem_prefix"] = {"len": len(body), "sha256": sha256(body)}
         reports.append(rep)
         stem = a.prefix + name.replace("@", "_at_")
         write_outputs(img, rep, a.out, None if ac54_done else a.ac54, stem)

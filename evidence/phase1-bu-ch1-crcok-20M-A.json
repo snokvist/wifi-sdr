@@ -1,0 +1,42 @@
+{
+ "file": "/home/snokvist/wifi-sdr/captures/phase1/bu-ch1-crcok-20M-A.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 18809,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    -921.3610229492188,
+    964.4338989257812
+   ],
+   "rms": 194.72858338999495,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.96222686257246,
+   "noise_floor_db": 27.151784937158403,
+   "n_bursts": 1,
+   "burst_us": [
+    14.4
+   ],
+   "duty": 0.01751708984375,
+   "ltf_hits": 0,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.2643010082004487,
+   "ltf_corr_max_conj": 0.229052847085805,
+   "ltf_detail": [],
+   "orientation": "undetermined",
+   "burst_psd_centroid_mhz": 0.26469171228663424,
+   "burst_occupied_mhz": [
+    -0.390625,
+    0.390625
+   ]
+  }
+ }
+}

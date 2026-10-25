@@ -1,0 +1,42 @@
+{
+ "file": "captures/phase1/bu-ch36-crcok-20M-A-r2.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 24342,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    -15.23040771484375,
+    7.5489501953125
+   ],
+   "rms": 191.6664108774508,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 1.0074129130333096,
+   "noise_floor_db": 39.629175518210104,
+   "n_bursts": 1,
+   "burst_us": [
+    3.2
+   ],
+   "duty": 0.02850341796875,
+   "ltf_hits": 0,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.6026715326822267,
+   "ltf_corr_max_conj": 0.4019680759478858,
+   "ltf_detail": [],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": 1.4613677141076797,
+   "burst_occupied_mhz": [
+    -7.1875,
+    7.5
+   ]
+  }
+ }
+}

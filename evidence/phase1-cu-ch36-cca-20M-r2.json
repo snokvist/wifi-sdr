@@ -1,0 +1,73 @@
+{
+ "file": "captures/phase1/cu-ch36-cca-20M-r2.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 0,
+  "n": 2270,
+  "finish_addr": 18654,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    13.45374449339207,
+    3.33920704845815
+   ],
+   "rms": 606.327569342894,
+   "clip_frac": 0.007488986784140969,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9600681164855931,
+   "noise_floor_db": 53.61356844452991,
+   "n_bursts": 0,
+   "burst_us": [],
+   "duty": 0.022026431718061675,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.9061754951812491,
+   "ltf_corr_max_conj": 0.41749245672155433,
+   "ltf_detail": [
+    {
+     "idx": 398,
+     "corr": 0.9061754951812491,
+     "corr2": 0.903997072626038,
+     "cfo_khz": 36.35750203171633
+    }
+   ],
+   "orientation": "correct"
+  },
+  "b": {
+   "dc": [
+    -6.305726872246696,
+    -2.5092511013215857
+   ],
+   "rms": 634.9708277080218,
+   "clip_frac": 0.01145374449339207,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9605212796924368,
+   "noise_floor_db": 53.75933049105177,
+   "n_bursts": 0,
+   "burst_us": [],
+   "duty": 0.024229074889867842,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.9295022403216894,
+   "ltf_corr_max_conj": 0.4504356372258825,
+   "ltf_detail": [
+    {
+     "idx": 391,
+     "corr": 0.9275185513929175,
+     "corr2": 0.9295022403216894,
+     "cfo_khz": 36.75517500185362
+    }
+   ],
+   "orientation": "correct"
+  }
+ },
+ "ab_coherence": {
+  "mag": 0.02983055471589429,
+  "phase_deg": -128.6006259465547
+ }
+}

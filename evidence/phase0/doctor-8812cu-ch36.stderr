@@ -1,0 +1,118 @@
+devourer [I] USB adapter 5-1 locked for exclusive access
+devourer [I] Creating RtlJaguar3Device (PID 0xc812, chip-id 0x13)
+devourer [I] USB device 0bda:c812
+devourer [I] Running USB bus at 480MBit/s
+devourer [I] selected USB interface 0
+devourer [I] endpoint[0]: addr=0x84 attrs=0x2 bulk=1 in=1
+devourer [I] selected bulk IN endpoint: 0x84
+devourer [I] endpoint[1]: addr=0x5 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[2]: addr=0x6 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[3]: addr=0x87 attrs=0x3 bulk=0 in=1
+devourer [I] endpoint[4]: addr=0x8 attrs=0x2 bulk=1 in=0
+devourer [I] bulk OUT endpoints: 0x05 0x06 0x08 
+devourer [I] libusb_clear_halt(bulk IN 0x84) rc=0
+devourer [I] OutEpQueueSel(7), OutEpNumber(3)
+devourer [I] Boot from EFUSE, Autoload OK !
+devourer [I] RtlJaguar3Device constructed (8822C/CU)
+devourer [I] Jaguar3: pre_init_system_cfg done (ported)
+devourer [I] Jaguar3: power-off (card-disable) sequence applied
+devourer [I] Jaguar3: power-on sequence complete (card active)
+devourer [I] Jaguar3 chip: 8822C cut=5 (UMC) 2T2R (SYS_CFG1=0x0c495d37)
+devourer [I] Jaguar3: rfe_type=0x03
+devourer [I] Jaguar3: init_system_cfg done (ported, bw=0 cut=5)
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 1856 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 2456 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 3880 bytes
+devourer [I] Jaguar3 DLFW: download OK, CPU enabled — polling FW boot
+devourer [I] Jaguar3 DLFW: FW ready (0x80 = 0xC078)
+devourer [I] Jaguar3: firmware booted (structured)
+devourer [I] Jaguar3: HalMAC init_mac_cfg done (ported, bw=0)
+devourer [I] Jaguar3: init_usb_cfg (RXDMA_MODE=0x1e, RX-agg EN) — RX DMA to bulk-IN
+devourer [I] Jaguar3: applying BB phy_reg table (3020 words)
+devourer [I] Jaguar3: applying AGC table (3734 words)
+devourer [I] Jaguar3: applying RF radioA (40130 words) + radioB (40766 words)
+devourer [I] Jaguar3: BB/AGC/RF tables applied
+devourer [I] Jaguar3: cal_init (2464 pairs) applied
+devourer [I] Jaguar3: DACK (DAC calibration) complete
+devourer [I] Jaguar3: bf_init (NDPA/MU TX setup) applied
+devourer [I] Jaguar3: monitor RX config applied (accept-all + phystatus)
+devourer [I] Jaguar3: TX path enabled (OFDM/CCK block + AGC/path bits)
+devourer [I] Jaguar3: bring-up complete
+devourer [I] Jaguar3: central ch 36 (pri idx 0) RF18=0x13124
+devourer [I] Jaguar3: central ch 36 / 20 MHz set (RF18=0x13124) + BB reset
+devourer [I] Jaguar3: IQK done (LOK fail A/B=0/0, TXK A/B=0/0, RXK A/B=0/0)
+devourer [I] Jaguar3: RX path enabled (rf-mode + cck/ofdm rx-path + IGI toggle)
+devourer [I] Jaguar3: TX power reference set to 0x28 (both paths) (per-rate diffs zeroed)
+devourer [I] Jaguar3: coex WiFi-only init applied (antenna locked to WL)
+devourer [I] Jaguar3: TX power reference set to 0x28 (both paths) (per-rate diffs kept)
+devourer [I] Jaguar3: ready for TX (monitor inject)
+devourer [I] efuse-stability: reads=4 mismatched=0 invalid_id=0 id=0x8129
+devourer [I] Jaguar3: entering RX loop (kernel-style async URB queue)
+devourer [I] RX: async ring of 8 URBs submitted (+0 spare, 8 zerocopy DMA, 0 heap)
+devourer [I] Jaguar3 RX: async completion #1 -> 27 bytes
+devourer [I] Jaguar3 RX: frame len=3 rate=0 crc=0
+devourer [I] Jaguar3 RX: async completion #2 -> 12324 bytes
+devourer [I] Jaguar3 RX: frame len=243 rate=4 crc=0
+devourer [I] Jaguar3 RX: frame len=243 rate=4 crc=0
+devourer [I] Jaguar3 RX: frame len=242 rate=4 crc=0
+devourer [I] Jaguar3 RX: frame len=243 rate=4 crc=0
+devourer [I] Jaguar3 RX: async completion #3 -> 27 bytes
+devourer [I] Jaguar3 RX: async completion #4 -> 11894 bytes
+devourer [I] Jaguar3 RX: async completion #5 -> 33 bytes
+devourer [I] Jaguar3 RX: async completion #6 -> 535 bytes
+devourer [I] Jaguar3 dig: IGI=0x1e (fa=28 cca=1522)
+devourer [I] Jaguar3 edcca: L2H=48 H2L=40
+devourer [I] Jaguar3 RX: async completion #7 -> 298 bytes
+devourer [I] Jaguar3 coex: tick 1 (bulk-IN reads=1, C2H=0)
+devourer [I] Jaguar3 RX: async completion #8 -> 27 bytes
+devourer [I] Jaguar3 coex: tick 2 (bulk-IN reads=1, C2H=0)
+devourer [I] Jaguar3 coex: tick 3 (bulk-IN reads=1, C2H=0)
+devourer [I] Jaguar3: clean de-init (stop TRX + card-disable)
+devourer [I] Jaguar3: power-off (card-disable) sequence applied

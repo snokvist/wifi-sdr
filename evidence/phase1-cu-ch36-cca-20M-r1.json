@@ -1,0 +1,88 @@
+{
+ "file": "captures/phase1/cu-ch36-cca-20M-r1.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 24068,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    0.5736083984375,
+    -0.01263427734375
+   ],
+   "rms": 289.10359437758984,
+   "clip_frac": 0.0020751953125,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9611286578595426,
+   "noise_floor_db": 44.12794958353743,
+   "n_bursts": 2,
+   "burst_us": [
+    3.8,
+    3.2
+   ],
+   "duty": 0.08697509765625,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.8719670570126506,
+   "ltf_corr_max_conj": 0.41626262079467674,
+   "ltf_detail": [
+    {
+     "idx": 14517,
+     "corr": 0.8719670570126506,
+     "corr2": 0.8715359477689162,
+     "cfo_khz": 45.768882771290514
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": -0.3547370491764768,
+   "burst_occupied_mhz": [
+    -9.21875,
+    8.4375
+   ]
+  },
+  "b": {
+   "dc": [
+    -29.0433349609375,
+    -13.117919921875
+   ],
+   "rms": 316.40654951865537,
+   "clip_frac": 0.0035400390625,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9719339389258496,
+   "noise_floor_db": 44.800658604014345,
+   "n_bursts": 1,
+   "burst_us": [
+    3.8
+   ],
+   "duty": 0.065185546875,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.7830278570788343,
+   "ltf_corr_max_conj": 0.42982258805875206,
+   "ltf_detail": [
+    {
+     "idx": 14509,
+     "corr": 0.7830278570788343,
+     "corr2": 0.783013074654306,
+     "cfo_khz": 45.644029182389794
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": -0.019938703951389126,
+   "burst_occupied_mhz": [
+    -7.8125,
+    8.75
+   ]
+  }
+ },
+ "ab_coherence": {
+  "mag": 0.05134747126978846,
+  "phase_deg": -138.26335842298175
+ }
+}

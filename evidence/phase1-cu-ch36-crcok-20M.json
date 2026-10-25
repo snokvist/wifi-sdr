@@ -1,0 +1,87 @@
+{
+ "file": "captures/phase1/cu-ch36-crcok-20M.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 2,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 25295,
+  "fs_mhz": 20.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    -0.1656494140625,
+    -0.34613037109375
+   ],
+   "rms": 266.4329406674223,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9639074190309447,
+   "noise_floor_db": 43.79035996541859,
+   "n_bursts": 1,
+   "burst_us": [
+    3.6
+   ],
+   "duty": 0.06982421875,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.8721364782085504,
+   "ltf_corr_max_conj": 0.435548672836809,
+   "ltf_detail": [
+    {
+     "idx": 13751,
+     "corr": 0.8499995916343973,
+     "corr2": 0.8721364782085504,
+     "cfo_khz": 43.39052287095058
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": 1.3184764474475335,
+   "burst_occupied_mhz": [
+    -8.75,
+    9.0625
+   ]
+  },
+  "b": {
+   "dc": [
+    -2.4610595703125,
+    15.36395263671875
+   ],
+   "rms": 281.86595202557066,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 0.9632079887023355,
+   "noise_floor_db": 44.54218513456584,
+   "n_bursts": 1,
+   "burst_us": [
+    3.6
+   ],
+   "duty": 0.0430908203125,
+   "ltf_hits": 1,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.9503781236520118,
+   "ltf_corr_max_conj": 0.4521867206176098,
+   "ltf_detail": [
+    {
+     "idx": 13744,
+     "corr": 0.9503781236520118,
+     "corr2": 0.948152457812218,
+     "cfo_khz": 43.29583710633612
+    }
+   ],
+   "orientation": "correct",
+   "burst_psd_centroid_mhz": 1.013415855577897,
+   "burst_occupied_mhz": [
+    -8.75,
+    8.75
+   ]
+  }
+ },
+ "ab_coherence": {
+  "mag": 0.023531410997685794,
+  "phase_deg": -174.0774495587292
+ }
+}

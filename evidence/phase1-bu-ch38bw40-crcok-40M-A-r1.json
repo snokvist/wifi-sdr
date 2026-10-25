@@ -1,0 +1,43 @@
+{
+ "file": "captures/phase1/bu-ch38bw40-crcok-40M-A-r1.bin",
+ "meta": {
+  "version": 1,
+  "trig_mode": 1,
+  "smp_rate": 1,
+  "dma_type": 0,
+  "wrap": 1,
+  "n": 16384,
+  "finish_addr": 31816,
+  "fs_mhz": 40.0
+ },
+ "paths": {
+  "a": {
+   "dc": [
+    -14.687744140625,
+    9.73126220703125
+   ],
+   "rms": 143.76382836139476,
+   "clip_frac": 0.0,
+   "bits_used_mask": "0xfff",
+   "iq_amp_ratio": 1.0377193895820005,
+   "noise_floor_db": 35.557870919193675,
+   "n_bursts": 2,
+   "burst_us": [
+    57.8,
+    3.6
+   ],
+   "duty": 0.14984130859375,
+   "ltf_hits": 0,
+   "ltf_hits_conj": 0,
+   "ltf_corr_max": 0.39074978519182313,
+   "ltf_corr_max_conj": 0.4193314851765384,
+   "ltf_detail": [],
+   "orientation": "undetermined",
+   "burst_psd_centroid_mhz": 0.6465058976548013,
+   "burst_occupied_mhz": [
+    -9.53125,
+    8.90625
+   ]
+  }
+ }
+}
