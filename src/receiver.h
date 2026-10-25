@@ -13,6 +13,7 @@
 // Logic follows src/soapy/SoapyWsdr.cpp (measured behaviour: FINDINGS §4).
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -34,7 +35,9 @@ constexpr uint16_t kPid8812cu = 0xc812;
 struct RxSettings {
   double freq = 5180e6; // requested centre
   int rate_sel = 5;     // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s
-  bool wide = true;     // at 40 MS/s (8812BU): 40 MHz channel width + vendor BW40 RX DFIR
+  bool wide = true;     // at 40 MS/s: 40 MHz channel width (8812BU: + vendor BW40 RX DFIR; 8822C: devourer's
+                        // BW40 set opens its filter, flat to +-17 MHz, measured)
+  bool allow_gapped = false; // 8812CU: rate_sel below min_rate_sel streams gapped (see BankMeta::gapped)
   bool agc = false;     // true: chip AGC; false: fixed gain (OFDM CCA off, IGI pinned)
   double gain_db = 30;
 };
@@ -44,7 +47,8 @@ struct RxCaps {
   bool cu = false;          // RTL8822C: two paths per LA word, USB 2 rates only
   bool superspeed = false;
   std::string chip;
-  int min_rate_sel = 5;     // fastest supported rate index
+  int min_rate_sel = 5;     // fastest rate streamed continuously
+  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812CU: 1); 6 = none
   int paths = 1;            // 2 on the 8812CU (A, B)
   double gain_max = 0, gain_step = 1;
 };
@@ -62,6 +66,8 @@ struct BankMeta {
                          // frequency to 0 Hz (as the Soapy module does)
   int paths = 1;
   bool cu = false;
+  bool gapped = false;   // each bank is a complete capture, but banks are not contiguous (a ~1.5 ms gap
+                         // between them): FFT within a bank only, no continuous recording
 };
 
 using BankSink = std::function<void(const uint8_t *bank, size_t bytes, const BankMeta &)>;
@@ -75,6 +81,7 @@ struct RxStatus {
   uint32_t gen = 0, cfg = 0; // run / settings generation of the current stream (as in BankMeta)
   bool running = false;  // the worker is alive (false after Lost/Error ended it, or stop())
   bool settling = false; // a settings change is waiting to be applied (the run above is about to end)
+  bool gapped = false;   // the current run is gapped (BankMeta::gapped)
 };
 
 class Receiver {
@@ -101,7 +108,10 @@ public:
 
   // Pure helpers (also used by tests and UIs).
   static double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
-  static int width_of(const RxSettings &s, bool cu) { return !cu && s.rate_sel == 1 && s.wide ? 40 : 20; }
+  static int width_of(const RxSettings &s, bool) { return s.rate_sel == 1 && s.wide ? 40 : 20; }
+  int lowest_rate_sel(const RxSettings &s) const {
+    return s.allow_gapped ? std::min(_caps.min_rate_sel, _caps.gapped_min_rate_sel) : _caps.min_rate_sel;
+  }
   static int channel_for(double freq, int width);   // primary channel (5 MHz grid)
   static double centre_of(int channel, int width);  // hardware centre for that primary channel
   static int igi_for(double db, bool cu);

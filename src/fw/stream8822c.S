@@ -17,10 +17,14 @@
 #
 # Timing is open-loop on REG 0x568 (us) in fifths of a microsecond: period5 = 512 << rate.
 #
+# Gapped mode (+0x20 = 1; for rates USB 2 cannot carry continuously): every round arms the LA (the
+# writer restarts at bank 0), waits one bank time + guard, stops the LA, and ships bank 0 while the
+# writer is stopped. Banks are then complete but not contiguous (a gap of ~1.5 ms between them).
+#
 # DMEM block at 0x80208000 (host-seeded fields marked *):
 #   +0x00 magic 0x57535432 ("WST2")  +0x04 seq (banks shipped)   +0x08 state (1 = running)
 #   +0x0C target5 (current bank)     +0x10 t_arm (us)           *+0x14 arm LA (0 = synthetic)
-#  *+0x18 period5                   *+0x1C guard5
+#  *+0x18 period5                   *+0x1C guard5               *+0x20 gapped (1) / continuous (0)
 #  *+0x100, +0x180 bank 0 / 1 records: +0 bank CPU base, +4 segment-B head CPU address,
 #                   +8 + 12k {descriptor CPU addr, request, descriptor word 0}
 # Trailer payload (RX SRAM, CPU 0xb8701018): 128 B prefix, 24 B segment-B head, then seq, target5,
@@ -85,12 +89,27 @@ _start:
         addu    $2, $2, $4
         sw      $2, 0x0c($16)           # target5 = 5 t_arm + period5 + guard5
 
-bank:   lw      $5, 0x0c($16)           # a1 = target5
+bank:   lw      $3, 0x20($16)
+        beqz    $3, 5f
+        li      $3, 0xcb
+        sb      $3, 0x7c0($17)          # gapped: arm, the writer restarts at bank 0
+        NOW5
+        lw      $4, 0x18($16)
+        addu    $2, $2, $4
+        lw      $4, 0x1c($16)
+        addu    $2, $2, $4
+        sw      $2, 0x0c($16)           # target5 = now5 + period5 + guard5
+5:      lw      $5, 0x0c($16)           # a1 = target5
 2:      NOW5
         subu    $2, $2, $5
         slti    $2, 0                   # T = now5 < target5
         btnez   2b
         addu    $4, $2, $5              # a0 = start5
+        lw      $3, 0x20($16)
+        beqz    $3, 6f
+        li      $3, 0
+        sb      $3, 0x7c0($17)          # gapped: stop the LA (bank 0 stays as captured)
+6:
         LI32    $6, 0xb87010b0          # a2 = trailer stamps
         lw      $2, 4($16)
         sw      $2, 0($6)               # seq
@@ -144,6 +163,8 @@ bank:   lw      $5, 0x0c($16)           # a1 = target5
         lw      $3, 0x18($16)
         addu    $2, $2, $3
         sw      $2, 0x0c($16)           # target5 += period5
+        lw      $2, 0x20($16)
+        bnez    $2, bank                # gapped: always bank 0
         li      $2, 0x80
         xor     $7, $2                  # other bank record
         b       bank

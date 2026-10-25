@@ -15,6 +15,7 @@
 //       Run latime8822c.S: CPU arms the ring, waits D us on REG 0x568, triggers; the finish address
 //       gives the true sample rate and the arm latency on the chip's own clock.
 //   wsdr_cu stream   --pid 0xc812 [--rate 5] [--seconds 10] [--synthetic] [--igi N [--no-cca]] [--out PREFIX]
+//                    [--gapped [--bw 40]]   gapped: one bank per round (any rate; banks not contiguous)
 //       Run stream8822c.S (Stream8822c): continuous ring banks over C2H. --out writes PREFIX.cs16
 //       (path A, or --path b; --path ab adds PREFIX-b.cs16) and PREFIX.json.
 #include <algorithm>
@@ -73,6 +74,7 @@ struct Args {
   double seconds = 10;       // stream
   bool synthetic = false;    // stream
   int guard_us = 20;         // stream
+  bool gapped = false;       // stream
   std::string out;           // stream
   std::string path = "a";    // stream --out: a | b | ab
 };
@@ -121,6 +123,8 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--synthetic") a.synthetic = true;
     else if (k == "--guard-us") a.guard_us = static_cast<int>(std::strtol(v(), nullptr, 0));
     else if (k == "--out") a.out = v();
+    else if (k == "--gapped") a.gapped = true;
+    else if (k == "--bw") a.open.bw = static_cast<int>(num(v()));
     else if (k == "--path") a.path = v();
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return false; }
   }
@@ -637,8 +641,11 @@ int cmd_stream(Session &s, const Args &a) {
   // the chip's C2H engine (measured: depth 32 + two output files -> one bank 26 ms late).
   c.depth = std::clamp(a.depth > 16 ? a.depth : 256, 4, 512);
   c.guard_us = a.guard_us;
+  c.gapped = a.gapped;
   Stream8822c st(s, c);
-  const uint64_t want = static_cast<uint64_t>(a.seconds * st.fs() / Stream8822c::kBankSamples + 0.5);
+  // gapped: run for the wall time (banks arrive at the shipping rate, not at fs)
+  const uint64_t want = a.gapped ? UINT64_MAX : static_cast<uint64_t>(a.seconds * st.fs() / Stream8822c::kBankSamples + 0.5);
+  const auto t_start = std::chrono::steady_clock::now();
   FILE *f = nullptr;
   if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
     std::fprintf(stderr, "stream: cannot open %s.cs16\n", a.out.c_str());
@@ -653,7 +660,7 @@ int cmd_stream(Session &s, const Args &a) {
   }
   std::signal(SIGINT, [](int) { g_stop = true; });
   std::vector<int16_t> iq(2 * Stream8822c::kBankSamples), iqb(both ? iq.size() : 0);
-  const uint64_t every = std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822c::kBankSamples));
+  const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822c::kBankSamples));
   double ea2 = 0, eb2 = 0;
   uint64_t n = 0;
   const StreamStats ss = st.run(
@@ -686,6 +693,8 @@ int cmd_stream(Session &s, const Args &a) {
                       bi.stale ? 1 : 0);
           std::fflush(stdout);
         }
+        if (a.gapped)
+          return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count() < a.seconds;
         return n < want;
       },
       &g_stop);
@@ -694,7 +703,7 @@ int cmd_stream(Session &s, const Args &a) {
   if (fb)
     std::fclose(fb);
   const double secs = ss.banks * Stream8822c::kBankSamples / st.fs();
-  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && ss.banks >= want;
+  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
   const double ns = n ? double(n) * Stream8822c::kBankSamples : 1;
   char summary[1024];
   std::snprintf(summary, sizeof summary,

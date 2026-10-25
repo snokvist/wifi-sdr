@@ -95,6 +95,9 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   _caps.chip = s->chip();
   // USB 2 carries ~44 MB/s of C2H (5 MS/s); USB 3 carries 40 MS/s. The 8812CU is verified on USB 2 only.
   _caps.min_rate_sel = s->superspeed() && !cu ? 1 : 4;
+  // The 8822C streamer can also capture one bank at any rate, stop, ship and re-arm (gapped mode,
+  // measured on this board at 10/20/40 MS/s: zero stale banks, 11-21 % of the time sampled).
+  _caps.gapped_min_rate_sel = cu ? 1 : 6;
   _caps.paths = cu ? 2 : 1;
   _caps.gain_step = gain_step(cu);
   _caps.gain_max = gain_max(cu);
@@ -103,7 +106,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   _s = std::move(s);
   _open = true;
   std::lock_guard<std::mutex> l(_m);
-  _set.rate_sel = std::max(_set.rate_sel, _caps.min_rate_sel);
+  _set.rate_sel = std::max(_set.rate_sel, lowest_rate_sel(_set));
   _st.state = RxState::Closed;
   _st.channel = _hw_channel;
   _st.width = _hw_width;
@@ -146,7 +149,7 @@ void Receiver::set(const RxSettings &s) {
   {
     std::lock_guard<std::mutex> l(_m);
     RxSettings n = s;
-    n.rate_sel = std::clamp(n.rate_sel, _caps.min_rate_sel, 5);
+    n.rate_sel = std::clamp(n.rate_sel, lowest_rate_sel(n), 5);
     n.gain_db = std::clamp(n.gain_db, 0.0, _caps.gain_max);
     const auto hw = [&](const RxSettings &x) {
       const int w = width_of(x, _caps.cu);
@@ -237,7 +240,8 @@ void Receiver::worker() {
     c.depth = _caps.cu || cur.rate_sel <= 2 ? 256 : 64;
     c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _caps.cu);
     c.la.no_cca = !cur.agc;
-    c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path)
+    c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's DFIR (8822B: BW20 set; 8822C: per width)
+    c.gapped = _caps.cu && cur.rate_sel < _caps.min_rate_sel;
     BankMeta meta;
     meta.gen = gen;
     meta.cfg = cfg;
@@ -246,6 +250,7 @@ void Receiver::worker() {
     meta.shift_hz = cur.freq - centre;
     meta.paths = _caps.paths;
     meta.cu = _caps.cu;
+    meta.gapped = c.gapped;
     {
       std::lock_guard<std::mutex> l(_m);
       _st.channel = ch;
@@ -254,6 +259,7 @@ void Receiver::worker() {
       _st.fs = fs;
       _st.gen = gen;
       _st.cfg = cfg;
+      _st.gapped = c.gapped;
       _st.state = RxState::Streaming;
     }
     bool clean_start = false;

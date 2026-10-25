@@ -325,6 +325,21 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   retune and gain change, and a re-open; offline 190 beacons on the grid, 0 slips
   (`evidence/phase5-cu-soapy.txt`).
 
+### Gapped wide spans on the 8822C over USB 2 (2026-10-25)
+- **Working:** `stream8822c.S` gapped mode (DMEM +0x20 = 1): arm the LA (0x7C0 = 0xCB), wait one bank
+  time + guard, stop it (0x7C0 = 0), ship bank 0 (five packets + trailer, ~1480 µs), repeat. Every
+  re-arm restarts the writer at bank 0: **zero stale banks** in every run (the descriptors and the
+  sentinel are always overwritten). `wsdr_cu stream --gapped [--bw 40]`.
+- Measured (8812CU, USB 2, ch36, 3-5 s each): 5 MS/s 310 banks/s (51 % of the time sampled); 20 MS/s
+  508 banks/s (21 %); 40 MS/s 555 banks/s (11 %). Signal level matches continuous mode (RMS 203 vs 207).
+- **The 8822C's RX filter follows the channel width** (unlike the 8822B, where devourer always writes
+  the BW20 DFIR): 40 MS/s at BW20 is flat to ±9 MHz and −40 dB beyond ±12 MHz; at BW40 (centre ch38)
+  the floor is flat from −17 to +17 MHz, rolling off at ±19 MHz, with no adjacent-duplicate samples.
+  A real carrier at +7.7 MHz (5197.7 MHz, the one the 8812BU also shows) stands 31-32 dB above the floor
+  on both paths. 20 MS/s at BW20: flat to ±8 MHz, −6 dB at ±9 MHz.
+- Use: spectrum/waterfall over wide spans (FFT within one 8192-sample bank); not for continuous IQ.
+  `Receiver` offers it only with `RxSettings::allow_gapped` and marks `BankMeta::gapped`.
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.

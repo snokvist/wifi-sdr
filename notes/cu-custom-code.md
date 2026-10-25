@@ -61,4 +61,6 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
   `sudo build-cu/wsdr_cu stream --pid 0xc812 --channel 36 --rate 4 --seconds 60 --path ab --out captures/x`.
 - [V] Fixed gain: `--no-cca --igi N` (0x1D58[11:3] = 0x1FF, 0x1A14[9:8] = 3, 0x1D70); ~1.0 dB/step.
 - [V] SoapySDR: `driver=wsdr,pid=0xc812`, channels 0/1 = paths A/B (`evidence/phase5-cu-soapy.txt`).
-- Open: rtl_tcp front end, DFIR / wide tap on the 8822C.
+- [V] Gapped mode (`--gapped`, DMEM +0x20): arm / wait one bank / stop / ship bank 0 / re-arm; zero
+  stale banks at 5/20/40 MS/s; at BW40 the 8822C's filter is flat to ±17 MHz (FINDINGS, gapped section).
+- Open: rtl_tcp front end.

@@ -35,6 +35,8 @@ public:
   Stream8822c(Session &s, const StreamCfg &c) : _s(s), _c(c) {}
   double fs() const { return 80e6 / (1u << _c.la.rate_sel); }
   double period_us() const { return kBankSamples / fs() * 1e6; }
+  // Gapped mode (StreamCfg::gapped): each bank is a complete capture of kBankSamples, stamped; the
+  // gap between banks is the shipping time (~1.5 ms on USB 2). For rates USB 2 cannot carry.
   StreamStats run(const std::function<bool(const uint8_t *bank, const BankInfo &)> &on_bank,
                   const std::atomic<bool> *stop = nullptr);
 
