@@ -22,9 +22,8 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
   - **Streamer done:** `wsdr_cu stream` (2.5/5 MS/s, 60 s, zero faults; both paths with `--path ab`).
     FINDINGS §4 "Continuous streaming on the 8822C". Fixed gain (`--no-cca`) and the Soapy module
     (`driver=wsdr,pid=0xc812`, two channels) done.
-- **MT7612U:** static RE done (`notes/mt7612u-sdr.md`); no capture yet. Candidate path: PBF ADC
-  dump; custom NDS32 code via the stock firmware's arbitrary read/write commands. The adapter
-  dropped off the bus during bring-up and needs a replug. Probe: `tools/mt_build.sh` → `build-mt/mtsdr`.
+- **MT7612U:** no raw-IQ path. The PBF ADC dump was tested live and does not exist on its RLT MAC;
+  no ICAP on MT76x2 (`notes/mt7612u-sdr.md`). MediaTek route: MT7921AU + Mtk79ICAP.
 
 ## Hardware and ports (this host has four AMD xHCI controllers)
 | Adapter | Where | Notes |

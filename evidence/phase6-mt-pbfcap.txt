@@ -1,0 +1,8 @@
+# MT7612U PBF "ADC dump" (vendor Set_ADCDump_Proc, ADC 8 source) via mt76x2u debugfs, ch36 monitor mode
+# tools/mt_pbfcap.py --n 2; then two --dry controls. Raw windows in captures/phase6/ (gitignored).
+{"ev": "regs.before", "MAC_SYS_CTRL": "0x0000000c", "PBF_SYS_CTRL": "0x00080c00", "PBF_CFG": "0x1efebcff", "PBF_CAP_CTRL": "0x04030402"}
+{"ev": "baseline", "read_s": 0.63, "smm_nonzero": 0, "pkt_nonzero": 7416}
+{"ev": "capture", "n": 0, "done": true, "polls": 0, "ms": 630.4, "r440": "0x00000402", "start": 1026, "smm_changed": 0, "pkt_changed": 1162}
+{"ev": "capture", "n": 1, "done": true, "polls": 0, "ms": 633.0, "r440": "0x00000402", "start": 1026, "smm_changed": 0, "pkt_changed": 1143}
+{"ev": "regs.after", "MAC_SYS_CTRL": "0x0000000c", "PBF_SYS_CTRL": "0x00080c00", "PBF_CFG": "0x1efebcff", "PBF_CAP_CTRL": "0x04030402"}
+changed words all in 0xe004..0xfffc (scattered); control without any capture: 1138 changed words in the same range -> normal activity, not a capture

@@ -51,6 +51,25 @@ so every hardware claim below is from the kernel driver's own prior bring-up, no
   mt7612u-usb-wedge.md`). Try a different USB3 port / controller, or bring it up with the
   `mt76x2u` kernel driver once and hand the handle to `mt7612u_open_handle()`.
 
+## Update 2026-10-25 (main session): the PBF capture does not exist on this MAC [V]
+
+Tested on the live adapter through the `mt76x2u` kernel driver's debugfs register access
+(`tools/mt_pbfcap.py`, interface in monitor mode on ch36, every register restored):
+- **The RLT register map has no capture control.** The A6210 vendor tree's RLT header
+  (`include/mac_ral/nmac/ral_nmac_pbf.h`) defines `PBF_SYS_CTRL` without `CAP_MODE` (bits 10–11
+  clock enables, 17–18 `PBF_MSEL`, 19 `SHRM_SEL`; our value `0x00080c00` decodes exactly so) and
+  nothing at `0x0440`.
+- **On the chip, `0x0440` is four 6-bit fields:** writing `0xffffffff` reads back `0x3f3f3f3f`; the
+  start bit [30] cannot be stored. Bit 14 of `0x0400` latches but does nothing.
+- **The vendor sequence captures nothing:** no "done" transition, the address field unchanged, SMM
+  `0x4000` stays all zero. The PKT window changes only in `0xe000–0xffff`, by the same amount
+  with no capture at all (1138 vs 1143–1162 words): normal activity.
+- With no ICAP on MT76x2 either (§1b) and no capture or ATE strings in the firmware (only RXIQ /
+  FDIQ / TX-IQC calibration), **no raw-IQ path is known on the MT7612U.** What remains is
+  calibration-grade (§1c). For MediaTek, the MT7921AU has one: MtkWifiRev/Mtk79ICAP streams its
+  RBIST/ICAP capture engine at up to 80 MS/s via a patched RAM firmware.
+  Evidence: `evidence/phase6-mt-pbfcap.txt`, `evidence/phase6-mt-pbfcap-latch.txt`.
+
 ## Q1 — Is there a hardware raw/near-raw baseband-IQ path?
 
 ### 1a. PBF packet-buffer "ADC dump" — exists in hardware, disabled in driver [I]

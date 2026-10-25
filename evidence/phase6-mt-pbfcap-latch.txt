@@ -1,0 +1,4 @@
+# MT7612U (RLT MAC) via mt76x2u debugfs: does the RTMP ADC-dump control exist? write, read back, restore
+PBF_SYS_CTRL 0x400: saved 0x00080c00; wrote |BIT14 -> reads 0x00084c00 (BIT14 latched)
+PBF_CAP_CTRL 0x440: saved 0x04030402; wrote start(BIT30) -> 0x00000402, again 0x00000402; wrote 0xffffffff -> 0x3f3f3f3f
+restored: 0x400=0x00080c00 0x440=0x04030402 0x1004=0x0000000c

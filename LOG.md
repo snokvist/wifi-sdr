@@ -298,3 +298,10 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   IGI=0x1e). Fix 4afa386: skip_dig honoured on Jaguar3; docs scoped. Replied and resolved.
   `evidence/devourer-j3-skipdig-ab.txt`.
 
+## 2026-10-25 14:10 — MT7612U: the PBF ADC capture does not exist on the RLT MAC
+- Live test through mt76x2u debugfs (monitor mode ch36, registers restored): the vendor
+  Set_ADCDump_Proc sequence captures nothing; 0x440 reads back 0x3f3f3f3f after writing all ones
+  (four 6-bit fields, no start bit); the RLT header has no CAP_MODE. No raw-IQ path known on the
+  MT7612U. Mtk79ICAP (MT7921AU, RBIST/ICAP, 80 MS/s) is the MediaTek route.
+- 8812CU live two-path viewer `tools/cu_live.py` shown on the desktop.
+
