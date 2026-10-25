@@ -7,3 +7,6 @@ captures/
 build/
 *.o
 __pycache__/
+# Coordination messages and locks are ephemeral (coord/README.md is tracked)
+coord/*
+!coord/README.md
