@@ -71,7 +71,6 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
     _st = {};
     _st.state = RxState::Opening;
   }
-  _freq = initial.freq;
   const bool cu = pid == kPid8812cu;
   OpenOpts o;
   o.pid = pid;
@@ -155,7 +154,6 @@ void Receiver::set(const RxSettings &s) {
     };
     const bool same_hw = hw(n) == hw(_set);
     _set = n;
-    _freq = n.freq;
     if (same_hw)
       return; // nothing for the chip to do: keep streaming
     _last_change = clk::now();
@@ -267,12 +265,14 @@ void Receiver::worker() {
         _st.error.clear();
       }
       meta.seq = seq++;
-      meta.shift_hz = _freq.load() - centre; // a frequency change inside the same step needs no restart
-      _sink(bank, Stream8822b::kBankBytes, meta);
       {
         std::lock_guard<std::mutex> l(_m);
         _st.banks++;
+        // A frequency change inside the same step needs no restart (set() leaves _cfg alone), so the
+        // shift follows _set; after a hardware change (_cfg moved on) this run keeps its own frequency.
+        meta.shift_hz = (_cfg == cfg ? _set.freq : cur.freq) - centre;
       }
+      _sink(bank, Stream8822b::kBankBytes, meta);
       return _active.load();
     };
     StreamStats ss;
