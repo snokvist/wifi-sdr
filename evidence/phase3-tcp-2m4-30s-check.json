@@ -1,0 +1,30 @@
+{
+ "file": "captures/phase3/tcp-ch36-2m4-30s",
+ "fs": 2400000.0,
+ "samples": 72007680,
+ "banks": 8790,
+ "seconds": 30.0032,
+ "duplicate_banks": 0,
+ "ring_lag_identical": 0.08722857274301604,
+ "adjacent_identical": 0.10548501361917248,
+ "step_mean_all": 3.5422096252441406,
+ "step_mean_bank_boundary": 2.65704607963562,
+ "step_mean_chunk_boundary": 2.966712236404419,
+ "step_mean_prefix_boundary": 2.8262364864349365,
+ "bursts": 2167,
+ "beacon_train": {
+  "beacons": 254,
+  "interval_tu100_multiples": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   8
+  ],
+  "resid_samples_median": 0.0,
+  "resid_samples_max_abs": 912.0,
+  "resid_us_max_abs": 380.0,
+  "bank_slips": 0
+ }
+}

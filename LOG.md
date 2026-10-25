@@ -152,3 +152,17 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 - Found: CPU stores into the bank the ADC is filling are corrupted (bytes 8..15 = copy of 0..7);
   shipping 1 ms early reproduces it. Frozen-writer control (`--ofdm 0`) flags 303/305 banks stale.
 - Captures in `captures/phase3/` (not tracked); evidence `evidence/phase3-stream-*`.
+
+## 2026-10-25 10:45 — rtl_tcp front end (wsdr_tcp)
+- Committed the C2H probes (fb15901, opencode's work) and the USB2 streamer (dd87516).
+- New `wsdr_tcp`: rtl_tcp server on `Stream8822b` (R820T header and gain table; u8 IQ; DC removed;
+  NCO for the off-grid residual; arbitrary-rate polyphase resampler from 2.5/5 MS/s; gain → IGI in
+  fixed-gain mode, auto → chip AGC; every setting change restarts the stream; drops root after open).
+  `src/iqdsp.{h,cpp}` + `iqdsp_test` (tone/alias/DC-bias checks, all pass).
+- rtl_tcp carries frequency as a u32: 5 GHz arrives wrapped mod 2^32. The server unwraps
+  0.78–1.97 GHz, and `--freq-offset` pairs with a client LNB LO (gqrx clamps to the R820T range:
+  LNB LO 5000 MHz + `--freq-offset 5e9`).
+- Verified: test client 30 s at 2.400007 MS/s, 254 beacons on the 102.4 ms grid, 0 slips; retune
+  ch36→40→36 and gain changes work (~150 ms gap each); gr-osmosdr (gqrx backend) headless and gqrx
+  GUI live on ch36, no drops while the client reads. Fixed a u8 truncation bias (−0.5 LSB DC line).
+- Evidence: `evidence/phase3-tcp-*`, `evidence/phase3-iqdsp-test.txt`.

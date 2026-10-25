@@ -1,0 +1,6 @@
+passthrough 2.5M, shift 300k       out 125000/125000  tone -0.00 dB  worst spur -127.4 dBc  PASS
+2.5M -> 2.048M, tone 600k          out 102381/102400  tone +0.00 dB  worst spur -99.2 dBc  PASS
+5M -> 2.4M, shift -0.9M, tone 0    out 119981/120000  tone -0.00 dB  worst spur -101.6 dBc  PASS
+5M -> 2.4M, 2.0M tone rejected     alias at -0.40 MHz -118.6 dB  PASS
+2.5M -> 3.2M upsample, tone -0.95M out 159976/160000  tone -0.00 dB  worst spur -101.7 dBc  PASS
+u8 packing DC bias                 mean - 127.5 = +0.0011 LSB  PASS

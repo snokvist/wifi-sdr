@@ -1,0 +1,1 @@
+{"sample_rate": 2400000.0, "source": "rtl_tcp", "probe": {"tuner": 5, "gains": 29, "samples": 72014843, "seconds_wall": 30.006, "rate_req": 2400000.0, "rate_delivered": 2400007, "first_byte_ms": 166.0, "rms_u8": 12.69, "clip_frac": 0.0009744449488003466, "marks": []}}

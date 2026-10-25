@@ -1,12 +1,20 @@
 # STATUS
 
-_Last updated: 2026-10-25 10:30 CET_
+_Last updated: 2026-10-25 10:45 CET_
 
-**Current phase:** Phase 3 (8812BU continuous streaming). **USB2 continuous streaming works**
-(2026-10-25): `wsdr_probe stream` delivers 60 s at 2.5 MS/s and 60 s at 5 MS/s with zero faults,
-independently checked for continuity (beacon timing, no slips). 16 KiB C2H is reliable on USB2 and
-wedges on USB3, so 20/40 Msps still waits on the USB3 investigation. The 8812BU is enumerated at 480M
-(1-1). Phases 0–2 complete. Interim write-up: [REPORT.md](REPORT.md).
+**Current phase:** Phase 3 on USB2 is done and Phase 4 has its first front end: **`wsdr_tcp` serves the
+8812BU as an rtl_tcp device** (gqrx verified live), on top of the 2.5/5 MS/s continuous stream (60 s,
+zero faults). 16 KiB C2H wedges on USB3, so 20/40 Msps still waits on the USB3 investigation. The 8812BU
+is enumerated at 480M (1-1). Interim write-up: [REPORT.md](REPORT.md).
+
+### Using it
+```sh
+cmake -S . -B build && cmake --build build -j
+sudo build/wsdr_tcp --pid 0xb812 --freq-offset 5e9      # take the 8812bu lock first
+gqrx: device "rtl_tcp=127.0.0.1:1234", Input controls → LNB LO 5000 MHz, then tune 5180 MHz
+sudo build/wsdr_probe stream --pid 0xb812 --seconds 60 --out captures/x   # record .cs16 + .json
+```
+Clients that send 5 GHz as a wrapped u32 (gr-osmosdr with "No limits", custom tools) need no offset.
 
 ## Hardware
 
@@ -53,7 +61,8 @@ wedges on USB3, so 20/40 Msps still waits on the USB3 investigation. The 8812BU 
   Next: the USB3 rate-vs-link test (pace C2H to the USB2 rate on USB3), then the devourer-vs-rtw88
   register diff (`notes/c2h-wedge-handoff.md`). Done on USB2: 2.5 and 5 MS/s for 60 s (FINDINGS §4).
 - The tuning table across channels and bands. Only the ch36 noise-floor gain map exists.
-- Phase 4 front ends (rtl_tcp, SoapySDR, recorder), Phase 5 (8812CU port), Phase 6 (8812EU).
+- Phase 4: SoapySDR/SpyServer front end (rtl_tcp and the recorder exist). Phase 5 (8812CU port),
+  Phase 6 (8812EU).
 - 8812CU streaming would be USB-2-limited (≈35–40 MB/s) unless the board supports the runtime USB 3
   switch (open).
 
@@ -62,9 +71,7 @@ N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch
 (8812CU plugged in).
 
 ## Next steps
-Updated 2026-10-25 10:30: (1) **front end on the continuous stream**: an rtl_tcp/SpyServer-lite server fed by
-`Stream8822b` at 2.5 MS/s (the snapshot-mode server is no longer the only option); the `.cs16` + JSON
-recorder exists (`wsdr_probe stream --out`); (2) **USB3 rate-vs-link test**: needs the adapter switched
-back to USB3 via a short rtw88 probe under the `rtw88-guard` lock; (3) 20/40 Msps only after the USB3
-transport holds. The 8812CU port is deprioritized. The tuning table can proceed with the stream or
-snapshots. Details: `notes/c2h-wedge-handoff.md` §9.
+Updated 2026-10-25 10:45: (1) **USB3 rate-vs-link test** (switch the adapter to USB3 with a short rtw88 probe
+under the `rtw88-guard` lock, then pace 16 KiB C2H to the USB2 rate); (2) front-end polish: a
+SpyServer or SoapySDR module (int16, true 5 GHz frequencies, no LNB trick), tuning table per channel;
+(3) 20/40 Msps only after the USB3 transport holds. The 8812CU port is deprioritized.

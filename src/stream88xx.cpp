@@ -7,7 +7,6 @@
 #include <cstring>
 #include <deque>
 #include <stdexcept>
-#include <thread>
 
 #include "c2h88xx.h"
 #include "cpu88xx.h"
@@ -146,7 +145,7 @@ private:
 } // namespace
 
 StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const BankInfo &)> &on_bank,
-                             const volatile bool *stop) {
+                             const std::atomic<bool> *stop) {
   StreamStats st;
   Reg &r = _s.reg();
   C2hRxPath rx(r);

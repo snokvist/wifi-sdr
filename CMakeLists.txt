@@ -55,3 +55,13 @@ target_compile_options(wsdrcore PRIVATE -Wall -Wextra)
 
 add_executable(wsdr_probe src/wsdr_probe.cpp)
 target_link_libraries(wsdr_probe wsdrcore)
+
+find_package(Threads REQUIRED)
+add_library(iqdsp STATIC src/iqdsp.cpp)
+target_include_directories(iqdsp PUBLIC src)
+target_compile_options(iqdsp PRIVATE -Wall -Wextra)
+add_executable(iqdsp_test src/iqdsp_test.cpp)
+target_link_libraries(iqdsp_test iqdsp)
+
+add_executable(wsdr_tcp src/wsdr_tcp.cpp)
+target_link_libraries(wsdr_tcp wsdrcore iqdsp Threads::Threads)

@@ -22,6 +22,7 @@
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A.
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cinttypes>
 #include <cmath>
@@ -564,7 +565,7 @@ int cmd_latime(Session &s, const Args &a) {
   return rc;
 }
 
-volatile bool g_stop = false;
+std::atomic<bool> g_stop{false};
 
 int cmd_stream(Session &s, const Args &a) {
   StreamCfg c;

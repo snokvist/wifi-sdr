@@ -14,6 +14,7 @@
 
 #include <libusb.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -67,7 +68,7 @@ public:
   // Streams until on_bank returns false, stop is set, or a fault. bank points at kBankBytes bytes
   // (kBankSamples little-endian u64 LA words). Restores every register it touched.
   StreamStats run(const std::function<bool(const uint8_t *bank, const BankInfo &)> &on_bank,
-                  const volatile bool *stop = nullptr);
+                  const std::atomic<bool> *stop = nullptr);
 
 private:
   Session &_s;

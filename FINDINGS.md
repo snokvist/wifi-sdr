@@ -248,6 +248,11 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 - **Integrity controls:** a frozen LA writer (`--ofdm 0`) is flagged stale on 303/305 banks (descriptor
   + last-sample sentinel survive a revolution); the synthetic mode (host-filled banks, LA stopped)
   matches the fill pattern byte for byte. 10 Msps (80 MB/s) cannot fit USB2.
+- **rtl_tcp front end (`wsdr_tcp`):** the protocol's 32-bit frequency word cannot express 5 GHz; gr-osmosdr
+  sends 5180 MHz as 885 032 704 (mod 2^32), and gqrx clamps tuning to the advertised R820T range. Both
+  are handled (unwrap of 0.78–1.97 GHz; `--freq-offset` + client LNB LO). gr-osmosdr centres u8 at 127.4,
+  which leaves a small DC line at this radio's low noise floor (gqrx "DC remove" clears it). Retune or
+  gain change costs ~150 ms of samples (stream restart + devourer retune).
 
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
