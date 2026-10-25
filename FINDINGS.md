@@ -122,6 +122,28 @@ Extracted locally by `tools/extract_vendor_fw.sh` / `tools/rtkfw88xx.py` into gi
   host writes DW_OK/CHKSUM_OK into 0x80 → FW_DW_RDY, CPU on, poll 0x80 == 0xC078 (failure: 0x10FC ==
   0xFAAAAA00 "illegal key").
 
+### Static firmware RE (`notes/fw-disasm.md`): what was cross-checked
+A subagent's read-only study of the NIC images; it tags claims [V]/[I]. Checked here against the
+vendor sources (`~/dev/snokvist/devourer/reference/rtl88x2cu/hal/`) on 2026-10-25:
+- **Register names hold:** `REG_C2H_PKT` 0x0294, `REG_FREERUN_CNT` 0x0568 (the µs timer measured in §4),
+  `REG_WMAC_FWPKT_CR` 0x0601 at the cited `halmac_reg2.h` lines.
+- **Hardware PSD engine, 8822B (11AC_2 branch):** `phydm_psd.c:461-462` sets control 0x910 and report
+  0xf44; a tone index goes in 0x910's low bits, BIT(22) pulses the trigger, it settles
+  `10 << (fft_points >> 7)` µs, and the report converts to dB **plus the current IGI**. That gives one
+  tone per trigger, magnitude only, no phase: a spectrum-occupancy sensor, not an IQ source.
+  **Correction to the study:** on the **8822C** (JGR3 branch) this vendor tree assigns no PSD
+  registers. Its 0x1e8c/0x2d90 assignment sits under `#if 0`, so "0x910 on 8822C" is wrong.
+- **IQK read-out, 8822C (`halrf_iqk_8822c.c`):** writing 0x40000000 to BB 0x1b38 triggers (:464, :601).
+  The result reads as x = 0x1b38[31:20] and y = 0x1b38[19:8] (:439-440): scalar IQ-mismatch estimates,
+  not a sample buffer. They could post-correct LA captures offline. The 8822B equivalent is not checked.
+- **Stock firmware and gain:** none of the LA, dbg-port or IGI registers appears as a full 32-bit
+  constant in either image's literal pool. Per the study's own caveat that is suggestive, not proof,
+  since base+offset addressing escapes the scan. It is consistent with §4: the 8822B fixed-gain
+  recipe is host-side register writes. The study's §7(b) lists AGC freezing as open; on our 8822B it
+  is solved (§4); on the 8822C it is still untested.
+- **Not cross-checked:** H2C table locations and index map, call-graph leaf identities, the 8822C entry
+  stub, and the §7 leads. Treat them as the study's own claims.
+
 ## 4. Continuous streaming data path (ac54, 8822B) — Phase 2
 
 Source: ac54 (`notes/ac54-analysis.md` §2–§8). Status: **documented, not yet reproduced on our units.**

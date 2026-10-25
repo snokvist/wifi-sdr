@@ -44,8 +44,9 @@ timeline.
    subagent). Claims are tagged **[V]** (verified from bytes or a cited source) or **[I]**
    (inferred). §2 covers the MMIO census and how the vendor firmware moves C2H/bulk data. §3 is
    H2C dispatch, §4 8822C calibration read-back, §5 the hardware PSD/FFT engine, §6 the 8822C
-   custom-firmware entry, and §7 "Most promising leads". **Not yet cross-checked by Claude**;
-   check the [I] items before relying on them.
+   custom-firmware entry, and §7 "Most promising leads". Partly cross-checked: see FINDINGS §3
+   "Static firmware RE" for what holds, one correction (no PSD registers on the 8822C), and what
+   is unchecked.
 5. **`NEEDS.md`**: open hardware and judgment requests: N2 test transmitter, N3 uhubctl hub,
    N4 license call, N5 8812EU.
 6. **`LOG.md`**: the append-only timeline, including every package installed.

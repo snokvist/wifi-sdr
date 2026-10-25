@@ -42,7 +42,8 @@ interrupted (see "Blocked"). Phases 0–2 complete; Phase 1 done on both chips.
   `La8822b::snap()` (used by `wsdr_probe snap`). Paused pending your direction.
 
 ## Background results
-- The firmware-RE subagent finished and wrote `notes/fw-disasm.md` (not yet reviewed or merged into FINDINGS).
+- Firmware-RE study `notes/fw-disasm.md`: register names, the 8822B PSD engine and the 8822C IQK read-out
+  cross-checked into FINDINGS §3; one correction (8822C has no PSD registers in this vendor tree).
 
 ## Open needs (NEEDS.md)
 N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch) RTL8812EU. N1 resolved

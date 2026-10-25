@@ -106,3 +106,8 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
 - Started a snapshot-mode rtl_tcp server (`src/wsdr_tcp.cpp`); the response was stopped by a safety
   classifier mid-write. Partial file deleted, not retried. Work paused for Joakim's direction.
 - Firmware-RE subagent completed; output at `notes/fw-disasm.md` (unreviewed, uncommitted).
+
+## 2026-10-25 12:05 — firmware-RE study cross-check
+- Checked `notes/fw-disasm.md` against the vendor sources: halmac register names, 8822B PSD engine
+  (0x910/0xf44), 8822C IQK read-out (0x1b38) hold. Correction: the 8822C (JGR3) PSD branch assigns no
+  registers in this vendor tree. Summary in FINDINGS §3; the note is committed with its [V]/[I] tags.
