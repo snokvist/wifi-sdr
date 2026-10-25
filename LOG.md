@@ -67,3 +67,25 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   IMEM@0x30000 + EMEM, no vectors. Subagent also cloned `ref/88x2bu-20210702` and inited devourer's
   reference/rtl88x2bu + rtl88x2cu submodules in `ref/devourer`.
 - No packages installed so far. SDR++/GNU Radio/SoapySDR are not installed.
+
+**~09:00–10:10** — Phase 3 groundwork (8812BU).
+- Joakim: SDR++ visualization question → answered (snapshot-mode feed early, real one after streaming).
+- Joakim: suggests firmware disassembly / custom firmware for hidden SDR blocks → background subagent
+  started on static RE of the 8822B/8822C NIC firmware (→ `notes/fw-disasm.md`).
+- Installed `binutils-mipsel-linux-gnu` (2.45.90) for MIPS16e2 assembly. gas encodings match the forms
+  ac54 verified on silicon (e.g. extended LUI `f030 6820`).
+- New host code (`src/`, GPL-2.0 because it links devourer): `rtlreg` (vendor-req 0x05 regs, SS 504-B
+  EP0 cap, OCP SRAM window, DDMA), `session` (devourer CreateRadio + InitWrite), `la88xx` (free-running
+  LA ring, snapshot/restore), `cpu88xx` (prologue splice from devourer's FW array, FNV-checked),
+  `wsdr_probe` (ring / snap / marker). CMake pulls devourer via add_subdirectory(EXCLUDE_FROM_ALL).
+- `wsdr_probe ring`: free-running ring (0x7c0 = 0xCB, never triggered) is **LIVE** after devourer
+  bring-up (≈1 % words identical between reads; frozen would be ≥95 %). 128 KiB EP0 read = 12.5 ms
+  (10.4 MB/s) on USB 3. dbg 0x0 and 0x880 both live; dbg 0 tags bits [39:32]… with 0x6c, 0x880 → 0.
+- InitWrite leaves IGI = 0x40 → ring RMS ≈ 4 LSB (deaf-looking). IGI 0x20 → RMS ≈ 135.
+- With CCA on, bits [31:24] of the LA word are non-zero only during frames (0x40/0x80/0x84/0xc5/0xc7/
+  0xc8/0xd2…) → BB RX-state flags (lead, undecoded).
+- 0x808[29] = 0 (OFDM block off) FREEZES the LA writer (6/6 reads identical). Negative result.
+- **0x838[1] = 1 (OFDM RX CCA off, from phydm_stop_ic_trx/phydm_psd) + CCK off + pinned IGI → fixed
+  gain**, writer stays live; metadata bits stay 0. `wsdr_probe snap` (contiguous manual-trigger
+  snapshots, DVLA output): CCA-on frame shows AGC spike + step-down; CCA-off frame flat at +22 dB,
+  no clipping. Evidence `evidence/phase3-snap-{cca,nocca}-frame.png`.
