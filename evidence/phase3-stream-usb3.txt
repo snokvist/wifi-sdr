@@ -1,0 +1,8 @@
+=== USB3 stream rate_sel 5
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":5,"fs":2500000,"channel":36,"banks":8,"samples":65536,"stream_s":0.026,"wall_s":0.263,"mbps_wire":1.99,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":181.0,"end_max_us":181.4,"budget_us":3256.8,"rms":53.4,"error":"no packet within timeout (bank 8 part 0)"}
+=== USB3 stream rate_sel 5
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":5,"fs":2500000,"channel":36,"banks":10,"samples":81920,"stream_s":0.033,"wall_s":0.269,"mbps_wire":2.43,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":181.0,"end_max_us":181.2,"budget_us":3256.8,"rms":23.5,"error":"no packet within timeout (bank 10 part 0)"}
+=== USB3 stream rate_sel 2
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":2,"fs":20000000,"channel":36,"banks":5,"samples":40960,"stream_s":0.002,"wall_s":0.238,"mbps_wire":1.38,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":181.0,"end_max_us":181.2,"budget_us":389.6,"rms":18.6,"error":"no packet within timeout (bank 5 part 3)"}
+=== USB3 stream rate_sel 2
+{"ev":"stream","ok":0,"synthetic":0,"rate_sel":2,"fs":20000000,"channel":36,"banks":26,"samples":212992,"stream_s":0.011,"wall_s":0.249,"mbps_wire":6.83,"strays":0,"stale":0,"pattern_bad":0,"late_max_us":0.8,"ship_max_us":182.0,"end_max_us":182.6,"budget_us":389.6,"rms":18.6,"error":"no packet within timeout (bank 26 part 3)"}

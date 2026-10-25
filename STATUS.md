@@ -71,7 +71,8 @@ N2 test transmitter · N3 uhubctl hub · N4 ac54 license judgment · N5 (stretch
 (8812CU plugged in).
 
 ## Next steps
-Updated 2026-10-25 10:45: (1) **USB3 rate-vs-link test** (switch the adapter to USB3 with a short rtw88 probe
-under the `rtw88-guard` lock, then pace 16 KiB C2H to the USB2 rate); (2) front-end polish: a
+Updated 2026-10-25 10:45: (1) **USB3**: the rate-vs-link test is done (USB3-specific, not rate; FINDINGS §4).
+Next: run C2H on a chip initialized by rtw88 without devourer's init (E3), another controller (E2) or
+another 8822BU board (E6, needs hardware); (2) front-end polish: a
 SpyServer or SoapySDR module (int16, true 5 GHz frequencies, no LNB trick), tuning table per channel;
 (3) 20/40 Msps only after the USB3 transport holds. The 8812CU port is deprioritized.

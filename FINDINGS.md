@@ -223,6 +223,12 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   2000/2000, c2hbench 1024/1024 ×3 at 347–365 µs/packet = 44.7 MB/s (wire-limited). Open: on USB2 the
   engine is paced ~9× slower, so "USB3 link" vs "back-to-back rate" is not yet separated (the matrix
   has no `--gap-us` run). Evidence: `evidence/phase3-c2h-usb2-*.txt`.
+- **USB3, rate separated (2026-10-25):** paced to the USB2 cadence (`--gap-us 1000`) 16 KiB C2H still
+  wedges on USB3 (102/150/15), so the failure belongs to the USB3 path, not to back-to-back requests.
+  RX DMA burst size 512/64 B (0x290 = 0x1e/0x2e) is also negative. Smaller packets only lower the
+  per-packet hazard (1 KiB: 5751/20000; 2 KiB: 243/1600). The streamer on USB3 ships a bank in 181 µs
+  (enough for 20 MS/s) but wedges after 5–26 banks. No xHCI errors are logged. Remaining leads:
+  rtw88-initialized chip without devourer init (E3), another host controller (E2), another board (E6).
 
 ### Continuous streaming over USB2 (Phase 3, 2026-10-25)
 - **Working:** `wsdr_probe stream` + `src/fw/stream8822b.S` stream the LA ring continuously. 60 s at

@@ -1,0 +1,10 @@
+=== USB3 c2h 1024 B x 20000
+{"ev":"c2h.fail","completed":5751,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x01016000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 c2hbench 1000 B
+{"ev":"c2h.bench","n":1600,"issued":1600,"verified":1600,"stray":0,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":3,"p50_us":4,"p90_us":6,"p99_us":19,"max_us":415,"over_204us":1,"mean_us":5.5,"wall_ms":9.5,"mbps":167.80}
+=== USB3 c2hbench 1000 B
+{"ev":"c2h.bench","n":1600,"issued":1600,"verified":1600,"stray":0,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":3,"p50_us":4,"p90_us":6,"p99_us":11,"max_us":42,"over_204us":0,"mean_us":4.7,"wall_ms":9.0,"mbps":176.86}
+=== USB3 c2hbench 2024 B
+{"ev":"c2h.bench","n":1600,"issued":1600,"verified":1600,"stray":1,"timeouts":0,"magic":"0x0c2b0001","done":1,"error":0,"min_us":6,"p50_us":7,"p90_us":8,"p99_us":12,"max_us":16,"over_204us":0,"mean_us":7.1,"wall_ms":12.4,"mbps":260.81}
+=== USB3 c2hbench 2024 B
+{"ev":"c2h.bench","n":1600,"issued":243,"verified":243,"stray":0,"timeouts":64,"magic":"0x0c2b0001","done":0,"error":0,"min_us":6,"p50_us":7,"p90_us":8,"p99_us":12,"max_us":14,"over_204us":0,"mean_us":7.3,"wall_ms":1502.2,"mbps":0.33}

@@ -166,3 +166,15 @@ Evidence: `evidence/phase0/doctor-8812bu-ch{6,1}.{jsonl,stderr}`, `evidence/phas
   ch36→40→36 and gain changes work (~150 ms gap each); gr-osmosdr (gqrx backend) headless and gqrx
   GUI live on ch36, no drops while the client reads. Fixed a u8 truncation bias (−0.5 LSB DC line).
 - Evidence: `evidence/phase3-tcp-*`, `evidence/phase3-iqdsp-test.txt`.
+
+## 2026-10-25 11:05 — USB3 test: the wedge is the USB3 path, not the request rate
+- Switched the 8812BU to USB3 with a short rtw88 probe (guard off → modprobe → re-enumerated at
+  5000M in ~1 s → guard on; NM Wi-Fi radio was already disabled, the wlx interface stayed DOWN).
+- 16 KiB C2H on USB3: baseline wedges at 17/174; paced with `--gap-us 1000` (≈ the USB2 cadence that
+  is reliable) still wedges at 102/150/15, `--gap-us 300` at 381/0 → **not rate-dependent**.
+- RX DMA burst size (0x290[5:4], never varied before): 512 B (0x1e) 4/14, 64 B (0x2e) 107/49 → negative.
+- Streamer on USB3: a bank ships in 181 µs (would fit 20 MS/s at 47 % of the 389.6 µs budget) but
+  wedges after 5–26 banks at both 2.5 and 20 MS/s.
+- Small packets are not a workaround: 1 KiB wedged at 5751/20000, 2 KiB at 243/1600 (on-chip
+  4–7 µs per packet when it runs). Per-packet hazard that grows with size; no host-side xHCI errors.
+- Evidence: `evidence/phase3-c2h-usb3-{pacing,small}.txt`, `evidence/phase3-stream-usb3.txt`.

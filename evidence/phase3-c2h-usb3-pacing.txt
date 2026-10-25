@@ -1,0 +1,24 @@
+=== USB3 baseline 1
+{"ev":"session","chip":"RTL8822B","superspeed":1,"channel":36}
+{"ev":"c2h.fail","completed":17,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 baseline 2
+{"ev":"session","chip":"RTL8822B","superspeed":1,"channel":36}
+{"ev":"c2h.fail","completed":174,"desc_bad":0,"stray":1,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 gap-us 1000
+{"ev":"c2h.fail","completed":102,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 gap-us 1000
+{"ev":"c2h.fail","completed":150,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 gap-us 1000
+{"ev":"c2h.fail","completed":15,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 gap-us 300
+{"ev":"c2h.fail","completed":381,"desc_bad":0,"stray":2,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 gap-us 300
+{"ev":"c2h.fail","completed":0,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 rxdma-mode 0x1e
+{"ev":"c2h.fail","completed":4,"desc_bad":0,"stray":0,"timeouts":61,"retries":0,"r294":"0x00001000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00020000"}
+=== USB3 rxdma-mode 0x1e
+{"ev":"c2h.fail","completed":14,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 rxdma-mode 0x2e
+{"ev":"c2h.fail","completed":107,"desc_bad":0,"stray":0,"timeouts":0,"retries":0,"r294":"0x00011000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00000000"}
+=== USB3 rxdma-mode 0x2e
+{"ev":"c2h.fail","completed":49,"desc_bad":0,"stray":2,"timeouts":60,"retries":0,"r294":"0x00001000","r288":"0x00000000","r280":"0x00000a03","r10c":"0x0000f5a0","r284":"0x00020000"}
