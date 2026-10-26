@@ -124,8 +124,14 @@ void Receiver::close() {
 void Receiver::start(BankSink sink) {
   if (!_s)
     throw std::logic_error("Receiver::start before open");
-  if (_worker.joinable())
-    return;
+  if (_worker.joinable()) {
+    {
+      std::lock_guard<std::mutex> l(_m);
+      if (_st.running)
+        return;
+    }
+    _worker.join(); // it ended itself (Lost / Error)
+  }
   _sink = std::move(sink);
   {
     std::lock_guard<std::mutex> l(_m);
@@ -223,6 +229,7 @@ void Receiver::worker() {
         _hw_width = width;
       }
     } catch (const std::exception &e) {
+      _hw_channel = 0; // devourer may have half-programmed the new channel: tune again next time
       if (!_s->reg().alive()) {
         set_state(RxState::Lost, std::string("adapter lost during retune: ") + e.what());
         break;
@@ -287,6 +294,10 @@ void Receiver::worker() {
       ss = _caps.cu ? Stream8822c(*_s, c).run(on_bank, &_restart) : Stream8822b(*_s, c).run(on_bank, &_restart);
     } catch (const std::exception &e) {
       ss.error = e.what();
+    }
+    {
+      std::lock_guard<std::mutex> l(_m);
+      _st.start_retries += ss.start_retries;
     }
     if (ss.error.empty() || _restart || !_active)
       continue; // settings change or stop

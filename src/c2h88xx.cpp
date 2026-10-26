@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "bulkin88xx.h"
+
 namespace wsdr {
 
 namespace {
@@ -219,10 +221,7 @@ void C2hReader::drain(unsigned ms) {
 }
 
 void C2hReader::stop() {
-  if (!_started) {
-    free_slots();
-    return;
-  }
+  // Also after a start() that failed part-way: the slots it had submitted are in flight.
   for (auto &s : _slots)
     if (s.x && !s.done)
       libusb_cancel_transfer(s.x);
@@ -236,17 +235,16 @@ void C2hReader::stop() {
     timeval tv{0, 2000};
     libusb_handle_events_timeout(_ctx, &tv);
   }
-  free_slots();
-  _started = false;
-}
-
-void C2hReader::free_slots() {
   for (auto &s : _slots) {
-    if (s.x) {
+    if (!s.x)
+      continue;
+    if (!s.done)
+      orphan_transfer(s.x, std::move(s.buf));
+    else
       libusb_free_transfer(s.x);
-      s.x = nullptr;
-    }
+    s.x = nullptr;
   }
+  _started = false;
 }
 
 } // namespace wsdr

@@ -3,7 +3,7 @@
 // completed 64 KiB ring bank as five C2H data packets + one trailer (the 8822C's C2H window splits
 // every bank at offset 0x6000, and no packet may cross the split; see the .S header). Same checks as
 // Stream8822b (framing, trailer seq, deadline, staleness / synthetic pattern) and the same StreamCfg /
-// BankInfo / StreamStats. Each LA word carries both RX paths (A: I[11:0] Q[23:12], B: Q[43:32]
+// BankInfo / StreamStats (start_retries stays 0: no first-packet retry here yet, issue #2). Each LA word carries both RX paths (A: I[11:0] Q[23:12], B: Q[43:32]
 // I[55:44]). USB 2 only on this board: ~44.7 MB/s C2H, so rate_sel 5 (2.5 MS/s) or 4 (5 MS/s).
 // Preconditions (notes/cu-custom-code.md): devourer's Jaguar3 runtime thread off (Session does it),
 // RX-DMA aggregation off, EP0 block cap 4.
