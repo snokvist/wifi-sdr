@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Host-side C2H transport helpers for the 8822B: one packet = 24-byte RX descriptor + payload,
+// Host-side C2H transport helpers (8822B and 8822C): one packet = 24-byte RX descriptor + payload,
 // emitted by the chip out bulk-IN EP 0x84 when a request word is written to REG 0x294.
 //
 // The request encoding is ac54's routeprobe/lamap finding (facts only; see
@@ -31,8 +31,9 @@ struct C2hPacket {
 // ac54/routeprobe request encoding for a C2H-mapped address.
 uint32_t c2h_request(uint32_t addr);
 
-// RX-path state the host/C2H tools program (ac54 cpubench: MAC RX off, RXDMA mode 14, no RW
-// release). Snapshot on construction, restore in the destructor (or explicitly).
+// RX-path state the host/C2H tools program (apply: MAC RX off, or on with no frames accepted;
+// RXDMA mode 14, no RW release; after ac54 cpubench/cpustream). Snapshot on construction, restore in the
+// destructor (or explicitly).
 class C2hRxPath {
 public:
   explicit C2hRxPath(Reg &r);
@@ -88,7 +89,6 @@ private:
   };
   static void LIBUSB_CALL cb(libusb_transfer *x);
   bool resubmit(Slot &s);
-  void free_slots();
 
   libusb_device_handle *_h;
   libusb_context *_ctx;

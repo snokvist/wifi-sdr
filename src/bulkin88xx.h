@@ -13,6 +13,21 @@
 
 namespace wsdr {
 
+// A cancelled transfer that did not reap in time: give it, and the buffer the kernel may still
+// copy into, to a callback that frees both once libusb reaps it, so its owner can go away now.
+// libusb reads callback/user_data only at completion, on the thread that handles events.
+inline void orphan_transfer(libusb_transfer *x, std::vector<uint8_t> &&buf) {
+  struct Orphan {
+    std::vector<uint8_t> buf; // a moved vector keeps its storage: the address the kernel has
+    static void LIBUSB_CALL done(libusb_transfer *t) {
+      delete static_cast<Orphan *>(t->user_data);
+      libusb_free_transfer(t);
+    }
+  };
+  x->user_data = new Orphan{std::move(buf)};
+  x->callback = Orphan::done;
+}
+
 class InOrderReader {
 public:
   InOrderReader(libusb_device_handle *h, libusb_context *ctx, int depth) : _h(h), _ctx(ctx) {
@@ -23,8 +38,6 @@ public:
   void start() {
     for (size_t i = 0; i < _slots.size(); i++) {
       Slot &s = _slots[i];
-      if (s.x) // a transfer stop() could not reap: its callback still points at this slot
-        throw std::runtime_error("bulk-IN transfer still pending from the last run");
       s.buf.resize(16384);
       s.x = libusb_alloc_transfer(0);
       if (!s.x)
@@ -33,7 +46,7 @@ public:
       submit(i);
     }
   }
-  // Next completed transfer (head of the queue); nullptr on timeout.
+  // Next completed transfer (head of the queue); false on timeout.
   struct Done {
     const uint8_t *data;
     int len;
@@ -80,11 +93,16 @@ public:
       timeval tv{0, 2000};
       libusb_handle_events_timeout_completed(_ctx, &tv, nullptr);
     }
-    for (auto &s : _slots)
-      if (s.x && !s.busy) {
+    for (auto &s : _slots) {
+      if (!s.x)
+        continue;
+      if (s.busy)
+        orphan_transfer(s.x, std::move(s.buf));
+      else
         libusb_free_transfer(s.x);
-        s.x = nullptr;
-      }
+      s.x = nullptr;
+      s.busy = false;
+    }
     _fifo.clear();
   }
 

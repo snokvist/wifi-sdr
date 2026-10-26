@@ -82,6 +82,7 @@ struct RxStatus {
   bool running = false;  // the worker is alive (false after Lost/Error ended it, or stop())
   bool settling = false; // a settings change is waiting to be applied (the run above is about to end)
   bool gapped = false;   // the current run is gapped (BankMeta::gapped)
+  unsigned start_retries = 0; // stream starts repeated because the first packet never came (issue #2)
 };
 
 class Receiver {
@@ -98,7 +99,7 @@ public:
   bool is_open() const { return _open; }
   RxCaps caps() const { return _caps; }
 
-  void start(BankSink sink); // worker thread; no-op if running
+  void start(BankSink sink); // worker thread; no-op if running (after Lost/Error: a new worker)
   void stop();               // joins the worker
   // Takes effect between stream runs. A change that leaves the hardware as it is (e.g. a frequency
   // inside the same 5 MHz synthesizer step) is recorded without restarting the stream.

@@ -27,7 +27,7 @@
 namespace wsdr {
 
 struct StreamCfg {
-  LaRingCfg la;            // la.rate_sel picks the rate (default here: 5 = 2.5 MS/s)
+  LaRingCfg la;            // la.rate_sel picks the rate (80 MHz >> rate_sel; LaRingCfg default 2)
   bool synthetic = false;  // host-filled banks, LA left stopped: transport/framing self-test
   int depth = 32;          // bulk-IN transfers kept queued
   int guard_us = 20;       // ship a bank this long after the ADC is due to finish it (< 0: test only)

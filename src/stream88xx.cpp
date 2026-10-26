@@ -136,6 +136,15 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
     while (r.r8(0x07C0) != 0xCB && clk::now() - p0 < std::chrono::milliseconds(1)) {
     }
   };
+  // rd.next in slices of at most 20 ms, so that a stop request ends a long wait early.
+  const auto next = [&](InOrderReader::Done &d, unsigned ms) {
+    for (unsigned waited = 0;; waited += 20) {
+      if (rd.next(d, std::min(20u, ms - waited)))
+        return true;
+      if (waited + 20 >= ms || (stop && *stop))
+        return false;
+    }
+  };
   // The first bank is due one period + guard after the start. If it does not come within a few
   // periods, start again (a stalled start used to cost the 200 ms pkt_timeout_ms and a Receiver
   // restart); the last attempt waits the full pkt_timeout_ms before calling it a fault.
@@ -143,6 +152,7 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
       std::max(20u, static_cast<unsigned>((4 * period_us() + std::max(_c.guard_us, 0)) / 1000));
   try {
     rx.emplace(r);
+    la.snapshot(); // before cpu.load(): its SRAM writes move the debug window (0x0106 / 0x0140)
     start();
 
     const double budget5 = static_cast<double>(period5) - guard5;
@@ -159,12 +169,12 @@ StreamStats Stream8822b::run(const std::function<bool(const uint8_t *, const Ban
         InOrderReader::Done d;
         const bool first = seq == 0 && part == 0;
         const bool retry = first && st.start_retries < kStartRetries;
-        if (!rd.next(d, retry ? first_ms : _c.pkt_timeout_ms)) {
-          const std::string why = first ? chip_state(r, cpu) : ""; // mid-stream the chip may not answer
-          if (retry && stop && *stop) {
+        if (!next(d, retry ? first_ms : _c.pkt_timeout_ms)) {
+          if (stop && *stop) {
             stopped = true;
             break;
           }
+          const std::string why = first ? chip_state(r, cpu) : ""; // mid-stream the chip may not answer
           if (retry) {
             std::fprintf(stderr, "stream: no first packet in %u ms, starting again%s\n", first_ms, why.c_str());
             st.start_retries++;

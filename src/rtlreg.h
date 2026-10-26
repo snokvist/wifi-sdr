@@ -51,7 +51,8 @@ public:
   void sram_read(uint32_t ocp, void *buf, size_t n);
   void sram_write(uint32_t ocp, const void *buf, size_t n);
 
-  // DDMA channel 0 copy between OCP addresses (IMEM 0x0, DMEM 0x200000, buffers 0x18xxxxxx).
+  // DDMA channel 0 copy between OCP addresses (IMEM: Cpu8822b/Cpu8822c::kImemOcp, DMEM 0x200000,
+  // buffers 0x18xxxxxx).
   // Throws on timeout. len must be a multiple of 4 and < 2^24.
   void ddma(uint32_t src, uint32_t dst, uint32_t len, unsigned timeout_ms = 20);
 
