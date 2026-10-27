@@ -19,6 +19,10 @@ int main(int argc, char **argv) {
     else if (k == "--port") port = v;
     else if (k == "--to") to = std::atoi(v.c_str());
     else if (k == "--pid") pid = static_cast<unsigned>(std::strtoul(v.c_str(), nullptr, 0));
+    else {
+      std::fprintf(stderr, "unknown arg %s\n", k.c_str());
+      return 2;
+    }
   }
   if (bus < 0 || port.empty() || (to != 2 && to != 3)) {
     std::fprintf(stderr, "usage: wsdr_usbmode --bus N --port P --to 2|3 [--pid 0xb812]\n");
@@ -27,6 +31,9 @@ int main(int argc, char **argv) {
   std::string detail;
   const auto r = to == 3 ? wsdr::request_usb3(static_cast<uint16_t>(pid), bus, port, &detail)
                          : wsdr::request_usb2(static_cast<uint16_t>(pid), bus, port, &detail);
+  for (char &ch : detail) // (it goes into JSON)
+    if (ch == '"' || ch == '\\' || static_cast<unsigned char>(ch) < 0x20)
+      ch = ' ';
   std::printf("{\"ev\":\"usbmode\",\"to\":%d,\"result\":\"%s\",\"detail\":\"%s\"}\n", to, wsdr::usb3_switch_name(r),
               detail.c_str());
   return r == wsdr::Usb3Switch::Requested || r == wsdr::Usb3Switch::NotNeeded ? 0 : 1;

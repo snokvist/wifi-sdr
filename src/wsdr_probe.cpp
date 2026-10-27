@@ -805,8 +805,8 @@ int cmd_stream(Session &s, const Args &a) {
   if (!a.rate_given)
     c.la.rate_sel = 5;
   c.synthetic = a.synthetic;
-  // >= 20 MS/s needs ~13 ms of posted URBs (as the Receiver): 32 left ~1.3 ms at 40 MS/s and missed
-  // the deadline about once a minute
+  // >= 20 MS/s needs the Receiver's depth: 256 URBs (5 a bank: ~51 banks, ~10.5 ms at 40 MS/s); 32
+  // (~6 banks, ~1.3 ms) missed the deadline within 8-14 s of a 30-s run
   c.depth = std::clamp(a.depth > 16 ? a.depth : c.la.rate_sel <= 2 ? 256 : 32, 4, 512);
   c.guard_us = a.guard_us;
   c.gapped = a.gapped;
@@ -887,6 +887,15 @@ int cmd_stream(Session &s, const Args &a) {
       got.store(k + 1, std::memory_order_release);
     }
   });
+  struct Join { // the writer ends and is joined on every way out (an exception too)
+    std::atomic<bool> &done;
+    std::thread &t;
+    ~Join() {
+      done = true;
+      if (t.joinable())
+        t.join();
+    }
+  } join{done, writer};
   uint64_t n = 0;
   const StreamStats ss = st.run(
       [&](const uint8_t *bank, const BankInfo &bi) {
@@ -905,7 +914,7 @@ int cmd_stream(Session &s, const Args &a) {
       },
       &g_stop);
   done = true;
-  writer.join();
+  writer.join(); // (before e2, wrote and the files are used)
   if (overflow)
     std::fprintf(stderr, "stream: the writer fell behind (%llu banks queued): the disk cannot keep up\n",
                  static_cast<unsigned long long>(kRing));
