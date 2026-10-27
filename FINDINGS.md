@@ -387,11 +387,21 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   one path copied: each antenna catches frames the other misses (ch 40: B twice A).
 - **Same USB cost as one path.** 10 s each at 40 MS/s: dma 0 and dma 4 both 318.85 MB/s, 0 stale,
   0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
-  callback (320 MB/s) misses the chip deadline; `wsdr_probe stream --path ab` holds them in memory.
-- Counterparts: one unit, one channel, 40 MS/s only (20 and 80 MS/s untested); dma 5 looked the same
-  as dma 4 in every measure; the A/B delay is not settled (per-frame lags cluster near 6 and 13.6
-  samples at 40 MS/s, and the antennas' own channels enter the estimate); which connector is path A
-  was not checked. `evidence/dual-path-tap-dma4.txt`, `tools/bu_twopath.py`.
+  callback (320 MB/s), or unpacks both there, can miss the chip deadline; `wsdr_probe stream --path ab`
+  holds the raw banks in memory and unpacks afterwards.
+- **All rates.** 80 MS/s (BW80, snapshot only): L-LTFs on both paths at all four 20 MHz centres,
+  none at the controls, filter edge ±37 MHz on both. 20 MS/s: both paths decode. Streaming at
+  20/10/5/2.5 MS/s and gapped at 40 MS/s: clean, 0 stale.
+- **Path B leads path A by ~146 ns** (5.9 samples at 40 MS/s), from L-LTF channel estimates on frames
+  found on both paths: −148 ns (ch 36 half, 82 frames) and −144 ns (ch 40 half, 24 frames), IQR about
+  ±1 ns across transmitters. Delay B by that before combining (the 8822C needs 370 ns).
+- **Coherent only where nothing aliases.** Below the filter's band the tap only selects words (no
+  anti-alias filter), so at 10/5/2.5 MS/s and when gapped the folded band plus the skew leave A and B
+  weakly coherent (0.18 vs 0.13 in noise at 5 MS/s): two valid receivers, not a coherent pair.
+  40 MS/s at BW40 and 20 MS/s at BW20 are coherent.
+- Counterparts: one unit; dma 5 matched dma 4 in every measure (layout, filters, rates, skew); which
+  connector is path A is unknown (soldered antennas). `evidence/dual-path-tap-dma4.txt`,
+  `tools/bu_twopath.py`, `tools/bu_ab_delay.py`.
 
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses

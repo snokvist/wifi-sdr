@@ -25,7 +25,8 @@
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A;
 //       --path b|ab with --dma 4: path B (bits [47:24] of the word), ab adds PREFIX-b.cs16. With ab
-//       both paths are held in memory and written after the stream (320 MB/s to disk stalls it).
+//       the raw banks are held in memory and unpacked after the stream (doing either during it can
+//       miss the chip's deadline at 40 MS/s).
 //       The printed rms is path A.
 //   LA options (ring/snap/latime/stream/tapscan): --rate N --dbg 0xNNN --dma N --igi N --nocca --dfir 20|40|80
 //       (--dfir: vendor RX DFIR for that width; with --bw 80 --dfir 80 --rate 0 the dma-0 tap is a genuine 80 MS/s,
@@ -827,17 +828,26 @@ int cmd_stream(Session &s, const Args &a) {
   }
   std::signal(SIGINT, [](int) { g_stop = true; });
   std::vector<int16_t> iq(2 * Stream8822b::kBankSamples), iqb(want_b ? 2 * Stream8822b::kBankSamples : 0);
-  std::vector<int16_t> held_a, held_b; // --path ab: the whole run, written once it has ended
-  size_t held_at = 0;                  // (sized and zeroed up front: no page faults in the callback)
-  if (fb) {
-    held_a.resize(static_cast<size_t>(2 * a.seconds * st.fs()) + iq.size());
-    held_b.resize(held_a.size());
-  }
+  // --path ab: the run's raw banks, unpacked and written once it has ended. The callback only copies
+  // (unpacking two paths there, or writing 320 MB/s, misses the chip's deadline); sized and zeroed up
+  // front so it never page-faults.
+  std::vector<uint8_t> held;
+  size_t held_at = 0;
+  if (fb)
+    held.resize((want + 1) * Stream8822b::kBankBytes);
   const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
   double e2 = 0;
   uint64_t n = 0;
   const StreamStats ss = st.run(
       [&](const uint8_t *bank, const BankInfo &bi) {
+        if (fb) {
+          if (held_at + Stream8822b::kBankBytes <= held.size()) {
+            std::memcpy(held.data() + held_at, bank, Stream8822b::kBankBytes);
+            held_at += Stream8822b::kBankBytes;
+          }
+          ++n;
+          return n < want;
+        }
         double acc = 0;
         for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
           uint64_t w;
@@ -854,15 +864,8 @@ int cmd_stream(Session &s, const Args &a) {
         }
         e2 += acc;
         const std::vector<int16_t> &first = a.path == "b" ? iqb : iq;
-        if (fb) {
-          if (held_at + iq.size() <= held_a.size()) {
-            std::copy(iq.begin(), iq.end(), held_a.begin() + static_cast<ptrdiff_t>(held_at));
-            std::copy(iqb.begin(), iqb.end(), held_b.begin() + static_cast<ptrdiff_t>(held_at));
-            held_at += iq.size();
-          }
-        } else if (f && std::fwrite(first.data(), 2, first.size(), f) != first.size()) {
+        if (f && std::fwrite(first.data(), 2, first.size(), f) != first.size())
           return false;
-        }
         if (++n % every == 0) {
           std::printf("{\"ev\":\"stream.tick\",\"banks\":%llu,\"seq\":%u,\"rms\":%.1f,\"late_us\":%.1f,"
                       "\"ship_us\":%.1f,\"end_us\":%.1f,\"stale\":%d}\n",
@@ -876,9 +879,18 @@ int cmd_stream(Session &s, const Args &a) {
         return n < want;
       },
       &g_stop);
-  if (fb) {
-    std::fwrite(held_a.data(), 2, held_at, f);
-    std::fwrite(held_b.data(), 2, held_at, fb);
+  for (size_t at = 0; fb && at < held_at; at += Stream8822b::kBankBytes) {
+    for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
+      uint64_t w;
+      std::memcpy(&w, held.data() + at + 8 * i, 8);
+      iq[2 * i] = static_cast<int16_t>(la_i(w) * 16);
+      iq[2 * i + 1] = static_cast<int16_t>(la_q(w) * 16);
+      iqb[2 * i] = static_cast<int16_t>(la_i(w >> 24) * 16);
+      iqb[2 * i + 1] = static_cast<int16_t>(la_q(w >> 24) * 16);
+      e2 += double(la_i(w)) * la_i(w) + double(la_q(w)) * la_q(w);
+    }
+    std::fwrite(iq.data(), 2, iq.size(), f);
+    std::fwrite(iqb.data(), 2, iqb.size(), fb);
   }
   if (f)
     std::fclose(f);

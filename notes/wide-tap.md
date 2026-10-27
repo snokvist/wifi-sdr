@@ -67,8 +67,8 @@ checks put the 5180 AP in the wrong place. Use `--channel 36 --bw 80` for a 5210
 | 0 | 24 | path A I[11:0] Q[23:12], post-DFIR | measured |
 | 1 | 24 | path B 12+12 IQ, post-DFIR | measured (2026-10-27: = dma 4's B half) |
 | 2, 3, 12–15 | none | static | measured |
-| 4 | 48 | A 12+12 in [23:0], B 12+12 in [47:24], post-DFIR | measured at 40 MS/s (`dual-path-tap-dma4.txt`) |
-| 5 | 48 | same as 4 in every measure taken | measured at 40 MS/s; difference unknown |
+| 4 | 48 | A 12+12 in [23:0], B 12+12 in [47:24], post-DFIR; B leads A by ~146 ns | measured at 20/40/80 MS/s (`dual-path-tap-dma4.txt`) |
+| 5 | 48 | same as 4 in every measure taken | measured; difference unknown |
 | 6, 7 | 40 | inferred: A and B as 10+10 | inferred |
 | 8, 9 | 20 | inferred: one path, 10+10 | inferred |
 | 10 | 32 | inferred: A and B int8 I,Q at 80 MS/s, pre-DFIR, flat to Nyquist | inferred |
