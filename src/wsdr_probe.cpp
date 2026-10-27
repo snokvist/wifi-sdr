@@ -24,9 +24,11 @@
 //   wsdr_probe stream --pid 0xb812 [--rate 5] [--seconds 10] [--out PREFIX] [--synthetic] [--guard-us 20]
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A;
-//       --path b|ab with --dma 4: path B (bits [47:24] of the word), ab adds PREFIX-b.cs16. With ab
-//       the raw banks are held in memory and unpacked after the stream (doing either during it can
-//       miss the chip's deadline at 40 MS/s).
+//       --path b|ab with --dma 4 (or 5): path B (bits [47:24] of the word), ab adds PREFIX-b.cs16 and
+//       needs --out. With ab the raw banks are held in memory (8 bytes a sample, so at most 10 s) and
+//       unpacked after the stream, with no stream.tick lines (doing either during it can miss the
+//       chip's deadline at 40 MS/s); --gapped has no deadline, so there they are written as they come.
+//       --gapped: one bank per round, banks not contiguous; also runs at --rate 0 (80 MS/s).
 //       The printed rms is path A.
 //   LA options (ring/snap/latime/stream/tapscan): --rate N --dbg 0xNNN --dma N --igi N --nocca --dfir 20|40|80
 //       (--dfir: vendor RX DFIR for that width; with --bw 80 --dfir 80 --rate 0 the dma-0 tap is a genuine 80 MS/s,
@@ -814,7 +816,13 @@ int cmd_stream(Session &s, const Args &a) {
     throw std::runtime_error("--path is a, b or ab");
   const bool want_b = a.path != "a";
   if (want_b && c.la.dma_type != 4 && c.la.dma_type != 5) // other formats carry no path B in [47:24]
-    throw std::runtime_error("--path b|ab needs --dma 4 (path B in bits [47:24])");
+    throw std::runtime_error("--path b|ab needs --dma 4 or 5 (path B in bits [47:24])");
+  // continuous ab holds the run: 640 MB a second at 40 MS/s
+  const bool hold = a.path == "ab" && !a.gapped;
+  if (a.path == "ab" && a.out.empty())
+    throw std::runtime_error("--path ab needs --out");
+  if (hold && a.seconds > 10)
+    throw std::runtime_error("--path ab holds the run in memory: at most --seconds 10");
   // the file for the first path written (A, or B alone), and PREFIX-b.cs16 for B with --path ab
   FILE *f = nullptr, *fb = nullptr;
   if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
@@ -830,17 +838,17 @@ int cmd_stream(Session &s, const Args &a) {
   std::vector<int16_t> iq(2 * Stream8822b::kBankSamples), iqb(want_b ? 2 * Stream8822b::kBankSamples : 0);
   // --path ab: the run's raw banks, unpacked and written once it has ended. The callback only copies
   // (unpacking two paths there, or writing 320 MB/s, misses the chip's deadline); sized and zeroed up
-  // front so it never page-faults.
+  // front so it never page-faults. Gapped runs have no deadline and write as they go.
   std::vector<uint8_t> held;
   size_t held_at = 0;
-  if (fb)
+  if (hold)
     held.resize((want + 1) * Stream8822b::kBankBytes);
   const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
   double e2 = 0;
   uint64_t n = 0;
   const StreamStats ss = st.run(
       [&](const uint8_t *bank, const BankInfo &bi) {
-        if (fb) {
+        if (hold) {
           if (held_at + Stream8822b::kBankBytes <= held.size()) {
             std::memcpy(held.data() + held_at, bank, Stream8822b::kBankBytes);
             held_at += Stream8822b::kBankBytes;
@@ -866,6 +874,8 @@ int cmd_stream(Session &s, const Args &a) {
         const std::vector<int16_t> &first = a.path == "b" ? iqb : iq;
         if (f && std::fwrite(first.data(), 2, first.size(), f) != first.size())
           return false;
+        if (fb && std::fwrite(iqb.data(), 2, iqb.size(), fb) != iqb.size())
+          return false;
         if (++n % every == 0) {
           std::printf("{\"ev\":\"stream.tick\",\"banks\":%llu,\"seq\":%u,\"rms\":%.1f,\"late_us\":%.1f,"
                       "\"ship_us\":%.1f,\"end_us\":%.1f,\"stale\":%d}\n",
@@ -879,7 +889,8 @@ int cmd_stream(Session &s, const Args &a) {
         return n < want;
       },
       &g_stop);
-  for (size_t at = 0; fb && at < held_at; at += Stream8822b::kBankBytes) {
+  bool wrote = true;
+  for (size_t at = 0; hold && wrote && at < held_at; at += Stream8822b::kBankBytes) {
     for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
       uint64_t w;
       std::memcpy(&w, held.data() + at + 8 * i, 8);
@@ -889,15 +900,17 @@ int cmd_stream(Session &s, const Args &a) {
       iqb[2 * i + 1] = static_cast<int16_t>(la_q(w >> 24) * 16);
       e2 += double(la_i(w)) * la_i(w) + double(la_q(w)) * la_q(w);
     }
-    std::fwrite(iq.data(), 2, iq.size(), f);
-    std::fwrite(iqb.data(), 2, iqb.size(), fb);
+    wrote = std::fwrite(iq.data(), 2, iq.size(), f) == iq.size() &&
+            std::fwrite(iqb.data(), 2, iqb.size(), fb) == iqb.size();
   }
+  if (!wrote)
+    std::fprintf(stderr, "stream: writing %s failed\n", a.out.c_str());
   if (f)
     std::fclose(f);
   if (fb)
     std::fclose(fb);
   const double secs = ss.banks * Stream8822b::kBankSamples / st.fs();
-  const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
+  const bool ok = wrote && ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
   char summary[1024];
   std::snprintf(summary, sizeof summary,
                 "{\"ev\":\"stream\",\"ok\":%d,\"synthetic\":%d,\"rate_sel\":%d,\"fs\":%.0f,\"channel\":%d,"
@@ -958,11 +971,11 @@ int main(int argc, char **argv) {
     return cmd_c2hbench(s, a);
   if (a.cmd == "latime")
     return cmd_latime(s, a);
-  if (a.cmd == "stream")
-    return cmd_stream(s, a);
   if (a.cmd == "regs")
     return cmd_regs(s, a);
   try {
+    if (a.cmd == "stream")
+      return cmd_stream(s, a);
     if (a.cmd == "dbgscan")
       return cmd_dbgscan(s, a);
     if (a.cmd == "tapscan")

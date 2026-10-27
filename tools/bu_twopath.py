@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-# Two-path check for an 8822B dual-path stream (wsdr_probe stream --dma 4 --path ab --rate 1): path A
-# in PREFIX.cs16, path B in PREFIX-b.cs16, 40 MS/s.
-# 1. L-LTFs found on each path on its own, per 20 MHz half (and the centre as a control), with how
-#    many land on both within 2 us, and conj(x) as the orientation control.
+# Two-path check for an 8822B dual-path stream (wsdr_probe stream --dma 4 --path ab --rate 0|1|2): path
+# A in PREFIX.cs16, path B in PREFIX-b.cs16, at the rate in PREFIX.json (80, 40 or 20 MS/s; 80 only
+# --gapped, where stretches that cross a bank join count against the coherence).
+# 1. L-LTFs found on each path on its own, per 20 MHz channel in the span (and between two as a
+#    control), with how many land on both within 2 us, and conj(x) as the
+#    orientation control.
 # 2. A/B coherence (cross-spectral, median over the band) on frames, against noise-only stretches of
 #    the same lengths (short stretches are biased upward, so only like-for-like compares).
 # 3. A minus B level per frame: two antennas fade independently, a copied path would not.
@@ -12,7 +14,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from la_analyze import ltf_hits  # noqa: E402
 
-FS = 40e6
+FS = 40e6  # set from PREFIX.json
 
 
 def load(p):
@@ -25,6 +27,7 @@ def ltf_check(A, B, offsets=(-10, 10, 0), chunk=1 << 20):
     h = 2 * 9e6 / FS * np.sinc(2 * 9e6 / FS * n) * np.hamming(129)
     h /= h.sum()
     res = {}
+    dec = int(FS // 20e6)  # to 20 MS/s
     for off in offsets:
         t_hits = {"A": [], "B": []}
         conj = {"A": 0, "B": 0}
@@ -32,7 +35,8 @@ def ltf_check(A, B, offsets=(-10, 10, 0), chunk=1 << 20):
             mix = np.exp(-2j * np.pi * off * 1e6 * (np.arange(chunk) + c0) / FS)
             for nm, x in (("A", A), ("B", B)):
                 s = x[c0:c0 + chunk]
-                y = np.convolve((s - s.mean()) * mix, h, mode="same")[::2]  # to 20 MS/s
+                s = (s - s.mean()) * mix
+                y = np.convolve(s, h, mode="same")[::dec] if dec > 1 else s
                 t_hits[nm] += [c0 / FS + v["idx"] / 20e6 for v in ltf_hits(y, 20.0, 0.6)[0]]
                 conj[nm] += len(ltf_hits(np.conj(y), 20.0, 0.6)[0])
         tb = np.array(sorted(t_hits["B"]))
@@ -42,9 +46,10 @@ def ltf_check(A, B, offsets=(-10, 10, 0), chunk=1 << 20):
     return res
 
 
-def coherence_check(A, B, nfft=256, win=160):
+def coherence_check(A, B, nfft=256):
+    win = int(4e-6 * FS)  # 4 us power windows
     f = np.fft.fftshift(np.fft.fftfreq(nfft, 1 / FS)) / 1e6
-    band = (np.abs(f) < 18) & (np.abs(f) > 0.5)
+    band = (np.abs(f) < 0.45 * FS / 1e6) & (np.abs(f) > 0.5)
 
     def coh(a, b):
         m = (len(a) // nfft) * nfft
@@ -93,11 +98,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prefix")
     a = ap.parse_args()
+    global FS
+    with open(a.prefix + ".json") as j:
+        FS = float(json.load(j)["sample_rate"])
     A, B = load(a.prefix + ".cs16"), load(a.prefix + "-b.cs16")
     n = min(len(A), len(B))
     A, B = A[:n] - A[:n].mean(), B[:n] - B[:n].mean()
-    out = {"file": os.path.basename(a.prefix), "seconds": round(n / FS, 3),
-           "ltf": ltf_check(A, B), "coherence": coherence_check(A, B)}
+    out = {"file": os.path.basename(a.prefix), "fs": FS, "seconds": round(n / FS, 3),
+           "ltf": ltf_check(A, B, {80e6: (-30, -10, 10, 30, 0), 40e6: (-10, 10, 0)}.get(FS, (0,))), "coherence": coherence_check(A, B)}
     print(json.dumps(out, indent=1))
 
 

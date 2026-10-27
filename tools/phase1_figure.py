@@ -35,7 +35,7 @@ for cap in a.caps:
     meta, w = L.read_dvla(cap)
     fs = meta["fs_mhz"]
     for p in a.paths.split(","):
-        x, _ = L.unpack(w, p)
+        x, _ = L.unpack(w, p, meta["dma_type"])
         x = x - x.mean()
         n = np.arange(len(x))
         tag = f"{os.path.basename(cap).replace('.bin', '')} {p.upper()}"

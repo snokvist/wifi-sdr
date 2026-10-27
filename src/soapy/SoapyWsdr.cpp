@@ -22,9 +22,9 @@
 //   8812CU       USB 2 only here: 2.5 / 5 MS/s, 20 MHz path.
 //   channels     two RX channels on both chips: 0 = path A, 1 = path B, from the same LA word (the
 //                8812BU streams LA dma_type 4 for that). B leads A, not compensated: ~146 ns on the
-//                8812BU, ~400 ns on the 8812CU. Coherent where nothing aliases (8812BU: 40 MS/s, and
-//                20 MS/s below 40 MHz width); the lower 8812BU rates select samples without a filter, so
-//                there the two channels are separate receivers
+//                8812BU, ~370-400 ns on the 8812CU. On the 8812BU coherent at 40 and 20 MS/s; its lower
+//                rates select samples without a filter, so there the two channels are separate
+//                receivers
 //   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (8812CU: 0..52 dB, ~1.0 dB; fixed-gain
 //                mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)
@@ -213,7 +213,7 @@ public:
   std::string getHardwareKey() const override { return _cu ? "RTL8822C" : "RTL8822B"; }
   SoapySDR::Kwargs getHardwareInfo() const override {
     return {{"chip", _s->chip()}, {"usb", _s->superspeed() ? "3" : "2"},
-            {"path", _cu ? "A (ch 0), B (ch 1); B leads A by ~400 ns" : "A (ch 0), B (ch 1); B leads A by ~146 ns"},
+            {"path", std::string("A (ch 0), B (ch 1); B leads A by ") + (_cu ? "~370-400 ns" : "~146 ns")},
             {"source", "LA ring, C2H bank streamer"}};
   }
 
@@ -240,7 +240,7 @@ public:
     std::vector<size_t> chans = channels.empty() ? std::vector<size_t>{0} : channels;
     for (size_t i = 0; i < chans.size(); i++)
       if (chans[i] >= nch() || std::count(chans.begin(), chans.end(), chans[i]) > 1)
-        throw std::runtime_error(nch() == 1 ? "wsdr: one channel (0)" : "wsdr: channels 0 (path A) and/or 1 (path B)");
+        throw std::runtime_error("wsdr: channels 0 (path A) and/or 1 (path B)");
     std::lock_guard<std::mutex> l(_streamm);
     if (_stream)
       throw std::runtime_error("wsdr: stream already open");
@@ -493,8 +493,9 @@ private:
           uint64_t v;
           std::memcpy(&v, bank + 8 * i, 8);
           for (size_t k = 0; k < w; k++)
-            x[k][i] = chans[k] == 0 ? cf(static_cast<float>(la_i(v)), static_cast<float>(la_q(v)))
-                                    : cf(static_cast<float>(path_b_i(v, _cu)), static_cast<float>(path_b_q(v, _cu)));
+            x[k][i] = chans[k] == 0
+                          ? cf(static_cast<float>(la_i(v)), static_cast<float>(la_q(v)))
+                          : cf(static_cast<float>(path_b_i(v, _cu)), static_cast<float>(path_b_q(v, _cu)));
         }
         for (size_t k = 0; k < w; k++) {
           if (cur.dc_remove)

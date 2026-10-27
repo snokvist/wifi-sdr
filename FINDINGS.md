@@ -389,17 +389,21 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
   callback (320 MB/s), or unpacks both there, can miss the chip deadline; `wsdr_probe stream --path ab`
   holds the raw banks in memory and unpacks afterwards.
-- **All rates.** 80 MS/s (BW80, snapshot only): L-LTFs on both paths at all four 20 MHz centres,
-  none at the controls, filter edge ±37 MHz on both. 20 MS/s: both paths decode. Streaming at
-  20/10/5/2.5 MS/s and gapped at 40 MS/s: clean, 0 stale.
+- **All rates.** 80 MS/s (BW80): snapshots show L-LTFs on both paths at all four 20 MHz centres,
+  none at the controls, filter edge ±37 MHz on both. 80 MS/s cannot stream (640 MB/s), but it runs
+  **gapped**: 3 s, 9701 banks, 0 stale, 212 MB/s; each 102.4 µs bank is whole and ships in ~182 µs,
+  so ~33 % of the time is captured. 20 MS/s at BW20: 3 s streamed, L-LTFs A 177 / B 127, 123 on both.
+  Streaming at 20/10/5/2.5 MS/s and gapped at 40 MS/s: clean, 0 stale.
 - **Path B leads path A by ~146 ns** (5.9 samples at 40 MS/s), from L-LTF channel estimates on frames
   found on both paths: −148 ns (ch 36 half, 82 frames) and −144 ns (ch 40 half, 24 frames), IQR about
-  ±1 ns across transmitters. Delay B by that before combining (the 8822C needs 370 ns).
-- **Coherent only where nothing aliases.** Below the filter's band the tap only selects words (no
-  anti-alias filter), so at 10/5/2.5 MS/s and when gapped the folded band plus the skew leave A and B
-  weakly coherent (0.18 vs 0.13 in noise at 5 MS/s): two valid receivers, not a coherent pair.
-  40 MS/s at BW40 and 20 MS/s at BW20 are coherent.
-- Counterparts: one unit; dma 5 matched dma 4 in every measure (layout, filters, rates, skew); which
+  ±1 ns across transmitters. Delay B by that before combining (the 8822C needs ~370–400 ns).
+- **Coherent where the filter sets the band.** Frame coherence (median, p10) against noise stretches
+  of the same lengths (median): 40 MS/s 0.72 (0.33) vs 0.41 and, in a second run, 0.64 (0.48) vs 0.44;
+  20 MS/s 0.94 (0.84) vs 0.54; gapped 40 MS/s 0.64 (0.56) vs 0.38; gapped 80 MS/s 0.72 (0.38) vs 0.29
+  (each gapped bank is contiguous). Below the filter's band the tap only selects words (no anti-alias
+  filter): at 5 MS/s A and B are weakly coherent (0.18 vs 0.13 in noise), two valid receivers, not a
+  coherent pair; 10 and 2.5 MS/s are the same mechanism, not measured.
+- Counterparts: one unit; dma 5 matched dma 4 at 40 MS/s (layout, filters, skew); which
   connector is path A is unknown (soldered antennas). `evidence/dual-path-tap-dma4.txt`,
   `tools/bu_twopath.py`, `tools/bu_ab_delay.py`.
 
@@ -423,4 +427,4 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
    0x20000..0x40000 (devourer: same window), the 7.4-sample A/B skew, USB-2 bandwidth.
 8. BW40/80 taps (80/160 Msps?) and dma_type 4–15 formats (dual-path packing) — undecoded.
    **Partly resolved (8822B):** dma 4 is A + B, 12-bit each, in one word (above); BW40/80 taps in
-   `notes/wide-tap.md`. dma 5–10 are still inferred only.
+   `notes/wide-tap.md`. dma 6–10 are still inferred only.

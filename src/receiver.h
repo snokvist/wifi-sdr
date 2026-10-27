@@ -44,7 +44,7 @@ struct RxSettings {
 
 struct RxCaps {
   uint16_t pid = 0;
-  bool cu = false;          // RTL8822C: two paths per LA word, USB 2 rates only
+  bool cu = false;          // RTL8822C (path B elsewhere in the LA word), USB 2 rates only
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously

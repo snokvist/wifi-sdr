@@ -53,10 +53,12 @@ def field(w, lsb, bits):
     return (w >> np.uint64(lsb)) & np.uint64((1 << bits) - 1)
 
 
-def unpack(words, path):
+def unpack(words, path, dma_type=0):
     if path == "a":
         i, q = field(words, 0, 12), field(words, 12, 12)
-    else:
+    elif dma_type in (4, 5):  # 8822B, both paths in one word: B I=[35:24] Q=[47:36]
+        i, q = field(words, 24, 12), field(words, 36, 12)
+    else:  # 8822C: B I=[55:44] Q=[43:32]
         i, q = field(words, 44, 12), field(words, 32, 12)
     return sext(i, 12).astype(np.float64) + 1j * sext(q, 12).astype(np.float64), (i, q)
 
@@ -192,7 +194,7 @@ def main():
     paths = ["a", "b"] if a.path == "both" else [a.path]
     data = {}
     for p in paths:
-        x, raw = unpack(words, p)
+        x, raw = unpack(words, p, meta["dma_type"])
         if not np.any(x):
             out["paths"][p] = {"empty": True}
             continue

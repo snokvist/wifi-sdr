@@ -16,11 +16,12 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
 
 | Adapter | Chip | Link | Continuous IQ | Gapped (spectrum only) | Paths |
 |---|---|---|---|---|---|
-| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 40 MS/s | A |
-| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | — | A |
+| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 40 MS/s | A + B² |
+| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | 80 MS/s (`wsdr_probe`) | A + B |
 | RTL8812CU `0bda:c812` | RTL8822C (Jaguar3) | USB 2 only¹ | 2.5, 5 MS/s | up to 40 MS/s | A + B, coherent |
 
 ¹ The efuse on this 8812CU board disables USB 3.
+² Same chip setting as on USB 3; the two-path measurements were made on USB 3.
 
 - **Continuous** means every sample with zero faults over 60 s runs. A separate offline check
   (`tools/stream_check.py`) confirms this: beacons sit on the 102.4 ms grid, with no slips or duplicate
@@ -35,10 +36,12 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
 - **Tuning:** 2.4 GHz ch 1–14 and 5 GHz ch 16–233 on the 5 MHz synthesizer grid, including the ch 65–99
   gap between the UNII-2 groups (see FINDINGS). The residual (≤ 2.5 MHz) is shifted out digitally.
 - **Two paths on both adapters:** paths A and B come from the same LA word (the 8812BU streams LA
-  dma_type 4 for that, at no extra USB cost). B leads A by ~146 ns on the 8812BU and ~400 ns on the
-  8812CU, which the stream does not compensate. Once that skew is removed, the paths are coherent
-  where nothing aliases: on the 8812BU at 40 MS/s, and at 20 MS/s below 40 MHz width. Its lower rates
-  select samples without a filter, so there A and B are two separate receivers.
+  dma_type 4 for that, at no extra USB cost). B leads A by ~146 ns on the 8812BU and ~370–400 ns on
+  the 8812CU, which the stream does not compensate. On the 8812BU the paths are coherent at 40 and
+  20 MS/s, gapped too; its lower rates select samples without a filter, so there A and B are two
+  separate receivers.
+- **80 MS/s on the 8812BU, gapped:** ~76 MHz per bank, about a third of the time captured (each
+  102.4 µs bank ships in ~182 µs). Too fast to stream; for wide spectrum views.
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges
   large C2H packets. Another (`1022:15c0`) runs flawlessly. The 8812BU comes up at USB 2 after a cold
   plug. `wsdr::request_usb3()` switches it to USB 3, as rtw88 does at probe.
@@ -48,8 +51,8 @@ TX is out of scope. The chips have no arbitrary-IQ transmit path (see `notes/tx-
 ## Front ends
 
 - **SoapySDR module `wsdr`**: works with gqrx, SDR++ and GNU Radio, for both adapters. It uses true
-  5 GHz frequencies and outputs CS16 or CF32 at native LA rates with no resampling. On the 8812CU it
-  exposes two channels.
+  5 GHz frequencies and outputs CS16 or CF32 at native LA rates with no resampling. It exposes two
+  channels (paths A and B) on both adapters.
 - **`wsdr_tcp`**: an rtl_tcp server for the 8812BU on USB 2. It resamples to any client rate.
 - **Recorders**: `wsdr_probe stream --out` (8812BU) and `wsdr_cu stream --out` (8812CU) write
   `PREFIX.cs16` (int16 I,Q, 12-bit << 4) plus `PREFIX.json`.

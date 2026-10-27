@@ -77,11 +77,11 @@ private:
   StreamCfg _c;
 };
 
-// LA word -> 12-bit I / Q (path A layout, dma_type 0/1).
 // 8822B LA dma_type with both RX paths in one word: path A I/Q [11:0]/[23:12], path B [35:24]/[47:36],
 // post-DFIR at every rate; B leads A by ~146 ns (FINDINGS "8822B dual-path tap"). dma_type 0 is A alone.
 constexpr int kDmaBothPaths8822b = 4;
 
+// LA word -> 12-bit I / Q (path A layout, dma_type 0/1).
 inline int la_i(uint64_t w) { return static_cast<int>(static_cast<int32_t>(static_cast<uint32_t>(w & 0xFFF) << 20) >> 20); }
 inline int la_q(uint64_t w) { return static_cast<int>(static_cast<int32_t>(static_cast<uint32_t>((w >> 12) & 0xFFF) << 20) >> 20); }
 
