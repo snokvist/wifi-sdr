@@ -375,6 +375,24 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 - Not tested: the 8822B at 20 MHz and either chip at 80 MHz width in the gap, absolute sensitivity,
   the 8821C half of the fix.
 
+### 8822B dual-path tap, dma_type 4 (2026-10-27)
+- **One LA word carries both RX paths (verified, one 8812BU, 40 MS/s at BW40).** dma 4: **path A
+  I/Q = [11:0]/[23:12], path B I/Q = [35:24]/[47:36]**, 12-bit each, post-DFIR, genuine 40 MS/s.
+  Each half carries one ADC's fingerprint: [23:0] matches dma 0 (DC −17.1+6.3j vs −17.0+6.5j, the same
+  floor and filter edge), [47:24] matches dma 1, which is therefore path B alone.
+- **Two distinct antennas, coherent.** Over 3 s streamed, L-LTFs found on each path on its own: ch 36
+  A 199 / B 232, 168 on both within 2 µs; ch 40 A 68 / B 145, 62 on both; 0 at the centre control and
+  0 in conj(x) on either path. A/B coherence on 341 frames median 0.72, against 0.41 on noise
+  stretches of the same lengths. The A−B level varies per frame (+1.1..+8.9 dB, p10..p90), so it is not
+  one path copied: each antenna catches frames the other misses (ch 40: B twice A).
+- **Same USB cost as one path.** 10 s each at 40 MS/s: dma 0 and dma 4 both 318.85 MB/s, 0 stale,
+  0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
+  callback (320 MB/s) misses the chip deadline; `wsdr_probe stream --path ab` holds them in memory.
+- Counterparts: one unit, one channel, 40 MS/s only (20 and 80 MS/s untested); dma 5 looked the same
+  as dma 4 in every measure; the A/B delay is not settled (per-frame lags cluster near 6 and 13.6
+  samples at 40 MS/s, and the antennas' own channels enter the estimate); which connector is path A
+  was not checked. `evidence/dual-path-tap-dma4.txt`, `tools/bu_twopath.py`.
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.
@@ -394,3 +412,5 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 7. 8822C: custom-code entry without vectors (ROM), EMEM layout, C2H register/addresses, LA ring at
    0x20000..0x40000 (devourer: same window), the 7.4-sample A/B skew, USB-2 bandwidth.
 8. BW40/80 taps (80/160 Msps?) and dma_type 4–15 formats (dual-path packing) — undecoded.
+   **Partly resolved (8822B):** dma 4 is A + B, 12-bit each, in one word (above); BW40/80 taps in
+   `notes/wide-tap.md`. dma 5–10 are still inferred only.

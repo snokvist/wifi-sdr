@@ -23,7 +23,10 @@
 //       the C2H RX-path setup (PREFIX-c2h.txt), in rtw88 debugfs mac_N layout, for register diffs.
 //   wsdr_probe stream --pid 0xb812 [--rate 5] [--seconds 10] [--out PREFIX] [--synthetic] [--guard-us 20]
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
-//       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A.
+//       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A;
+//       --path b|ab with --dma 4: path B (bits [47:24] of the word), ab adds PREFIX-b.cs16. With ab
+//       both paths are held in memory and written after the stream (320 MB/s to disk stalls it).
+//       The printed rms is path A.
 //   LA options (ring/snap/latime/stream/tapscan): --rate N --dbg 0xNNN --dma N --igi N --nocca --dfir 20|40|80
 //       (--dfir: vendor RX DFIR for that width; with --bw 80 --dfir 80 --rate 0 the dma-0 tap is a genuine 80 MS/s,
 //       ~76 MHz band; --bw 40 --dfir 40 --rate 1 gives 40 MS/s / ~40 MHz. Note --channel is the PRIMARY 20 MHz
@@ -104,6 +107,7 @@ struct Args {
   int guard_us = 20;      // stream
   std::string out;        // stream: output prefix
   std::string plan;       // tapscan: plan file
+  std::string path = "a"; // stream: a, b or ab (b needs --dma 4: both paths in one word)
   int lo = 0, hi = 0xfff; // dbgscan: selector range
 };
 
@@ -129,6 +133,7 @@ bool parse(int argc, char **argv, Args &a) {
     else if (k == "--dma") a.la.dma_type = static_cast<int>(num(v()));
     else if (k == "--dfir") a.la.dfir = static_cast<int>(num(v()));
     else if (k == "--plan") a.plan = v();
+    else if (k == "--path") a.path = v();
     else if (k == "--lo") a.lo = static_cast<int>(num(v()));
     else if (k == "--hi") a.hi = static_cast<int>(num(v()));
     else if (k == "--cck") a.la.cck_off = num(v()) == 0;
@@ -804,13 +809,30 @@ int cmd_stream(Session &s, const Args &a) {
   Stream8822b st(s, c);
   const uint64_t want = a.gapped ? UINT64_MAX : static_cast<uint64_t>(a.seconds * st.fs() / Stream8822b::kBankSamples + 0.5);
   const auto t_start = std::chrono::steady_clock::now();
-  FILE *f = nullptr;
+  if (a.path != "a" && a.path != "b" && a.path != "ab")
+    throw std::runtime_error("--path is a, b or ab");
+  const bool want_b = a.path != "a";
+  if (want_b && c.la.dma_type != 4 && c.la.dma_type != 5) // other formats carry no path B in [47:24]
+    throw std::runtime_error("--path b|ab needs --dma 4 (path B in bits [47:24])");
+  // the file for the first path written (A, or B alone), and PREFIX-b.cs16 for B with --path ab
+  FILE *f = nullptr, *fb = nullptr;
   if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
     std::fprintf(stderr, "stream: cannot open %s.cs16\n", a.out.c_str());
     return 1;
   }
+  if (!a.out.empty() && a.path == "ab" && !(fb = std::fopen((a.out + "-b.cs16").c_str(), "wb"))) {
+    std::fprintf(stderr, "stream: cannot open %s-b.cs16\n", a.out.c_str());
+    std::fclose(f);
+    return 1;
+  }
   std::signal(SIGINT, [](int) { g_stop = true; });
-  std::vector<int16_t> iq(2 * Stream8822b::kBankSamples);
+  std::vector<int16_t> iq(2 * Stream8822b::kBankSamples), iqb(want_b ? 2 * Stream8822b::kBankSamples : 0);
+  std::vector<int16_t> held_a, held_b; // --path ab: the whole run, written once it has ended
+  size_t held_at = 0;                  // (sized and zeroed up front: no page faults in the callback)
+  if (fb) {
+    held_a.resize(static_cast<size_t>(2 * a.seconds * st.fs()) + iq.size());
+    held_b.resize(held_a.size());
+  }
   const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
   double e2 = 0;
   uint64_t n = 0;
@@ -820,14 +842,27 @@ int cmd_stream(Session &s, const Args &a) {
         for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
           uint64_t w;
           std::memcpy(&w, bank + 8 * i, 8);
+          if (want_b) { // path B: the same 12+12 layout, 24 bits up
+            const int Ib = la_i(w >> 24), Qb = la_q(w >> 24);
+            iqb[2 * i] = static_cast<int16_t>(Ib * 16);
+            iqb[2 * i + 1] = static_cast<int16_t>(Qb * 16);
+          }
           const int I = la_i(w), Q = la_q(w);
           iq[2 * i] = static_cast<int16_t>(I * 16);
           iq[2 * i + 1] = static_cast<int16_t>(Q * 16);
           acc += double(I) * I + double(Q) * Q;
         }
         e2 += acc;
-        if (f && std::fwrite(iq.data(), 2, iq.size(), f) != iq.size())
+        const std::vector<int16_t> &first = a.path == "b" ? iqb : iq;
+        if (fb) {
+          if (held_at + iq.size() <= held_a.size()) {
+            std::copy(iq.begin(), iq.end(), held_a.begin() + static_cast<ptrdiff_t>(held_at));
+            std::copy(iqb.begin(), iqb.end(), held_b.begin() + static_cast<ptrdiff_t>(held_at));
+            held_at += iq.size();
+          }
+        } else if (f && std::fwrite(first.data(), 2, first.size(), f) != first.size()) {
           return false;
+        }
         if (++n % every == 0) {
           std::printf("{\"ev\":\"stream.tick\",\"banks\":%llu,\"seq\":%u,\"rms\":%.1f,\"late_us\":%.1f,"
                       "\"ship_us\":%.1f,\"end_us\":%.1f,\"stale\":%d}\n",
@@ -841,8 +876,14 @@ int cmd_stream(Session &s, const Args &a) {
         return n < want;
       },
       &g_stop);
+  if (fb) {
+    std::fwrite(held_a.data(), 2, held_at, f);
+    std::fwrite(held_b.data(), 2, held_at, fb);
+  }
   if (f)
     std::fclose(f);
+  if (fb)
+    std::fclose(fb);
   const double secs = ss.banks * Stream8822b::kBankSamples / st.fs();
   const bool ok = ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
   char summary[1024];
@@ -861,9 +902,10 @@ int cmd_stream(Session &s, const Args &a) {
   if (!a.out.empty())
     if (FILE *j = std::fopen((a.out + ".json").c_str(), "w")) {
       std::fprintf(j, "{\"format\":\"cs16\",\"layout\":\"int16 I,Q interleaved, 12-bit LA value << 4\","
-                      "\"sample_rate\":%.0f,\"chip\":\"RTL8822B\",\"path\":\"A\",\"channel\":%d,"
+                      "\"sample_rate\":%.0f,\"chip\":\"RTL8822B\",\"path\":\"%s\",\"dma\":%d,\"channel\":%d,"
                       "\"igi\":%d,\"result\":%s}\n",
-                   st.fs(), a.open.channel, a.la.igi, summary);
+                   st.fs(), a.path == "a" ? "A" : a.path == "b" ? "B" : "A (+B in -b.cs16)", c.la.dma_type,
+                   a.open.channel, a.la.igi, summary);
       std::fclose(j);
     }
   std::printf("{\"ev\":\"stream.done\",\"alive\":%d}\n", s.reg().alive() ? 1 : 0);
