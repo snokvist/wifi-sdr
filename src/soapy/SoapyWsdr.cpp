@@ -6,7 +6,8 @@
 //   export SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy
 //   SoapySDRUtil --find=driver=wsdr
 //   gqrx: device string  soapy=0,driver=wsdr      SDR++: SoapySDR source, device "wsdr"
-//   adapter: pid=0xb812 (8812BU, the default when both are plugged in) or pid=0xc812 (8812CU)
+//   adapter: pid=0xb812 (8812BU, the default when both are plugged in) or pid=0xc812 (8812CU);
+//            bus=N [port=P] picks one of several (as SoapySDRUtil --find lists them)
 // The client opens the adapter itself, so it needs USB access: install tools/99-wsdr.rules (udev) or
 // run the client as root. Keep the rtw88 guard ON so the kernel driver does not claim the adapter.
 //
@@ -39,6 +40,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -178,6 +180,16 @@ public:
       if (!found.empty())
         o.pid = static_cast<uint16_t>(std::stoul(found.front().at("pid"), nullptr, 0));
     }
+    if (args.count("bus")) { // pick one of several identical adapters (as find_wsdr lists them)
+      const std::string &b = args.at("bus");
+      char *end = nullptr;
+      const long v = std::strtol(b.c_str(), &end, 10);
+      if (b.empty() || *end || v < 0)
+        throw std::runtime_error("wsdr: bad bus=" + b);
+      o.bus = static_cast<int>(v);
+    }
+    if (args.count("port"))
+      o.port = args.at("port");
     _cu = o.pid == kPid8812cu;
     o.channel = channel_for(_set.freq);
     o.thermal_track = false; // no host register traffic while streaming
