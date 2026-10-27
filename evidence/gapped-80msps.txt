@@ -33,5 +33,13 @@ Single, 80 MHz span: "80 MHz · gapped ~33 %" offered; streams, axis 5360-5440 M
 "GAPPED · ~34 % sampled". Spectral Map, all 5 GHz: 11 steps of 80 MHz, last sweep 3.2 s (8 sweeps),
 against 21 steps of 40 MHz, last sweep 6.0 s, both at 120 ms listen.
 
+== 5. USB 2 (later the same day; switched down with wsdr_usbmode --to 2, no replug: 480 Mbit/s, bus 5)
+wsdr_probe stream --gapped --rate 0 --bw 80 --dfir 80, ch 36, 5 s: ok 1 twice, 3050 / 3040 banks,
+  stream_s 0.312 of 4.955 (6.3 %), 40.34 MB/s, 0 stale, 0 pattern_bad, ship_max 1476 us per bank;
+  --path ab 5 s: ok 1, 3049 banks, 0 stale. adj-dup 0.0003, -6 dB edges -38.7 / +38.9 MHz; L-LTF hits
+  (conj) at -30/-20/-10/0/+10/+20/+30 MHz: 71(0)/0/31(0)/0/63(0)/0/36(0).
+wsdr_rxtest --rate 0 --gapped: 5210 -> 5530 MHz, 6 s: 4.88 MS/s delivered (6.1 %), 0 restarts; --sweep
+  5180-5880 MHz in 70 MHz steps, 12 s: 43 steps, 0 restarts.
+
 == Not covered
-USB 2 (caps keep the 8812BU's gapped limit at 40 MS/s there). One unit.
+One unit.

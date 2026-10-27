@@ -35,7 +35,10 @@ std::string port_path(libusb_device *d) {
 }
 } // namespace
 
-Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::string *detail) {
+namespace {
+// The switch both ways: halmac's set_usb_mode_88xx (PAD_CTRL2 USB23_SW_MODE 2 = USB 3, 1 = USB 2), which
+// rtw88 uses for USB 2 -> 3 (plus its 0x10C3 write) and the vendor driver also for 3 -> 2.
+Usb3Switch request_mode(uint16_t pid, int bus, const std::string &port, bool usb3, std::string *detail) {
   const auto fail = [&](const std::string &why) {
     if (detail)
       *detail = why;
@@ -62,7 +65,7 @@ Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::str
   if (!dev)
     return fail("adapter not found");
   std::unique_ptr<libusb_device, void (*)(libusb_device *)> dev_guard(dev, libusb_unref_device);
-  if (libusb_get_device_speed(dev) >= LIBUSB_SPEED_SUPER)
+  if ((libusb_get_device_speed(dev) >= LIBUSB_SPEED_SUPER) == usb3)
     return Usb3Switch::NotNeeded;
   libusb_device_handle *h = nullptr;
   if (const int rc = libusb_open(dev, &h); rc != 0)
@@ -79,15 +82,16 @@ Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::str
   uint32_t pad = 0; // PAD_CTRL2
   try {
     Reg r(h, false);
-    if (r.r8(0xff) == 0x20)
+    if ((r.r8(0xff) == 0x20) == usb3) // (0x20: running at USB 3)
       return Usb3Switch::NotNeeded;
     pad = r.r32(0xc4);
     if (!(pad & ((3u << 18) | (1u << 20)))) // USB23_SW_MODE / USB3_USB2_TRANSITION
       return Usb3Switch::Unsupported;
-    if (((pad >> 18) & 3) == 2)
+    if (usb3 && ((pad >> 18) & 3) == 2)
       return Usb3Switch::AlreadyTried;
-    r.w8(0x10c3, static_cast<uint8_t>(r.r8(0x10c3) & ~1u));
-    pad = (pad & ~(3u << 18)) | (2u << 18) | (1u << 16); // mode U3, RSM_EN
+    if (usb3)
+      r.w8(0x10c3, static_cast<uint8_t>(r.r8(0x10c3) & ~1u));
+    pad = (pad & ~(3u << 18)) | ((usb3 ? 2u : 1u) << 18) | (1u << 16); // mode U3 / U2, RSM_EN
     r.w32(0xc4, pad);
     r.w8(0xc5, 4);
     r.w16(0x04, static_cast<uint16_t>(r.r16(0x04) | (1u << 9))); // SYS_PW_CTRL: APFM_OFFMAC
@@ -102,6 +106,15 @@ Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::str
   } catch (...) {
   }
   return Usb3Switch::Requested;
+}
+} // namespace
+
+Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::string *detail) {
+  return request_mode(pid, bus, port, true, detail);
+}
+
+Usb3Switch request_usb2(uint16_t pid, int bus, const std::string &port, std::string *detail) {
+  return request_mode(pid, bus, port, false, detail);
 }
 
 } // namespace wsdr

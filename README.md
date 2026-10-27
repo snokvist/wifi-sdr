@@ -16,7 +16,7 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
 
 | Adapter | Chip | Link | Continuous IQ | Gapped (spectrum only) | Paths |
 |---|---|---|---|---|---|
-| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 40 MS/s | A + B² |
+| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 80 MS/s | A + B² |
 | RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | 80 MS/s | A + B |
 | RTL8812CU `0bda:c812` | RTL8822C (Jaguar3) | USB 2 only¹ | 2.5, 5 MS/s | up to 40 MS/s | A + B, coherent |
 
@@ -40,12 +40,14 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   the 8812CU, which the stream does not compensate. On the 8812BU the paths are coherent at 40 MS/s,
   at 20 MS/s at 20 MHz width, and gapped at 40 and 80 MS/s; its lower rates select samples without a
   filter, so there A and B are two separate receivers.
-- **80 MS/s on the 8812BU (USB 3), gapped:** ~77 MHz (−6 dB) per bank at 80 MHz width, about a third
-  of the time captured (each 102.4 µs bank, then ~0.2 ms to ship it and re-arm). Too fast to stream; for wide spectrum views and
+- **80 MS/s on the 8812BU, gapped:** ~77 MHz (−6 dB) per bank at 80 MHz width. About a third of the
+  time is captured over USB 3 (each 102.4 µs bank, then ~0.2 ms to ship it and re-arm), 6 % over USB 2
+  (~1.5 ms). Too fast to stream; for wide spectrum views and
   sweeps (`RxSettings{.rate_sel = 0, .allow_gapped = true}`; `evidence/gapped-80msps.txt`).
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges
   large C2H packets. Another (`1022:15c0`) runs flawlessly. The 8812BU comes up at USB 2 after a cold
-  plug. `wsdr::request_usb3()` switches it to USB 3, as rtw88 does at probe.
+  plug. `wsdr::request_usb3()` switches it to USB 3, as rtw88 does at probe; `request_usb2()` switches it
+  back without a replug (`build/wsdr_usbmode --bus N --port P --to 2|3`).
 
 TX is out of scope. The chips have no arbitrary-IQ transmit path (see `notes/tx-feasibility.md`).
 
@@ -76,7 +78,7 @@ git submodule update --init external/devourer   # pinned devourer; not --recursi
 cmake -S . -B build && cmake --build build -j
 ```
 
-This builds `wsdr_probe`, `wsdr_cu`, `wsdr_tcp`, `wsdr_rxtest` and `iqdsp_test`. To use a devourer
+This builds `wsdr_probe`, `wsdr_cu`, `wsdr_tcp`, `wsdr_rxtest`, `wsdr_usbmode` and `iqdsp_test`. To use a devourer
 tree other than the submodule, pass `-DDEVOURER_DIR=/path/to/devourer`.
 
 The SoapySDR module is opt-in, because it rebuilds the core as position-independent code:
