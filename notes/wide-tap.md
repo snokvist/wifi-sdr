@@ -128,6 +128,8 @@ tools/coord.sh unlock 8812bu claude
    40 MS/s streamer. Wire `dfir` through `StreamCfg` and Soapy, setting the bandwidth to 40 MHz at BW40.
 2. Soapy and `wsdr_tcp`: when the requested width is 40 or 80 MHz, map the centre frequency to the primary
    channel (centre − 10 or centre − 30 MHz).
-3. 80 MS/s (640 MB/s) and dma 11 (160 MS/s × 2 paths) exceed the C2H ceiling of about 391 MB/s, so they are
-   snapshot-only. Offer them as a "wideband snapshot" mode (204.8 µs at 80 MS/s or 160 MS/s).
+3. 80 MS/s (640 MB/s) and dma 11 (160 MS/s × 2 paths) exceed the C2H ceiling of about 391 MB/s, so they
+   cannot stream. **Done for 80 MS/s:** it runs gapped (one whole 102.4 µs bank, ~0.2 ms to ship and re-arm, 33 %
+   sampled), in the Receiver as rate_sel 0 (`evidence/gapped-80msps.txt`). The BW80 centre is primary
+   + 30 MHz from any primary channel, 2.4 GHz included. dma 11 is still snapshot-only.
 4. Report the BW40/80 DFIR gap to devourer, so `set_channel_bw` calls the vendor `rxdfirpar_by_bw`.

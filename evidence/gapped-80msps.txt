@@ -1,0 +1,37 @@
+8812BU (bus 6, USB 3) gapped 80 MS/s — 2026-10-27, RX only
+BW80, rate_sel 0, vendor BW80 RX DFIR (--dfir 80), dma 4 (both paths), IGI 0x30, OFDM CCA off.
+
+== 1. Probe (wsdr_probe stream --bw 80 --rate 0 --dfir 80 --gapped)
+ch 36 (centre 5210), path A, 5 s: ok 1, 16247 banks (3249/s), stream_s 1.664 of 5.000 (33 %), 0 stale,
+  212.95 MB/s, ship_max 182.0 us per 102.4 us bank. adj-dup 0.0003, -6 dB edges -39.6 / +37.6 MHz.
+  L-LTF hits (conj) at -30/-20/-10/0/+10/+20/+30 MHz: 26(0)/0(0)/10(0)/0(0)/8(0)/0(0)/5(0).
+ch 36, --path ab, 3 s: ok 1, 9701 banks, 0 stale, both paths written as they come (see
+  dual-path-tap-dma4.txt section 7 for the two-path figures).
+
+== 2. Where the 80 MHz band sits: centre = primary + 30 MHz, from any primary
+ch 100 (expected centre 5530): strongest line -10.00 MHz = the dongle's own 40 MHz comb at 5520;
+  -35.23 MHz = the 1080p60 k=37 harmonic at 5494.7 (known RF, rf-environment notes).
+ch 98 (not an 80 MHz block; expected 5520): the same harmonic at -25.23 MHz (moved 10.00 MHz).
+ch 1 (2.4 GHz; expected 2442): L-LTFs at -30 MHz (ch 1, 2412) 170 and +20 MHz (ch 11, 2462) 15;
+  controls at -17/+8/+33 MHz 0, conj 0. -6 dB edges -39.1 / +38.2 MHz.
+ch 3 (expected 2452): L-LTFs at +10 MHz (ch 11) 7; -35/-15/-25/0/+25 MHz 0, conj 0.
+Centre dip at 2.4 GHz, as at 40 MHz width there: about -12 dB at +-0.2 MHz and -6 dB at +-0.5 MHz
+  (ch 1 and ch 3, vs the level at 2-4 MHz); none at 5 GHz (ch 36, ch 100: within +-1 dB of it).
+
+Passband ripple at BW80 (41-bin smoothed PSD, dB vs the median over |f| < 30 MHz): about +-2.5 dB with
+a 12 MHz period, peaks at 0 / +-12 / +-24 MHz and dips at +-6 / +-18 / +-30, at the same baseband
+offsets at ch 36 and ch 100 (so the receiver's, not RF); e.g. ch 100: -18 -2.0, -12 +2.7, -6 -1.3,
+0 +2.5, +6 -1.8, +12 +1.7, +18 -3.0 dB. The studio's average trace shows it too.
+
+== 3. wsdr::Receiver (wsdr_rxtest --rate 0 --gapped)
+5530 MHz, retune to 5250 half-way, 6 s: 19252 banks, 26.3 MS/s delivered, 2 generations, 0 restarts,
+  status width 80, channel 44, centre 5250 MHz. Sink mean 1.27 us, max 47.8 us.
+--sweep 5180e6:5880e6:70e6 --dwell-ms 280, 20 s: 72 steps, 46761 banks, 0 restarts, no errors.
+
+== 4. wsdr-studio (dev build on this branch, same unit)
+Single, 80 MHz span: "80 MHz · gapped ~33 %" offered; streams, axis 5360-5440 MHz at 5400, status
+"GAPPED · ~34 % sampled". Spectral Map, all 5 GHz: 11 steps of 80 MHz, last sweep 3.2 s (8 sweeps),
+against 21 steps of 40 MHz, last sweep 6.0 s, both at 120 ms listen.
+
+== Not covered
+USB 2 (caps keep the 8812BU's gapped limit at 40 MS/s there). One unit.

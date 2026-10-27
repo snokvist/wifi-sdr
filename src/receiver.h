@@ -34,7 +34,8 @@ constexpr uint16_t kPid8812cu = 0xc812;
 
 struct RxSettings {
   double freq = 5180e6; // requested centre
-  int rate_sel = 5;     // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s
+  int rate_sel = 5;     // fs = 80 MHz >> rate_sel: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 MS/s; 0 = 80 MS/s
+                        // (8812BU, gapped only: 80 MHz width + vendor BW80 RX DFIR, ~77 MHz at -6 dB)
   bool wide = true;     // at 40 MS/s: 40 MHz channel width (8812BU: + vendor BW40 RX DFIR; 8822C: devourer's
                         // BW40 set opens its filter, flat to +-17 MHz, measured)
   bool agc = false;     // true: chip AGC; false: fixed gain (OFDM CCA off, IGI pinned)
@@ -48,7 +49,7 @@ struct RxCaps {
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously
-  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812CU, 8812BU on USB 2: 1); 6 = none
+  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812BU on USB 3: 0; 8812CU, USB 2: 1); 6 = none
   int paths = 1;            // 2: path A and path B (both chips; the 8812BU via kDmaBothPaths8822b)
   double gain_max = 0, gain_step = 1;
 };
@@ -109,7 +110,9 @@ public:
 
   // Pure helpers (also used by tests and UIs).
   static double rate_of(int rate_sel) { return 80e6 / (1 << rate_sel); }
-  static int width_of(const RxSettings &s, bool) { return s.rate_sel == 1 && s.wide ? 40 : 20; }
+  static int width_of(const RxSettings &s, bool cu) {
+    return s.rate_sel == 0 && !cu ? 80 : s.rate_sel == 1 && s.wide ? 40 : 20;
+  }
   int lowest_rate_sel(const RxSettings &s) const {
     return s.allow_gapped ? std::min(_caps.min_rate_sel, _caps.gapped_min_rate_sel) : _caps.min_rate_sel;
   }

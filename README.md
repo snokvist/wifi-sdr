@@ -17,7 +17,7 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
 | Adapter | Chip | Link | Continuous IQ | Gapped (spectrum only) | Paths |
 |---|---|---|---|---|---|
 | RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 40 MS/s | A + B² |
-| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | 80 MS/s (`wsdr_probe`) | A + B |
+| RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | 80 MS/s | A + B |
 | RTL8812CU `0bda:c812` | RTL8822C (Jaguar3) | USB 2 only¹ | 2.5, 5 MS/s | up to 40 MS/s | A + B, coherent |
 
 ¹ The efuse on this 8812CU board disables USB 3.
@@ -30,7 +30,7 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   within a bank for wide-span spectrum and waterfall views. Do not use it for continuous recording.
 - **Bandwidth:** ~18.4 MHz (−3 dB) at 20 MHz channel width. At 40 MS/s the radio switches to 40 MHz
   width (on the 8822B, also the vendor BW40 RX DFIR), so the full ±20 MHz is real. On the 8822B, 80 MS/s
-  (~76 MHz) is a snapshot mode only, because it exceeds the ~391 MB/s C2H ceiling.
+  (~77 MHz) exceeds the ~391 MB/s C2H ceiling, so it runs gapped only (below).
 - **Gain:** fixed-gain mode with OFDM carrier sense off and IGI pinned gives ~0.95 dB per step over
   ~45 dB on the 8822B and ~1.0 dB per step on the 8822C. Alternatively, the chip's own AGC can run.
 - **Tuning:** 2.4 GHz ch 1–14 and 5 GHz ch 16–233 on the 5 MHz synthesizer grid, including the ch 65–99
@@ -40,8 +40,9 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   the 8812CU, which the stream does not compensate. On the 8812BU the paths are coherent at 40 MS/s,
   at 20 MS/s at 20 MHz width, and gapped at 40 and 80 MS/s; its lower rates select samples without a
   filter, so there A and B are two separate receivers.
-- **80 MS/s on the 8812BU, gapped:** ~76 MHz per bank, about a third of the time captured (each
-  102.4 µs bank ships in ~182 µs). Too fast to stream; for wide spectrum views.
+- **80 MS/s on the 8812BU (USB 3), gapped:** ~77 MHz (−6 dB) per bank at 80 MHz width, about a third
+  of the time captured (each 102.4 µs bank, then ~0.2 ms to ship it and re-arm). Too fast to stream; for wide spectrum views and
+  sweeps (`RxSettings{.rate_sel = 0, .allow_gapped = true}`; `evidence/gapped-80msps.txt`).
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges
   large C2H packets. Another (`1022:15c0`) runs flawlessly. The 8812BU comes up at USB 2 after a cold
   plug. `wsdr::request_usb3()` switches it to USB 3, as rtw88 does at probe.
@@ -128,11 +129,11 @@ sudo build/wsdr_cu stream --pid 0xc812 --rate 1 --gapped --bw 40 --seconds 5
 sudo build/wsdr_rxtest --pid 0xb812 --freq 5190e6 --rate 1 --seconds 10 --retune 5230e6
 ```
 
-`--rate N` selects fs = 80 MHz >> N: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20 and 1 = 40 MS/s. `--channel` is the
-primary 20 MHz channel, so the centre is ch+2 at 40 MHz width and ch+6 at 80 MHz. Each tool's source
-header documents its subcommands and options: [src/wsdr_probe.cpp](src/wsdr_probe.cpp),
-[src/wsdr_cu.cpp](src/wsdr_cu.cpp), [src/wsdr_tcp.cpp](src/wsdr_tcp.cpp) and
-[src/soapy/SoapyWsdr.cpp](src/soapy/SoapyWsdr.cpp).
+`--rate N` selects fs = 80 MHz >> N: 5 = 2.5, 4 = 5, 3 = 10, 2 = 20, 1 = 40 and 0 = 80 MS/s (gapped
+only). `--channel` is the primary 20 MHz channel, so the centre is ch+2 at 40 MHz width and ch+6 at
+80 MHz (from any primary, measured). Each tool's source header documents its subcommands and
+options: [src/wsdr_probe.cpp](src/wsdr_probe.cpp), [src/wsdr_cu.cpp](src/wsdr_cu.cpp),
+[src/wsdr_tcp.cpp](src/wsdr_tcp.cpp) and [src/soapy/SoapyWsdr.cpp](src/soapy/SoapyWsdr.cpp).
 
 Live views: `tools/cu_live.py` shows the 8812CU's A/B spectrum, waterfall and coherence via SoapySDR.
 `tools/soapy_check.py` is a headless check of the Soapy module.

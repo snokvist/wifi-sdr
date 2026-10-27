@@ -27,9 +27,15 @@ const char *rx_state_name(RxState s) {
 }
 
 // Primary 20 MHz channel for a requested centre. devourer's Channel is the primary channel with the
-// 40 MHz channel above it, so at 40 MHz width the centre is primary + 10 MHz (measured, wide-tap.md).
+// 40 MHz channel above it, so at 40 MHz width the centre is primary + 10 MHz (measured, wide-tap.md);
+// at 80 MHz width primary + 30 MHz, from any primary (measured at ch 1, 3, 36, 98, 100).
 int Receiver::channel_for(double freq, int width) {
   const double mhz = freq / 1e6;
+  if (width == 80) {
+    if (mhz < 3700)
+      return std::clamp(static_cast<int>(std::lround((mhz - 30 - 2407) / 5)), 1, 5);
+    return std::clamp(static_cast<int>(std::lround((mhz - 30 - 5000) / 5)), 16, 221);
+  }
   if (width == 40) {
     if (mhz < 3700)
       return std::clamp(static_cast<int>(std::lround((mhz - 10 - 2407) / 5)), 1, 9);
@@ -43,7 +49,7 @@ int Receiver::channel_for(double freq, int width) {
 }
 
 double Receiver::centre_of(int channel, int width) {
-  return devourer::chan_to_freq(channel) * 1e6 + (width == 40 ? 10e6 : 0);
+  return devourer::chan_to_freq(channel) * 1e6 + (width == 80 ? 30e6 : width == 40 ? 10e6 : 0);
 }
 
 int Receiver::igi_for(double db, bool cu) {
@@ -63,8 +69,8 @@ void Receiver::set_state(RxState s, const std::string &err) {
 
 void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std::string &port) {
   close();
-  if (initial.rate_sel < 1 || initial.rate_sel > 5)
-    throw std::invalid_argument("rate_sel must be 1..5");
+  if (initial.rate_sel < 0 || initial.rate_sel > 5)
+    throw std::invalid_argument("rate_sel must be 0..5");
   {
     std::lock_guard<std::mutex> l(_m);
     _set = initial;
@@ -96,9 +102,10 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   // USB 2 carries ~44 MB/s of C2H (5 MS/s); USB 3 carries 40 MS/s. The 8812CU is verified on USB 2 only.
   _caps.min_rate_sel = s->superspeed() && !cu ? 1 : 4;
   // Both streamers can also capture one bank at any rate, stop, ship and re-arm (gapped mode; on the
-  // 8812CU measured at 10/20/40 MS/s: zero stale banks, 11-21 % of the time sampled). Not needed
-  // on an 8812BU on USB 3, which streams every rate continuously.
-  _caps.gapped_min_rate_sel = cu || !s->superspeed() ? 1 : 6; // 8812BU on USB 2 too
+  // 8812CU measured at 10/20/40 MS/s: zero stale banks, ~36/22/12 % of the time sampled). An 8812BU on
+  // USB 3 streams every rate up to 40 MS/s and runs 80 MS/s gapped (33 % sampled, measured); on USB 2
+  // its 80 MS/s is untested.
+  _caps.gapped_min_rate_sel = cu || !s->superspeed() ? 1 : 0;
   _caps.paths = 2; // the 8822B streams kDmaBothPaths8822b (path B costs no extra USB bandwidth)
   _caps.gain_step = gain_step(cu);
   _caps.gain_max = gain_max(cu);
@@ -248,7 +255,7 @@ void Receiver::worker() {
     c.depth = _caps.cu || cur.rate_sel <= 2 ? 256 : 64;
     c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _caps.cu);
     c.la.no_cca = !cur.agc;
-    c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's DFIR (8822B: BW20 set; 8822C: per width)
+    c.la.dfir = !_caps.cu && width >= 40 ? width : 0; // 0 leaves devourer's DFIR (8822B: BW20 set; 8822C: per width)
     if (!_caps.cu)
       c.la.dma_type = kDmaBothPaths8822b;
     c.gapped = cur.rate_sel < _caps.min_rate_sel;
