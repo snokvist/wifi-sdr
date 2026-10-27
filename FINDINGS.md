@@ -386,10 +386,12 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   stretches of the same lengths. The A−B level varies per frame (+1.1..+8.9 dB, p10..p90), so it is not
   one path copied: each antenna catches frames the other misses (ch 40: B twice A).
 - **Same USB cost as one path.** 10 s each at 40 MS/s: dma 0 and dma 4 both 318.85 MB/s, 0 stale,
-  0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
-  callback (320 MB/s), or unpacks both there, can miss the chip deadline; `wsdr_probe stream --path ab`
-  holds the raw banks in memory and unpacks afterwards (8 of 15 3-s runs clean, unexplained; path A
-  alone 17 of 17).
+  0.8 µs worst lateness of a 184.8 µs budget. Recording needs two things at 40 MS/s (measured
+  2026-10-27): ~13 ms of posted URBs (depth 256; with 32, a 30-s run failed within 10-17 s, by a
+  missed deadline or a 168-byte packet in the bank stream), and no file writes on the USB thread (a
+  write can sleep in dirty-page throttling: path A to disk missed the deadline in 4 of 4 3-s runs).
+  `wsdr_probe stream` now copies each bank into a ring and writes from its own thread: both paths,
+  3 × 30 s and 1 × 60 s, 0 faults.
 - **All rates.** 80 MS/s (BW80): snapshots show L-LTFs on both paths at all four 20 MHz centres,
   none at the controls, filter edge ±37 MHz on both. 80 MS/s cannot stream (640 MB/s), but it runs
   **gapped**: 3 s, 9701 banks, 0 stale, 212 MB/s; each 102.4 µs bank is whole and ships in ~182 µs,

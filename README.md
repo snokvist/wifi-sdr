@@ -117,7 +117,7 @@ sudo build/wsdr_tcp --pid 0xb812 --freq-offset 5e9   # gqrx device: rtl_tcp=127.
 sudo build/wsdr_probe stream --pid 0xb812 --rate 5 --seconds 60 --out captures/s5m
 python3 tools/stream_check.py captures/s5m
 
-# 8812BU: both paths at 40 MS/s (held in memory, then written; then the two-path checks)
+# 8812BU: both paths at 40 MS/s (written from a separate thread; then the two-path checks)
 sudo build/wsdr_probe stream --pid 0xb812 --channel 36 --bw 40 --rate 1 --dfir 40 --dma 4 --path ab --seconds 3 --out captures/ab
 python3 tools/bu_twopath.py captures/ab; python3 tools/bu_ab_delay.py captures/ab
 
