@@ -37,9 +37,9 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   gap between the UNII-2 groups (see FINDINGS). The residual (≤ 2.5 MHz) is shifted out digitally.
 - **Two paths on both adapters:** paths A and B come from the same LA word (the 8812BU streams LA
   dma_type 4 for that, at no extra USB cost). B leads A by ~146 ns on the 8812BU and ~370–400 ns on
-  the 8812CU, which the stream does not compensate. On the 8812BU the paths are coherent at 40 and
-  20 MS/s, gapped too; its lower rates select samples without a filter, so there A and B are two
-  separate receivers.
+  the 8812CU, which the stream does not compensate. On the 8812BU the paths are coherent at 40 MS/s,
+  at 20 MS/s at 20 MHz width, and gapped at 40 and 80 MS/s; its lower rates select samples without a
+  filter, so there A and B are two separate receivers.
 - **80 MS/s on the 8812BU, gapped:** ~76 MHz per bank, about a third of the time captured (each
   102.4 µs bank ships in ~182 µs). Too fast to stream; for wide spectrum views.
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges

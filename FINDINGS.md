@@ -388,7 +388,8 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 - **Same USB cost as one path.** 10 s each at 40 MS/s: dma 0 and dma 4 both 318.85 MB/s, 0 stale,
   0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
   callback (320 MB/s), or unpacks both there, can miss the chip deadline; `wsdr_probe stream --path ab`
-  holds the raw banks in memory and unpacks afterwards.
+  holds the raw banks in memory and unpacks afterwards (8 of 15 3-s runs clean, unexplained; path A
+  alone 17 of 17).
 - **All rates.** 80 MS/s (BW80): snapshots show L-LTFs on both paths at all four 20 MHz centres,
   none at the controls, filter edge ±37 MHz on both. 80 MS/s cannot stream (640 MB/s), but it runs
   **gapped**: 3 s, 9701 banks, 0 stale, 212 MB/s; each 102.4 µs bank is whole and ships in ~182 µs,
@@ -397,12 +398,14 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
 - **Path B leads path A by ~146 ns** (5.9 samples at 40 MS/s), from L-LTF channel estimates on frames
   found on both paths: −148 ns (ch 36 half, 82 frames) and −144 ns (ch 40 half, 24 frames), IQR about
   ±1 ns across transmitters. Delay B by that before combining (the 8822C needs ~370–400 ns).
-- **Coherent where the filter sets the band.** Frame coherence (median, p10) against noise stretches
-  of the same lengths (median): 40 MS/s 0.72 (0.33) vs 0.41 and, in a second run, 0.64 (0.48) vs 0.44;
-  20 MS/s 0.94 (0.84) vs 0.54; gapped 40 MS/s 0.64 (0.56) vs 0.38; gapped 80 MS/s 0.72 (0.38) vs 0.29
-  (each gapped bank is contiguous). Below the filter's band the tap only selects words (no anti-alias
-  filter): at 5 MS/s A and B are weakly coherent (0.18 vs 0.13 in noise), two valid receivers, not a
-  coherent pair; 10 and 2.5 MS/s are the same mechanism, not measured.
+- **Coherent where the filter sets the band.** Frame coherence median (p10) against noise stretches of
+  the same lengths, median (p90), 6.4 µs segments: 40 MS/s at BW40 0.72 (0.33) vs 0.41 (0.45) and, in a
+  second run, 0.64 (0.48) vs 0.44 (0.67); 20 MS/s at BW20 0.92 (0.83) vs 0.36 (0.44); gapped 40 MS/s
+  0.64 (0.56) vs 0.38 (0.57); gapped 80 MS/s 0.77 (0.45) vs 0.41 (0.58) (each gapped bank is
+  contiguous). The medians separate everywhere; at 40 and 80 MS/s the two distributions overlap.
+  Below the filter's band the tap only selects words (no anti-alias filter): at 5 MS/s A and B are
+  weakly coherent (0.18 vs 0.13 in noise), two valid receivers, not a coherent pair; 10 and 2.5 MS/s
+  (and gapped at those rates) are the same mechanism, not measured.
 - Counterparts: one unit; dma 5 matched dma 4 at 40 MS/s (layout, filters, skew); which
   connector is path A is unknown (soldered antennas). `evidence/dual-path-tap-dma4.txt`,
   `tools/bu_twopath.py`, `tools/bu_ab_delay.py`.

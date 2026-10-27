@@ -25,7 +25,7 @@
 //       Continuous LA streaming (stream8822b.S): every ring bank shipped over C2H, reassembled and
 //       checked in order. --out writes PREFIX.cs16 (int16 I,Q, 12-bit << 4) + PREFIX.json. Path A;
 //       --path b|ab with --dma 4 (or 5): path B (bits [47:24] of the word), ab adds PREFIX-b.cs16 and
-//       needs --out. With ab the raw banks are held in memory (8 bytes a sample, so at most 10 s) and
+//       needs --out. With ab the raw banks are held in memory (8 bytes a sample, at most 4 GiB) and
 //       unpacked after the stream, with no stream.tick lines (doing either during it can miss the
 //       chip's deadline at 40 MS/s); --gapped has no deadline, so there they are written as they come.
 //       --gapped: one bank per round, banks not contiguous; also runs at --rate 0 (80 MS/s).
@@ -810,6 +810,10 @@ int cmd_stream(Session &s, const Args &a) {
   c.guard_us = a.guard_us;
   c.gapped = a.gapped;
   Stream8822b st(s, c);
+  if (!(a.seconds > 0) || (!a.gapped && !(a.seconds < 1e6)))
+    throw std::runtime_error("--seconds must be > 0 (and finite unless --gapped)");
+  if (!a.gapped && c.la.rate_sel == 0)
+    throw std::runtime_error("80 MS/s (--rate 0) cannot stream: add --gapped");
   const uint64_t want = a.gapped ? UINT64_MAX : static_cast<uint64_t>(a.seconds * st.fs() / Stream8822b::kBankSamples + 0.5);
   const auto t_start = std::chrono::steady_clock::now();
   if (a.path != "a" && a.path != "b" && a.path != "ab")
@@ -817,12 +821,12 @@ int cmd_stream(Session &s, const Args &a) {
   const bool want_b = a.path != "a";
   if (want_b && c.la.dma_type != 4 && c.la.dma_type != 5) // other formats carry no path B in [47:24]
     throw std::runtime_error("--path b|ab needs --dma 4 or 5 (path B in bits [47:24])");
-  // continuous ab holds the run: 640 MB a second at 40 MS/s
+  // continuous ab holds the run: 320 MB a second at 40 MS/s
   const bool hold = a.path == "ab" && !a.gapped;
   if (a.path == "ab" && a.out.empty())
     throw std::runtime_error("--path ab needs --out");
-  if (hold && a.seconds > 10)
-    throw std::runtime_error("--path ab holds the run in memory: at most --seconds 10");
+  if (hold && want >= (4ull << 30) / Stream8822b::kBankBytes)
+    throw std::runtime_error("--path ab holds the run in memory: at most 4 GiB (13 s at 40 MS/s)");
   // the file for the first path written (A, or B alone), and PREFIX-b.cs16 for B with --path ab
   FILE *f = nullptr, *fb = nullptr;
   if (!a.out.empty() && !(f = std::fopen((a.out + ".cs16").c_str(), "wb"))) {
@@ -846,6 +850,7 @@ int cmd_stream(Session &s, const Args &a) {
   const uint64_t every = a.gapped ? 250 : std::max<uint64_t>(1, static_cast<uint64_t>(st.fs() / Stream8822b::kBankSamples));
   double e2 = 0;
   uint64_t n = 0;
+  bool wrote = true;
   const StreamStats ss = st.run(
       [&](const uint8_t *bank, const BankInfo &bi) {
         if (hold) {
@@ -872,10 +877,9 @@ int cmd_stream(Session &s, const Args &a) {
         }
         e2 += acc;
         const std::vector<int16_t> &first = a.path == "b" ? iqb : iq;
-        if (f && std::fwrite(first.data(), 2, first.size(), f) != first.size())
-          return false;
-        if (fb && std::fwrite(iqb.data(), 2, iqb.size(), fb) != iqb.size())
-          return false;
+        if ((f && std::fwrite(first.data(), 2, first.size(), f) != first.size()) ||
+            (fb && std::fwrite(iqb.data(), 2, iqb.size(), fb) != iqb.size()))
+          return wrote = false;
         if (++n % every == 0) {
           std::printf("{\"ev\":\"stream.tick\",\"banks\":%llu,\"seq\":%u,\"rms\":%.1f,\"late_us\":%.1f,"
                       "\"ship_us\":%.1f,\"end_us\":%.1f,\"stale\":%d}\n",
@@ -889,7 +893,6 @@ int cmd_stream(Session &s, const Args &a) {
         return n < want;
       },
       &g_stop);
-  bool wrote = true;
   for (size_t at = 0; hold && wrote && at < held_at; at += Stream8822b::kBankBytes) {
     for (size_t i = 0; i < Stream8822b::kBankSamples; i++) {
       uint64_t w;
@@ -910,7 +913,8 @@ int cmd_stream(Session &s, const Args &a) {
   if (fb)
     std::fclose(fb);
   const double secs = ss.banks * Stream8822b::kBankSamples / st.fs();
-  const bool ok = wrote && ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 && (a.gapped ? ss.banks > 0 : ss.banks >= want);
+  const bool ok = wrote && ss.error.empty() && ss.stale == 0 && ss.pattern_bad == 0 &&
+                  (a.gapped ? ss.banks > 0 : ss.banks >= want);
   char summary[1024];
   std::snprintf(summary, sizeof summary,
                 "{\"ev\":\"stream\",\"ok\":%d,\"synthetic\":%d,\"rate_sel\":%d,\"fs\":%.0f,\"channel\":%d,"

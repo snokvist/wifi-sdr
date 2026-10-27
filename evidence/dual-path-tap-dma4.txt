@@ -64,24 +64,31 @@ whose peak (fit quality) > 0.8:
 => path B leads path A by ~146 ns (5.9 samples at 40 MS/s), the same across transmitters, both
    halves and both formats. (The 8822C's is ~370-400 ns.) dma 5 matched dma 4 at 40 MS/s.
 A --path ab recording that unpacked both paths on the USB thread missed the deadline once at
-0.23 s; holding raw banks and unpacking afterwards ran 3 of 3 runs clean.
+0.23 s; holding raw banks and unpacking afterwards ran 3 of 3 runs clean (but see section 7: 8 of 15).
 
 == Not covered
 One unit. Which physical connector is path A (the antennas are soldered). What, if anything,
 distinguishes dma 5 from dma 4.
 
 == 7. Review follow-up (same unit, same session layout, 3 s each, tools/bu_twopath.py)
-Frame coherence median (p10) vs noise stretches of the same lengths median (p90):
+Frame coherence median (p10) vs noise stretches of the same lengths median (p90), 6.4 us FFT segments
+(nfft 256 at 40 MS/s as in section 4; 128 at 20, 512 at 80):
   40 MS/s BW40, streamed (2nd run): 382 frames 0.64 (0.48) vs 0.44 (0.67); L-LTF ch 36 A 360 / B 174 /
     both 165, ch 40 A 101 / B 75 / both 47, centre 0, conj 0
-  20 MS/s BW20, streamed:           175 frames 0.94 (0.84) vs 0.54 (0.73); L-LTF A 177 / B 127 / both 123,
+  20 MS/s BW20, streamed:           175 frames 0.92 (0.83) vs 0.36 (0.44); L-LTF A 177 / B 127 / both 123,
     conj 0
   40 MS/s BW40, gapped (7298 banks, 1.495 s captured, 0 stale): 219 frames 0.64 (0.56) vs 0.38 (0.57);
     L-LTF ch 36 both 80, ch 40 both 34, centre 0, conj 0
   80 MS/s BW80 --dfir 80 rate 0, gapped (9701 banks, 0.993 s captured, 0 stale, 211.9 MB/s, ship_max
-    182 us): 660 frames 0.72 (0.38) vs 0.29 (0.39); L-LTF on both at -30/-10/+10/+30 MHz: 103/208/85/70,
+    182 us): 660 frames 0.77 (0.45) vs 0.41 (0.58); L-LTF on both at -30/-10/+10/+30 MHz: 103/208/85/70,
     centre 0, conj 0 except B at +30 MHz: 10 (of 215)
 Gapped 80 MS/s, path A, 5 s: 16247 banks (3249/s, 33 % of the time captured), 0 stale; -6 dB edges
 -39.6 / +37.6 MHz, adjacent duplicates 0.0003, L-LTFs only at the four 20 MHz centres (conj 0).
 SoapySDR, 8812BU, 40 MS/s, tools/soapy_check.py --seconds 30: channel 0 alone and channels 0,1 both
 1198 M samples in 30 s, 0 overflows / timeouts / errors; retune + gain segment and re-open clean.
+Reliability of the held recorder (wsdr_probe stream --path ab, continuous 40 MS/s, 3 s, same
+afternoon, partly interleaved with path-A runs): 8 of 15 clean (a 16th run's result was not
+captured). Failures: 3 x "framing: ... part 3 len 168 desc 90.00.00.80..." (a 168-byte C2H packet in
+the bank stream), 3 x deadline (360-570 us late), 1 not printed; at banks 1138..12672. Path A alone (no hold, no file) 17 of 17 clean, 5 of them while another process
+held 1 GiB; held 1 s runs 2 of 2. Not explained; the Receiver and Soapy do not hold, and two-channel
+Soapy ran 30 s clean. Use short held runs and check "ok".

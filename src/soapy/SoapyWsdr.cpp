@@ -22,9 +22,9 @@
 //   8812CU       USB 2 only here: 2.5 / 5 MS/s, 20 MHz path.
 //   channels     two RX channels on both chips: 0 = path A, 1 = path B, from the same LA word (the
 //                8812BU streams LA dma_type 4 for that). B leads A, not compensated: ~146 ns on the
-//                8812BU, ~370-400 ns on the 8812CU. On the 8812BU coherent at 40 and 20 MS/s; its lower
-//                rates select samples without a filter, so there the two channels are separate
-//                receivers
+//                8812BU, ~370-400 ns on the 8812CU. On the 8812BU coherent at 40 MS/s and at 20 MS/s
+//                (20 MHz width, as here); its lower rates select samples without a filter, so there
+//                the two channels are separate receivers
 //   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (8812CU: 0..52 dB, ~1.0 dB; fixed-gain
 //                mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)

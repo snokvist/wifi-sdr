@@ -46,8 +46,9 @@ def ltf_check(A, B, offsets=(-10, 10, 0), chunk=1 << 20):
     return res
 
 
-def coherence_check(A, B, nfft=256):
-    win = int(4e-6 * FS)  # 4 us power windows
+def coherence_check(A, B):
+    nfft = round(6.4e-6 * FS)  # 6.4 us segments at every rate
+    win = round(4e-6 * FS)  # 4 us power windows
     f = np.fft.fftshift(np.fft.fftfreq(nfft, 1 / FS)) / 1e6
     band = (np.abs(f) < 0.45 * FS / 1e6) & (np.abs(f) > 0.5)
 
@@ -101,11 +102,14 @@ def main():
     global FS
     with open(a.prefix + ".json") as j:
         FS = float(json.load(j)["sample_rate"])
+    if FS not in (20e6, 40e6, 80e6):
+        sys.exit("bu_twopath: 80, 40 or 20 MS/s only")
     A, B = load(a.prefix + ".cs16"), load(a.prefix + "-b.cs16")
     n = min(len(A), len(B))
     A, B = A[:n] - A[:n].mean(), B[:n] - B[:n].mean()
+    offsets = {80e6: (-30, -10, 10, 30, 0), 40e6: (-10, 10, 0)}.get(FS, (0,))
     out = {"file": os.path.basename(a.prefix), "fs": FS, "seconds": round(n / FS, 3),
-           "ltf": ltf_check(A, B, {80e6: (-30, -10, 10, 30, 0), 40e6: (-10, 10, 0)}.get(FS, (0,))), "coherence": coherence_check(A, B)}
+           "ltf": ltf_check(A, B, offsets), "coherence": coherence_check(A, B)}
     print(json.dumps(out, indent=1))
 
 

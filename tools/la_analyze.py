@@ -56,7 +56,7 @@ def field(w, lsb, bits):
 def unpack(words, path, dma_type=0):
     if path == "a":
         i, q = field(words, 0, 12), field(words, 12, 12)
-    elif dma_type in (4, 5):  # 8822B, both paths in one word: B I=[35:24] Q=[47:36]
+    elif dma_type in (4, 5):  # 8822B, both paths in one word: B I=[35:24] Q=[47:36] (DVLA has no chip id)
         i, q = field(words, 24, 12), field(words, 36, 12)
     else:  # 8822C: B I=[55:44] Q=[43:32]
         i, q = field(words, 44, 12), field(words, 32, 12)
