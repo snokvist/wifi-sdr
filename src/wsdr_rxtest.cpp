@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // wsdr_rxtest — hardware check of wsdr::Receiver (the app-facing API):
-//   wsdr_rxtest --pid 0xb812 [--freq 5190e6] [--rate 1] [--seconds 10] [--retune 5230e6]
+//   wsdr_rxtest --pid 0xb812 [--freq 5190e6] [--rate 1] [--seconds 10] [--retune 5230e6] [--gapped]
 //               [--sweep 5190e6:5830e6:40e6 --dwell-ms 280]   (--sweep replaces --retune)
+//   --gapped allows rates the link cannot stream (RxSettings::allow_gapped), e.g. --rate 0 (80 MS/s).
 // Opens the adapter, streams, optionally retunes half-way, and prints status JSON once a second plus a
 // summary: banks, restarts, settings generations seen, sink time per bank (must stay tiny: it runs on
 // the libusb event thread). --sweep retunes over [first, last] every dwell (the wsdr-studio Spectral Map
@@ -45,6 +46,7 @@ int main(int argc, char **argv) {
     }
     else if (k == "--dwell-ms") dwell_ms = std::atoi(v), i++;
     else if (k == "--agc") set.agc = true;
+    else if (k == "--gapped") set.allow_gapped = true;
     else if (k == "--bus") bus = std::atoi(v), i++;
     else if (k == "--port") port = v, i++;
     else { std::fprintf(stderr, "unknown arg %s\n", k.c_str()); return 2; }
@@ -54,7 +56,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   if (!pid) {
-    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812 [--freq HZ] [--rate 1..5] [--seconds N]\n"
+    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812 [--freq HZ] [--rate 0..5] [--seconds N] [--gapped]\n"
                          "                   [--retune HZ | --sweep FIRST:LAST:STEP [--dwell-ms MS]]\n");
     return 2;
   }
