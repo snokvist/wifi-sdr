@@ -32,8 +32,8 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   (~76 MHz) is a snapshot mode only, because it exceeds the ~391 MB/s C2H ceiling.
 - **Gain:** fixed-gain mode with OFDM carrier sense off and IGI pinned gives ~0.95 dB per step over
   ~45 dB on the 8822B and ~1.0 dB per step on the 8822C. Alternatively, the chip's own AGC can run.
-- **Tuning:** 2.4 GHz ch 1–14 and 5 GHz ch 16–233 on the 5 MHz synthesizer grid. The residual
-  (≤ 2.5 MHz) is shifted out digitally.
+- **Tuning:** 2.4 GHz ch 1–14 and 5 GHz ch 16–233 on the 5 MHz synthesizer grid, including the ch 65–99
+  gap between the UNII-2 groups (see FINDINGS). The residual (≤ 2.5 MHz) is shifted out digitally.
 - **8812CU two paths:** both paths come from the same LA word. B leads A by ~400 ns, which the stream
   does not compensate. Once that skew is removed, the paths are phase-coherent.
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges
