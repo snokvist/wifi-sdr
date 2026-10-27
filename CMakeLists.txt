@@ -48,7 +48,7 @@ function(wsdr_add_fw name text_addr)
     COMMENT "MIPS16e2 ${name} @ ${text_addr}")
   set(WSDR_FW_HEADERS ${WSDR_FW_HEADERS} ${WSDR_FW_OUT}/${name}.h PARENT_SCOPE)
 endfunction()
-foreach(fw marker8822b c2hbench8822b latime8822b stream8822b)
+foreach(fw marker8822b c2hbench8822b latime8822b stream8822b txbench8822b tx914sweep8822b txfsk8822b)
   wsdr_add_fw(${fw} 0x80000230)
 endforeach()
 foreach(fw marker8822c c2hbench8822c latime8822c stream8822c)
@@ -81,6 +81,9 @@ endif()
 
 add_executable(wsdr_probe src/wsdr_probe.cpp)
 target_link_libraries(wsdr_probe wsdrcore)
+
+add_executable(wsdr_txprobe src/wsdr_txprobe.cpp)
+target_link_libraries(wsdr_txprobe wsdrcore)
 
 add_executable(wsdr_rxtest src/wsdr_rxtest.cpp)
 target_link_libraries(wsdr_rxtest wsdrcore iqdsp)

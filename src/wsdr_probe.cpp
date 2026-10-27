@@ -118,6 +118,8 @@ bool parse(int argc, char **argv, Args &a) {
     auto v = [&]() -> const char * { return i + 1 < argc ? argv[++i] : "0"; };
     if (k == "--pid") a.open.pid = static_cast<uint16_t>(num(v()));
     else if (k == "--vid") a.open.vid = static_cast<uint16_t>(num(v()));
+    else if (k == "--bus") a.open.bus = static_cast<int>(num(v()));
+    else if (k == "--port") a.open.port = v();
     else if (k == "--channel") a.open.channel = static_cast<int>(num(v()));
     else if (k == "--bw") a.open.bw = static_cast<int>(num(v()));
     else if (k == "--no-reset") a.open.reset = false;

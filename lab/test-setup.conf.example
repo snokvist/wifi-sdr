@@ -1,0 +1,6 @@
+# Copy to lab/test-setup.conf only after the cabled bench is set up.
+cabled=no
+tx_adapter=Bus 007.Port 001: Dev 001
+rx_adapter=6-1
+attenuation_db=50
+tx_paths=AB
