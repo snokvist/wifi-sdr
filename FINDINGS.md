@@ -353,6 +353,28 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   (centre 5190) none was seen. Open: band/AGC dependence; if confirmed, offset tuning applies to the BU too.
   `Receiver` offers it only with `RxSettings::allow_gapped` and marks `BankMeta::gapped`.
 
+### 5 GHz between the UNII-2 groups, ch 65..99 (2026-10-27)
+- **Both chips tune and receive there (verified, one unit each, 40 MHz width).** Centres 5330..5490
+  MHz: zero stale banks, the same band shape as in-table spans, the dongle-internal 40 MHz comb on
+  the same bin from two tunings, and real carriers (the 5346 and 5494.72 MHz pixel-clock harmonics)
+  where the earlier survey put them. `evidence/gap-ch65-99.txt`, plots `evidence/gap-*.png`.
+- **8822B: the result depended on the previous channel, until devourer `5458e5a`.**
+  devourer's vendor-derived per-channel values (AGC table `0x958`, CFO fc `0x860`, VCO band RF `0xBE`)
+  had no entry for 65..99 (and RF 0xBE none for centrals 50/114/130/163), so such a channel kept the
+  previous channel's values. Measured on one 8812BU (bus 6), same unit before and after: 5350 and 5450
+  MHz read 3.6 / 4.5 dB apart depending on whether they were reached from 5180 or from 5510/5745
+  (floor and fixed carriers alike, so a gain offset); with the fix 0.4 / 0.7 dB, inside the in-table
+  control's 0.8 dB. The AGC table was what mattered: a stale RF 0xBE alone (5255/5815) showed nothing
+  resolvable (below ~1.5 dB), so the RF 0xBE values devourer now writes there are untested either
+  way. A +3 dB fresh-bring-up floor step at ch 82..98 also went away, but those sweeps only resolve
+  ~2 dB.
+- **8822C: no gap in devourer's tables** (contiguous `rf18_for` / `select_agc_tables` / `sco_for`);
+  the fresh-bring-up floor is smooth across the gap (61.8..63.0), and retune history does not matter
+  (0.1..0.4 dB spread by previous channel at 5 MS/s and 20 MHz width, the same as the in-table
+  control).
+- Not tested: the 8822B at 20 MHz and either chip at 80 MHz width in the gap, absolute sensitivity,
+  the 8821C half of the fix.
+
 ### Unknowns (Phase 2 exit list)
 1. Does dbg port 0x8fc = 0 give a live bus on *our* unit? devourer reports dbg_port 0 as dead and uses
    0x880 (`docs/la-capture.md`). Conflicting; test both. **Resolved (8822B):** both are live.

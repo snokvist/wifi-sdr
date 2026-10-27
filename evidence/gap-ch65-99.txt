@@ -1,0 +1,83 @@
+5 GHz ch 65..99 (5325..5495 MHz, between the UNII-2 groups), 2026-10-27
+Units: 8812BU bus 6 (USB 3, continuous 40 MS/s), 8812CU bus 1 (USB 2, gapped 40 MS/s).
+All at 40 MHz width, fixed gain (IGI 0x30, carrier sense off). Floors are median dB (arb) of the
+inner +-16 MHz; "line" = narrow line above a 201-bin running median.
+
+1. Fresh bring-up per span, primary ch 60..100 step 4 (centre = primary + 2)
+   wsdr_probe stream --pid 0xb812 --bus 6 --channel P --bw 40 --dfir 40 --rate 1 --depth 256 \
+       --igi 0x30 --nocca --seconds 1 --out captures/gap/bu-cC
+   wsdr_cu stream --pid 0xc812 --channel P --bw 40 --rate 1 --gapped --igi 0x30 --no-cca \
+       --seconds 2 --out captures/gap/cu-cC
+   python3 tools/gap_psd.py --png OUT.png captures/gap/bu-c62:5310 ...
+
+   centre  MHz   BU floor (devourer 4afa386)  BU floor (with the fix)      CU floor (4afa386)
+   c62     5310  68.1                         66.3                     61.9   control (in table)
+   c66     5330  66.4                         68.2                     61.8
+   c70     5350  67.7                         66.9                     61.8
+   c74     5370  69.3                         67.3                     62.1
+   c78     5390  68.1                         68.0                     62.2
+   c82     5410  71.1                         65.9                     62.7
+   c86     5430  72.0                         66.3                     62.6
+   c90     5450  70.7                         66.6                     62.7
+   c94     5470  71.2                         66.9                     62.8
+   c98     5490  71.1                         68.2                     63.0
+   c102    5510  67.6                         69.0                     63.2   control (in table)
+   Zero stale banks / pattern errors in all 33 captures (one BU "with fix" run at c66 failed once
+   with its output discarded; the retry was clean - cause unknown).
+   The in-table controls moved 1.4..1.8 dB between the two BU sweeps (c62 68.1 -> 66.3, c102
+   67.6 -> 69.0), so these fresh-bring-up floors resolve ~2 dB: the old +3 dB at c82..c98 is
+   suggestive, the retune-history runs below are the measurement.
+   Band shape at +-18 MHz: -2.8..-5.1 dB on every span, gap and control alike.
+
+   Tuning check: the dongle-internal 40 MHz comb lines (5360, 5400, 5440, 5480) land on the same
+   5 kHz bin from two different tunings each, on both chips. External carriers seen in the gap:
+   the 1080p60 pixel-clock harmonic k=36 with its 67 kHz comb, at 5346.26 MHz / ~27 dB on the BU and
+   at 5346.21 MHz / ~22 dB on the CU (the two crystals sit ~10 ppm apart); k=37 at 5494.72 MHz,
+   ~22 dB, on the CU. Plots: gap-bu-ch62-102-before.png,
+   gap-bu-ch62-102-after.png, gap-cu-ch62-102.png.
+
+2. Retune history, 8812BU bus 6 (one Soapy session per build, 40 MS/s, gain 30): visit each target
+   from each predecessor; same unit, devourer before (4afa386, a clean export) and after (the fix,
+   RX-identical to 5458e5a).
+   SOAPY_SDR_PLUGIN_PATH=<build> python3 tools/retune_history.py --args driver=wsdr,bus=6,pid=0xb812 \
+       --rate 40e6 --watch 5346.26,5440,5240 5180 5350 5180 5450 5180 5255 5180 5310 5510 5350 ...
+   Raw (rows only, grep '"to"'): gap-retune-bu-old.jsonl (2 visits per cell),
+   gap-retune-bu-new.jsonl (5 per cell: 2 + 3 more).
+
+   mean floor, reached from         5180   5510   5745   spread   sd within a cell (mean)
+   before  5310 (control, ch 62)    92.2   91.8   91.5   0.7 dB   0.3
+   before  5350 (gap, ch 70)        92.5   89.3   88.9   3.6 dB   0.4
+   before  5450 (gap, ch 90)        96.7   92.2   92.2   4.5 dB   0.2
+   after   5310 (control)           92.6   92.1   91.8   0.8 dB   0.7
+   after   5350 (gap)               92.2   92.6   92.2   0.4 dB   0.6
+   after   5450 (gap)               92.9   92.3   92.2   0.7 dB   0.7
+   Before the fix the fixed carriers moved with the floor (5346.26: 111.4..115.3; the 5440 comb:
+   109.0..112.9), so it is a gain offset, not a noise change. After it the 5440 comb line read
+   108.3..109.4 over all 15 visits. (The 5346.26 carrier itself drifts over minutes - a monitor's
+   pixel clock - so it is not a level reference across runs.)
+   The predecessors themselves are busy Wi-Fi channels here (ch 36 and ch 149 networks): their own
+   floors swing 91..107 with traffic, in runs of consecutive visits, whatever came before, so only
+   the quiet targets are read. These runs used retune_history.py before it stopped the stream around
+   each retune; the identical before/after protocol is the control for any carried-over samples
+   (and carried-over samples could not move the fixed carriers, which moved with the floor).
+   An earlier pair of runs (one 8812BU, ~3.7 dB -> 0.3 dB) is not kept: the Soapy module ignored
+   bus= then (fixed with this evidence), so which of the two 8812BUs ran it is not certain.
+
+   Stale RF 0xBE alone (an intermediate version of the fix that still left the vendor's unwritten
+   RF 0xBE entries):
+   5255 MHz = central 51 and 5815 = central 163, from 5180 / 5220 / 5745 (VCO band left at 6 / 0 / 5),
+   2 visits each: floor spread 1.2 dB and 0.2 dB vs 1.6 dB for the 5310 control (repeats within
+   0.4 dB; the 5255 means step 93.2 / 92.6 / 92.0). Any effect is below ~1.5 dB, not resolved. Raw: gap-retune-bu-rfbe-holes.jsonl.
+
+3. Retune history, 8812CU (one Soapy session, USB 2, continuous 5 MS/s - so 20 MHz width -, gain 30; targets offset so a
+   known line falls inside the +-2 MHz window). Raw: gap-retune-cu.jsonl.
+   SOAPY_SDR_PLUGIN_PATH=build-soapy python3 tools/retune_history.py --args driver=wsdr,pid=0xc812 \
+       --rate 5e6 --frames 200 --watch 5346.26,5440 5180 5348 5180 5441 5180 5311 ... (36 steps)
+
+   mean floor, reached from         5180   5510   5745   spread
+   5311 (control, ch 62)            82.9   82.8   83.0   0.1 dB
+   5348 (gap, ch 70)                82.7   82.4   82.3   0.4 dB
+   5441 (gap, ch 88)                82.0   81.9   81.9   0.1 dB
+   The 5346.26 carrier read 109.6..110.9 over the six visits to 5348. The 5440 comb line did not
+   stand out at 5 MS/s 1 MHz off centre, so 5441 rests on the floor alone. No devourer change was
+   needed: the 8822C's rf18_for / select_agc_tables / sco_for are contiguous range checks.
