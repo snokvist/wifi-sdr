@@ -87,6 +87,8 @@ target_link_libraries(wsdr_txprobe wsdrcore)
 
 add_executable(wsdr_rxtest src/wsdr_rxtest.cpp)
 target_link_libraries(wsdr_rxtest wsdrcore iqdsp)
+add_executable(wsdr_usbmode src/wsdr_usbmode.cpp)
+target_link_libraries(wsdr_usbmode wsdrcore)
 
 add_executable(iqdsp_test src/iqdsp_test.cpp)
 target_link_libraries(iqdsp_test iqdsp)

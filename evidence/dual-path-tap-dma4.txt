@@ -91,4 +91,17 @@ afternoon, partly interleaved with path-A runs): 8 of 15 clean (a 16th run's res
 captured). Failures: 3 x "framing: ... part 3 len 168 desc 90.00.00.80..." (a 168-byte C2H packet in
 the bank stream), 3 x deadline (360-570 us late), 1 not printed; at banks 1138..12672. Path A alone (no hold, no file) 17 of 17 clean, 5 of them while another process
 held 1 GiB; held 1 s runs 2 of 2. Not explained; the Receiver and Soapy do not hold, and two-channel
-Soapy ran 30 s clean. Use short held runs and check "ok".
+Soapy ran 30 s clean. Use short held runs and check "ok". (Explained and fixed: section 8.)
+
+== 8. The recorder fixed (later the same day)
+Two causes, each confirmed:
+- File writes on the USB thread: path A (no --path ab), 3 s to disk, missed the deadline in 4 of 4
+  runs (207-545 us late). wsdr_probe stream now copies each bank into a 2048-bank ring and a writer
+  thread unpacks and writes; the writer stayed within 2 banks (queued <= 2) in every run.
+- The URB depth: the probe posted 32 (~1.3 ms at 40 MS/s; the Receiver posts 256). With the writer
+  thread and depth 32, --path ab 30 s failed 2 of 2 (framing: part 3 len 168 desc 90.00.00.80... at
+  bank 38983; deadline 1102.8 us late at bank 67673); with depth 256, clean. The probe now uses 256
+  at >= 20 MS/s.
+Both fixed, --path ab --seconds 30 three times and --seconds 60 once: ok 1, 146484 / 292969 banks,
+0 strays, late_max 0.8 us, end_max 182.8 us; path A 3 s 5 of 5. (The 168-byte packets were not seen
+with depth 256: a side effect of the starved queue, not a source to filter.)

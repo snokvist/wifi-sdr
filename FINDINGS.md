@@ -345,7 +345,8 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   A real carrier at +7.7 MHz (5197.7 MHz, the one the 8812BU also shows) stands 31-32 dB above the floor
   on both paths. 20 MS/s at BW20: flat to ±8 MHz, −6 dB at ±9 MHz.
 - **8812BU on USB 2, same mode** (`stream8822b.S`, DMEM +0x24; `wsdr_probe stream --gapped`): zero stale
-  banks; 20 MS/s 516 banks/s (21 %), 40 MS/s (BW40 + vendor DFIR) 579 banks/s (12 %); no centre notch on
+  banks; 20 MS/s 516 banks/s (21 %), 40 MS/s (BW40 + vendor DFIR) 579 banks/s (12 %), 80 MS/s (BW80 +
+  vendor DFIR) ~610 banks/s (6 %, `evidence/gapped-80msps.txt` §5); no centre notch on
   the 8822B (a DC spike instead, removed by the consumer's DC block); continuous 5 MS/s unchanged.
 - Use: spectrum/waterfall over wide spans (FFT within one 8192-sample bank); not for continuous IQ.
 - **The 8822B can notch its centre too** (2026-10-25, seen in wsdr-studio, not yet measured): 8812BU at
@@ -386,10 +387,12 @@ opposite-bank window, not USB average throughput. On-chip packing tops out at 3.
   stretches of the same lengths. The A−B level varies per frame (+1.1..+8.9 dB, p10..p90), so it is not
   one path copied: each antenna catches frames the other misses (ch 40: B twice A).
 - **Same USB cost as one path.** 10 s each at 40 MS/s: dma 0 and dma 4 both 318.85 MB/s, 0 stale,
-  0.8 µs worst lateness of a 184.8 µs budget. A host that writes both paths to disk from the USB
-  callback (320 MB/s), or unpacks both there, can miss the chip deadline; `wsdr_probe stream --path ab`
-  holds the raw banks in memory and unpacks afterwards (8 of 15 3-s runs clean, unexplained; path A
-  alone 17 of 17).
+  0.8 µs worst lateness of a 184.8 µs budget. Recording needs two things at 40 MS/s (measured
+  2026-10-27): 256 posted URBs (~51 banks, ~10.5 ms; with 32, ~1.3 ms, 30-s runs failed at 8.0 and
+  13.9 s, by a missed deadline or a 168-byte packet in the bank stream), and no file writes on the USB thread (a
+  write can sleep in dirty-page throttling: path A to disk missed the deadline in 4 of 4 3-s runs).
+  `wsdr_probe stream` now copies each bank into a ring and writes from its own thread: both paths,
+  3 × 30 s and 1 × 60 s, 0 faults.
 - **All rates.** 80 MS/s (BW80): snapshots show L-LTFs on both paths at all four 20 MHz centres,
   none at the controls, filter edge ±37 MHz on both. 80 MS/s cannot stream (640 MB/s), but it runs
   **gapped**: 3 s, 9701 banks, 0 stale, 212 MB/s; each 102.4 µs bank is whole and ships in ~182 µs,

@@ -103,9 +103,9 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   _caps.min_rate_sel = s->superspeed() && !cu ? 1 : 4;
   // Both streamers can also capture one bank at any rate, stop, ship and re-arm (gapped mode; on the
   // 8812CU measured at 10/20/40 MS/s: zero stale banks, ~36/22/12 % of the time sampled). An 8812BU on
-  // USB 3 streams every rate up to 40 MS/s and runs 80 MS/s gapped (33 % sampled, measured); on USB 2
-  // its 80 MS/s is untested.
-  _caps.gapped_min_rate_sel = cu || !s->superspeed() ? 1 : 0;
+  // USB 3 streams every rate up to 40 MS/s and runs 80 MS/s gapped (33 % sampled), on USB 2 too (6 %;
+  // both measured, evidence/gapped-80msps.txt).
+  _caps.gapped_min_rate_sel = cu ? 1 : 0;
   _caps.paths = 2; // the 8822B streams kDmaBothPaths8822b (path B costs no extra USB bandwidth)
   _caps.gain_step = gain_step(cu);
   _caps.gain_max = gain_max(cu);

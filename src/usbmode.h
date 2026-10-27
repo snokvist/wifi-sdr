@@ -23,5 +23,8 @@ const char *usb3_switch_name(Usb3Switch r);
 
 // The adapter at bus/port (port path "1" or "1.2"). Opens it briefly; nothing else may hold it.
 Usb3Switch request_usb3(uint16_t pid, int bus, const std::string &port, std::string *detail = nullptr);
+// Back to USB 2 without a replug (the vendor driver's 3 -> 2 switch; tests of the USB 2 paths). The
+// chip then comes up at USB 2, and request_usb3 can switch it again.
+Usb3Switch request_usb2(uint16_t pid, int bus, const std::string &port, std::string *detail = nullptr);
 
 } // namespace wsdr

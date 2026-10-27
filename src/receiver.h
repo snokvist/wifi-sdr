@@ -49,7 +49,7 @@ struct RxCaps {
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously
-  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812BU on USB 3: 0; 8812CU, USB 2: 1); 6 = none
+  int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812BU: 0; 8812CU: 1); 6 = none
   int paths = 1;            // 2: path A and path B (both chips; the 8812BU via kDmaBothPaths8822b)
   double gain_max = 0, gain_step = 1;
 };
