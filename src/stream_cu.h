@@ -49,4 +49,9 @@ private:
 inline int la_ib(uint64_t w) { return static_cast<int>(static_cast<int32_t>(static_cast<uint32_t>((w >> 44) & 0xFFF) << 20) >> 20); }
 inline int la_qb(uint64_t w) { return static_cast<int>(static_cast<int32_t>(static_cast<uint32_t>((w >> 32) & 0xFFF) << 20) >> 20); }
 
+// LA word -> path B for either chip: the 8822C (dma_type 0) at [55:32]; the 8822B with
+// kDmaBothPaths8822b at [47:24], in path A's 12+12 layout.
+inline int path_b_i(uint64_t w, bool cu) { return cu ? la_ib(w) : la_i(w >> 24); }
+inline int path_b_q(uint64_t w, bool cu) { return cu ? la_qb(w) : la_q(w >> 24); }
+
 } // namespace wsdr

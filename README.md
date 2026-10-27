@@ -34,8 +34,11 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
   ~45 dB on the 8822B and ~1.0 dB per step on the 8822C. Alternatively, the chip's own AGC can run.
 - **Tuning:** 2.4 GHz ch 1–14 and 5 GHz ch 16–233 on the 5 MHz synthesizer grid, including the ch 65–99
   gap between the UNII-2 groups (see FINDINGS). The residual (≤ 2.5 MHz) is shifted out digitally.
-- **8812CU two paths:** both paths come from the same LA word. B leads A by ~400 ns, which the stream
-  does not compensate. Once that skew is removed, the paths are phase-coherent.
+- **Two paths on both adapters:** paths A and B come from the same LA word (the 8812BU streams LA
+  dma_type 4 for that, at no extra USB cost). B leads A by ~146 ns on the 8812BU and ~400 ns on the
+  8812CU, which the stream does not compensate. Once that skew is removed, the paths are coherent
+  where nothing aliases: on the 8812BU at 40 MS/s, and at 20 MS/s below 40 MHz width. Its lower rates
+  select samples without a filter, so there A and B are two separate receivers.
 - **USB 3 depends on the host port:** one of this host's xHCI controllers (AMD `1022:15b9`) wedges
   large C2H packets. Another (`1022:15c0`) runs flawlessly. The 8812BU comes up at USB 2 after a cold
   plug. `wsdr::request_usb3()` switches it to USB 3, as rtw88 does at probe.
@@ -109,6 +112,10 @@ sudo build/wsdr_tcp --pid 0xb812 --freq-offset 5e9   # gqrx device: rtl_tcp=127.
 # Record 60 s and check continuity offline
 sudo build/wsdr_probe stream --pid 0xb812 --rate 5 --seconds 60 --out captures/s5m
 python3 tools/stream_check.py captures/s5m
+
+# 8812BU: both paths at 40 MS/s (held in memory, then written; then the two-path checks)
+sudo build/wsdr_probe stream --pid 0xb812 --channel 36 --bw 40 --rate 1 --dfir 40 --dma 4 --path ab --seconds 3 --out captures/ab
+python3 tools/bu_twopath.py captures/ab; python3 tools/bu_ab_delay.py captures/ab
 
 # 8812CU: both paths, or gapped 40 MS/s at 40 MHz width
 sudo build/wsdr_cu stream --pid 0xc812 --rate 4 --seconds 10 --path ab --out captures/cu
