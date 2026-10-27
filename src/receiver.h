@@ -6,7 +6,7 @@
 // shift), runs the chip's streamer and hands every completed 64 KiB LA bank to a sink.
 //
 // The sink runs on the stream thread, which is also the libusb event thread: it must only copy (a
-// stall there becomes a chip-side deadline fault). Unpacking (la_i/la_q, la_ib/la_qb), DC removal and
+// stall there becomes a chip-side deadline fault). Unpacking (la_i/la_q, path_b_i/path_b_q), DC removal and
 // the residual shift belong on the consumer's thread; BankMeta carries what they need.
 //
 // Faults restart the stream; an unplugged or dead adapter moves the state to Lost and the worker ends.
@@ -44,12 +44,12 @@ struct RxSettings {
 
 struct RxCaps {
   uint16_t pid = 0;
-  bool cu = false;          // RTL8822C: two paths per LA word, USB 2 rates only
+  bool cu = false;          // RTL8822C (path B elsewhere in the LA word), USB 2 rates only
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously
   int gapped_min_rate_sel = 6; // fastest rate in gapped mode (8812CU, 8812BU on USB 2: 1); 6 = none
-  int paths = 1;            // 2 on the 8812CU (A, B)
+  int paths = 1;            // 2: path A and path B (both chips; the 8812BU via kDmaBothPaths8822b)
   double gain_max = 0, gain_step = 1;
 };
 

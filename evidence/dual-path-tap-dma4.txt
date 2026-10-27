@@ -1,0 +1,94 @@
+8822B (8812BU, bus 6, USB 3) dual-path LA tap, dma_type 4 — 2026-10-27, RX only
+ch 36 primary at BW40 (centre 5190 MHz), rate_sel 1 (40 MS/s), --dfir 40, --igi 0x30 --nocca
+
+== 1. tapscan, all dma types (wsdr_probe tapscan; 16384-word snapshots, dbg 0x880)
+label dma  same_raw adj64  distinct toggle
+d0    0    0.0001   0.0002  9140     0x0000000000ffffff
+d1    1    0.0003   0.0007  5776     0x0000000000ffffff
+d4    4    0.0      0.0     16372    0x0000ffffffffffff
+d5    5    0.0      0.0     16371    0x0000ffffffffffff
+d6    6    0.0      0.0     15505    0x000000ffffffffff
+d7    7    0.0      0.0     13906    0x000000ffffffffff
+d8    8    0.0018   0.0035  1113     0x00000000000fffff
+d9    9    0.0052   0.0065  840      0x00000000000fffff
+d10   10   0.0001   0.0002  8137     0x00000000ffffffff
+d11   11*  0.0      0.0     16243    0xffffffffffffffff   (*rate_sel 0)
+
+== 2. Which path each half is: per-ADC fingerprints, 12+12-bit IQ at bit 0 and bit 24
+(median per-snapshot DC; floor = median PSD |f| < 5 MHz; -6 dB edge; level at 15 MHz vs floor)
+dma0          DC -17.0 +6.5j  floor 50.8 dB  edge +19.1 MHz  @15 MHz -3.2 dB  dup 0.0002
+dma1          DC  +5.3 +10.7j floor 48.0 dB  edge +18.8 MHz  @15 MHz -3.4 dB  dup 0.0005
+dma4 [23:0]   DC -17.1 +6.3j  floor 50.0 dB  edge +19.1 MHz  @15 MHz -3.2 dB  dup 0.0003
+dma4 [47:24]  DC  +5.2 +10.6j floor 47.6 dB  edge +18.8 MHz  @15 MHz -3.4 dB  dup 0.0005
+dma5 [23:0]   DC -17.1 +6.4j  floor 50.0 dB  edge +19.1 MHz  @15 MHz -3.3 dB  dup 0.0003
+dma5 [47:24]  DC  +5.2 +10.6j floor 47.5 dB  edge +18.8 MHz  @15 MHz -3.3 dB  dup 0.0005
+=> [23:0] = path A (= dma 0), [47:24] = path B (= dma 1); both post-DFIR, genuine 40 MS/s.
+
+== 3. Continuous streaming, 10 s each (wsdr_probe stream --seconds 10, no file)
+dma 0: ok 1, 48828 banks, 318.85 MB/s, stale 0, late_max 0.8 us of a 184.8 us budget
+dma 4: ok 1, 48828 banks, 318.85 MB/s, stale 0, late_max 0.8 us of a 184.8 us budget
+Writing both paths to disk from the USB callback (320 MB/s) missed the chip deadline after 142
+banks; path A alone to disk ran 3 s clean. --path ab now holds the run in memory: 3 s, ok 1,
+14648 banks, stale 0.
+
+== 4. Two-path check on those 3 s (wsdr_probe stream --dma 4 --path ab; tools/bu_twopath.py)
+L-LTFs found on each path on its own (both = within 2 us of each other; conj = orientation control):
+  -10 MHz (ch 36): A 199, B 232, both 168, conj 0 / 0
+  +10 MHz (ch 40): A  68, B 145, both  62, conj 0 / 0
+    0 MHz (control, between channels): 0 / 0 / 0
+Cross-spectral A/B coherence, median over the band: 341 frames median 0.72 (p10 0.33); noise-only
+stretches of the same lengths (83) median 0.41 (p90 0.45).
+A minus B level per frame: p10 / p50 / p90 = +1.1 / +3.4 / +8.9 dB (varies frame to frame: two
+antennas fading independently, not one path copied with a gain).
+
+== 5. Other rates (same session layout; tapscan snapshots for 80 MS/s, which cannot stream)
+80 MS/s (BW80, ch 36 primary = centre 5210, --dfir 80, rate 0), 150 snapshots of dma 4:
+  L-LTF hits (conj) at -30/-20/-10/0/+10/+20/+30 MHz: A 4(0)/0/4(0)/0/7(0)/0/1(0),
+  B 7(0)/0/7(0)/0/6(0)/0/6(0): only at the four 20 MHz channel centres, on both paths.
+  dma0   DC -20.1 +7.7j  floor 54.4  edge +37.3 MHz   dma4 A  DC -20.0 +7.7j  floor 53.9  edge +37.5
+  dma1   DC  +6.5 +12.3j floor 50.8  edge +37.2 MHz   dma4 B  DC  +6.3 +12.2j floor 51.2  edge +36.9
+20 MS/s (BW20, ch 36, devourer DFIR, rate 2), 150 snapshots: L-LTF A 20 (conj 0), B 24 (conj 0).
+  dma0   DC -17.1 +5.6j  floor 47.2                   dma4 A  DC -17.1 +5.6j  floor 47.1
+  dma1   DC  +4.8 +10.3j floor 44.9                   dma4 B  DC  +4.8 +10.3j floor 45.0
+Streaming dma 4, 5 s each: rate 2/3/4/5 (20/10/5/2.5 MS/s) and gapped at 40 MS/s all ok 1, 0 stale,
+late_max 0.8 us (gapped 0.2).
+At 5 MS/s (sample selection of the 80 MS/s words, no anti-alias filter) path B is live (rms 1341
+vs A 1982) but A/B coherence on loud 8 us windows is only 0.18 (quiet 0.13): the whole band folds
+in and the 148 ns skew below decorrelates it; it cannot be aligned out at that rate.
+
+== 6. A/B skew from L-LTF channel estimates (tools/bu_ab_delay.py, 3 s at 40 MS/s each)
+Per frame found on both paths: tau maximising |sum_k H_A conj(H_B) e^(-j2 pi k tau/64)|; frames
+whose peak (fit quality) > 0.8:
+  dma 4: ch 36 half 82 frames, median -148 ns, IQR -148..-147; ch 40 half 24 frames, -144 ns, IQR -145..-143
+  dma 5: ch 36 half 103 frames, -148 ns, IQR -149..-147; ch 40 half 48 frames, -144 ns, IQR -144..-143
+=> path B leads path A by ~146 ns (5.9 samples at 40 MS/s), the same across transmitters, both
+   halves and both formats. (The 8822C's is ~370-400 ns.) dma 5 matched dma 4 at 40 MS/s.
+A --path ab recording that unpacked both paths on the USB thread missed the deadline once at
+0.23 s; holding raw banks and unpacking afterwards ran 3 of 3 runs clean (but see section 7: 8 of 15).
+
+== Not covered
+One unit. Which physical connector is path A (the antennas are soldered). What, if anything,
+distinguishes dma 5 from dma 4.
+
+== 7. Review follow-up (same unit, same session layout, 3 s each, tools/bu_twopath.py)
+Frame coherence median (p10) vs noise stretches of the same lengths median (p90), 6.4 us FFT segments
+(nfft 256 at 40 MS/s as in section 4; 128 at 20, 512 at 80):
+  40 MS/s BW40, streamed (2nd run): 382 frames 0.64 (0.48) vs 0.44 (0.67); L-LTF ch 36 A 360 / B 174 /
+    both 165, ch 40 A 101 / B 75 / both 47, centre 0, conj 0
+  20 MS/s BW20, streamed:           175 frames 0.92 (0.83) vs 0.36 (0.44); L-LTF A 177 / B 127 / both 123,
+    conj 0
+  40 MS/s BW40, gapped (7298 banks, 1.495 s captured, 0 stale): 219 frames 0.64 (0.56) vs 0.38 (0.57);
+    L-LTF ch 36 both 80, ch 40 both 34, centre 0, conj 0
+  80 MS/s BW80 --dfir 80 rate 0, gapped (9701 banks, 0.993 s captured, 0 stale, 211.9 MB/s, ship_max
+    182 us): 660 frames 0.77 (0.45) vs 0.41 (0.58); L-LTF on both at -30/-10/+10/+30 MHz: 103/208/85/70,
+    centre 0, conj 0 except B at +30 MHz: 10 (of 215)
+Gapped 80 MS/s, path A, 5 s: 16247 banks (3249/s, 33 % of the time captured), 0 stale; -6 dB edges
+-39.6 / +37.6 MHz, adjacent duplicates 0.0003, L-LTFs only at the four 20 MHz centres (conj 0).
+SoapySDR, 8812BU, 40 MS/s, tools/soapy_check.py --seconds 30: channel 0 alone and channels 0,1 both
+1198 M samples in 30 s, 0 overflows / timeouts / errors; retune + gain segment and re-open clean.
+Reliability of the held recorder (wsdr_probe stream --path ab, continuous 40 MS/s, 3 s, same
+afternoon, partly interleaved with path-A runs): 8 of 15 clean (a 16th run's result was not
+captured). Failures: 3 x "framing: ... part 3 len 168 desc 90.00.00.80..." (a 168-byte C2H packet in
+the bank stream), 3 x deadline (360-570 us late), 1 not printed; at banks 1138..12672. Path A alone (no hold, no file) 17 of 17 clean, 5 of them while another process
+held 1 GiB; held 1 s runs 2 of 2. Not explained; the Receiver and Soapy do not hold, and two-channel
+Soapy ran 30 s clean. Use short held runs and check "ok".

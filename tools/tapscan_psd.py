@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Noise-floor width / liveness of LA ring dumps (wsdr_probe tapscan -> PREFIX-label.u64).
 
-usage: tapscan_psd.py [--json tapscan.jsonl] [--fs 40e6] [--layout iq12|a8x2|b8x2|a8|b8] [--plot out.png] FILE.u64...
+usage: tapscan_psd.py [--json tapscan.jsonl] [--fs 40e6] [--layout iq12|b12|hi12|a8x2|b8x2|a8|b8]
+                      [--plot out.png] FILE.u64...
 
 Per file: decode (layout iq12: I=[11:0], Q=[23:12], 12-bit signed), median Welch PSD (Hann, 512),
 reference level = median over |f| < 4 MHz (DC bin excluded), and the -3 / -10 dB edges found by walking
@@ -27,12 +28,13 @@ def b8(w, k):
 
 
 # Samples per 64-bit LA word for each layout.
-SPW = {"iq12": 1, "hi12": 1, "a8x2": 2, "b8x2": 2, "a8": 1, "b8": 1}
+SPW = {"iq12": 1, "b12": 1, "hi12": 1, "a8x2": 2, "b8x2": 2, "a8": 1, "b8": 1}
 
 
 def decode(w, layout):
-    """iq12: dma 0/1, I=[11:0] Q=[23:12]. a8x2 / b8x2: dma 11, int8 I,Q; path A = bytes 0-3, path B =
-    bytes 4-7, two samples per word, time order (bytes 2,3) then (bytes 0,1) -> 2x the word rate.
+    """iq12: dma 0/1 (and dma 4 path A), I=[11:0] Q=[23:12]. b12: dma 4 path B, I=[35:24] Q=[47:36].
+    a8x2 / b8x2: dma 11, int8 I,Q; path A = bytes 0-3, path B = bytes 4-7, two samples per word,
+    time order (bytes 2,3) then (bytes 0,1) -> 2x the word rate.
     a8 / b8: dma 10, int8 I,Q, path A = bytes 0,1, path B = bytes 2,3, one sample per word."""
     if layout in ("a8x2", "b8x2"):
         o = 0 if layout == "a8x2" else 4
@@ -44,6 +46,8 @@ def decode(w, layout):
         return b8(w, o) + 1j * b8(w, o + 1)
     if layout == "iq12":
         return s12(w) + 1j * s12(w >> 12)
+    if layout == "b12":  # 8822B dma 4: path B, the same 12+12 layout 24 bits up
+        return s12(w >> 24) + 1j * s12(w >> 36)
     if layout == "hi12":  # 8822C-style path B position
         return s12(w >> 44) + 1j * s12(w >> 32)
     raise SystemExit("unknown layout " + layout)

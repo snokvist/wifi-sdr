@@ -65,9 +65,10 @@ checks put the 5180 AP in the wrong place. Use `--channel 36 --bw 80` for a 5210
 | dma | live bits | decode | status |
 |---|---|---|---|
 | 0 | 24 | path A I[11:0] Q[23:12], post-DFIR | measured |
-| 1 | 24 | 12+12 IQ, post-DFIR (devourer: path B with 0xa80) | path not checked |
+| 1 | 24 | path B 12+12 IQ, post-DFIR | measured (2026-10-27: = dma 4's B half) |
 | 2, 3, 12–15 | none | static | measured |
-| 4, 5 | 48 | inferred: A 12+12 in [23:0], B 12+12 in [47:24], both ±39 MHz | inferred |
+| 4 | 48 | A 12+12 in [23:0], B 12+12 in [47:24], post-DFIR; B leads A by ~146 ns | measured at 20/40/80 MS/s (`dual-path-tap-dma4.txt`) |
+| 5 | 48 | same as 4 in every measure taken | measured; difference unknown |
 | 6, 7 | 40 | inferred: A and B as 10+10 | inferred |
 | 8, 9 | 20 | inferred: one path, 10+10 | inferred |
 | 10 | 32 | inferred: A and B int8 I,Q at 80 MS/s, pre-DFIR, flat to Nyquist | inferred |
@@ -107,9 +108,8 @@ tools/coord.sh unlock 8812bu claude
 
 ## Uncertain / not done
 
-- The decodes of dma 1 and 4–10 are inferred from bit statistics and floor shape. A two-path L-LTF check on
-  dma 4 would confirm a coherent 2-path 12-bit 80 MS/s tap at the same 8 B per word. That would be the
-  cheapest way to get path B into the streamer.
+- The decodes of dma 6–10 are inferred from bit statistics and floor shape. dma 1, 4 and 5 are measured
+  (2026-10-27, FINDINGS "8822B dual-path tap"): dma 4 streams both paths at 40 MS/s at 8 B per word.
 - What 0x948 and 0x94c encode internally (stage order, coefficient sets) is not known. Only the measured
   input → output table exists.
 - The effect on normal 40/80 MHz frame reception of devourer's BW20-only DFIR is not tested. The vendor and the

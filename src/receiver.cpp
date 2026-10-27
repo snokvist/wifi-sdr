@@ -99,7 +99,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   // 8812CU measured at 10/20/40 MS/s: zero stale banks, 11-21 % of the time sampled). Not needed
   // on an 8812BU on USB 3, which streams every rate continuously.
   _caps.gapped_min_rate_sel = cu || !s->superspeed() ? 1 : 6; // 8812BU on USB 2 too
-  _caps.paths = cu ? 2 : 1;
+  _caps.paths = 2; // the 8822B streams kDmaBothPaths8822b (path B costs no extra USB bandwidth)
   _caps.gain_step = gain_step(cu);
   _caps.gain_max = gain_max(cu);
   _hw_channel = o.channel;
@@ -249,6 +249,8 @@ void Receiver::worker() {
     c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _caps.cu);
     c.la.no_cca = !cur.agc;
     c.la.dfir = !_caps.cu && width == 40 ? 40 : 0; // 0 leaves devourer's DFIR (8822B: BW20 set; 8822C: per width)
+    if (!_caps.cu)
+      c.la.dma_type = kDmaBothPaths8822b;
     c.gapped = cur.rate_sel < _caps.min_rate_sel;
     BankMeta meta;
     meta.gen = gen;

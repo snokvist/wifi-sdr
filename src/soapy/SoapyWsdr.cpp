@@ -19,12 +19,16 @@
 //                the whole +-20 MHz is real (bandwidth 40 MHz; setBandwidth <= 25 MHz forces the 20 MHz
 //                path). Below 40 MS/s it stays at 20 MHz width (bandwidth min(rate, 18.4 MHz)):
 //                devourer's BW20 DFIR is what limits the band (FINDINGS §4, notes/wide-tap.md)
-//   8812CU       USB 2 only here: 2.5 / 5 MS/s, 20 MHz path. Two coherent RX channels (0 = path A,
-//                1 = path B, from the same LA word; B leads A by ~400 ns, not compensated)
+//   8812CU       USB 2 only here: 2.5 / 5 MS/s, 20 MHz path.
+//   channels     two RX channels on both chips: 0 = path A, 1 = path B, from the same LA word (the
+//                8812BU streams LA dma_type 4 for that). B leads A, not compensated: ~146 ns on the
+//                8812BU, ~370-400 ns on the 8812CU. On the 8812BU coherent at 40 MS/s and at 20 MS/s
+//                (20 MHz width, as here); its lower rates select samples without a filter, so there
+//                the two channels are separate receivers
 //   gain         one element "IGI", 0..49 dB in ~0.95 dB steps (8812CU: 0..52 dB, ~1.0 dB; fixed-gain
 //                mode, OFDM CCA off);
 //                gain mode "automatic" hands gain to the chip's AGC (gain steps during frames)
-//   format       CS16 (native: 12-bit << 4) or CF32 (/2048); 8812BU: one RX channel (path A); DC removed
+//   format       CS16 (native: 12-bit << 4) or CF32 (/2048); DC removed
 //                unless DC offset mode is turned off
 // Every setting change restarts the stream (tens of ms; ~150 ms for a retune), so the chip is never
 // touched while it streams. USB 3 works on a good host controller (here xHCI 67:00.3; 65:00.3 wedges
@@ -161,7 +165,7 @@ private:
 
 struct WsdrStream {
   std::string format;
-  std::vector<size_t> channels; // 0 = path A, 1 = path B (8812CU)
+  std::vector<size_t> channels; // 0 = path A, 1 = path B
 };
 
 SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args);
@@ -209,7 +213,7 @@ public:
   std::string getHardwareKey() const override { return _cu ? "RTL8822C" : "RTL8822B"; }
   SoapySDR::Kwargs getHardwareInfo() const override {
     return {{"chip", _s->chip()}, {"usb", _s->superspeed() ? "3" : "2"},
-            {"path", _cu ? "A (ch 0), B (ch 1); B leads A by ~400 ns" : "A"},
+            {"path", std::string("A (ch 0), B (ch 1); B leads A by ") + (_cu ? "~370-400 ns" : "~146 ns")},
             {"source", "LA ring, C2H bank streamer"}};
   }
 
@@ -236,7 +240,7 @@ public:
     std::vector<size_t> chans = channels.empty() ? std::vector<size_t>{0} : channels;
     for (size_t i = 0; i < chans.size(); i++)
       if (chans[i] >= nch() || std::count(chans.begin(), chans.end(), chans[i]) > 1)
-        throw std::runtime_error(nch() == 1 ? "wsdr: one channel (0)" : "wsdr: channels 0 (path A) and/or 1 (path B)");
+        throw std::runtime_error("wsdr: channels 0 (path A) and/or 1 (path B)");
     std::lock_guard<std::mutex> l(_streamm);
     if (_stream)
       throw std::runtime_error("wsdr: stream already open");
@@ -403,7 +407,7 @@ private:
   // USB 2 carries ~44 MB/s of C2H (5 MS/s at 8 B/sample); USB 3 carries 40 MS/s (320 MB/s). The
   // 8812CU streamer is verified on USB 2 only.
   int min_rate_sel() const { return _s->superspeed() && !_cu ? 1 : 4; }
-  size_t nch() const { return _cu ? 2 : 1; }
+  size_t nch() const { return 2; } // paths A and B (8812BU: LA dma_type 4)
 
   Settings get() const {
     std::lock_guard<std::mutex> l(_setm);
@@ -482,13 +486,16 @@ private:
       c.la.igi = cur.agc ? -1 : igi_for(cur.gain_db, _cu);
       c.la.no_cca = !cur.agc;
       c.la.dfir = width == 40 ? 40 : 0; // 0 leaves devourer's BW20 DFIR (the 20 MHz path); 8822B only
+      if (!_cu)
+        c.la.dma_type = kDmaBothPaths8822b; // paths A and B in one word
       const auto on_bank = [&](const uint8_t *bank, const BankInfo &) {
         for (size_t i = 0; i < kN; i++) {
           uint64_t v;
           std::memcpy(&v, bank + 8 * i, 8);
           for (size_t k = 0; k < w; k++)
-            x[k][i] = chans[k] == 0 ? cf(static_cast<float>(la_i(v)), static_cast<float>(la_q(v)))
-                                    : cf(static_cast<float>(la_ib(v)), static_cast<float>(la_qb(v)));
+            x[k][i] = chans[k] == 0
+                          ? cf(static_cast<float>(la_i(v)), static_cast<float>(la_q(v)))
+                          : cf(static_cast<float>(path_b_i(v, _cu)), static_cast<float>(path_b_q(v, _cu)));
         }
         for (size_t k = 0; k < w; k++) {
           if (cur.dc_remove)
