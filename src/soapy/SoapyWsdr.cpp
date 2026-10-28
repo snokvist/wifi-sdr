@@ -8,7 +8,7 @@
 //   gqrx: device string  soapy=0,driver=wsdr      SDR++: SoapySDR source, device "wsdr"
 //   adapter: pid=0xb812 (8812BU, the default when both are plugged in) or pid=0xc812 (8812CU);
 //            bus=N [port=P] picks one of several (as SoapySDRUtil --find lists them)
-// The client opens the adapter itself, so it needs USB access: install tools/99-wsdr.rules (udev) or
+// The client opens the adapter itself, so it needs USB access: install tools/70-wsdr.rules (udev) or
 // run the client as root. Keep the rtw88 guard ON so the kernel driver does not claim the adapter.
 //
 // What the client sees:

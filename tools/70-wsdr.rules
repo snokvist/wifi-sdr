@@ -1,6 +1,7 @@
 # wifi-sdr: let the logged-in user (and the plugdev group) open the Realtek adapters with libusb,
+# (numbered before 73-seat-late.rules, where the uaccess tag is applied: a later rule never gets it),
 # so SoapySDR clients (gqrx, SDR++) can load the "wsdr" module without root.
-#   sudo cp tools/99-wsdr.rules /etc/udev/rules.d/ && sudo udevadm control --reload && replug
+#   sudo cp tools/70-wsdr.rules /etc/udev/rules.d/ && sudo udevadm control --reload && replug
 # Keep the rtw88 guard ON (tools/rtw88_guard.sh on): this rule only grants access; it does not stop
 # the in-kernel rtw88 driver from claiming the adapter (and switching the 8812BU to USB 3).
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="b812", TAG+="uaccess", MODE="0660", GROUP="plugdev"
