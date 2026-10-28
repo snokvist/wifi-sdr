@@ -103,7 +103,7 @@ sudo tools/rtw88_guard.sh off     # restore the normal drivers when done
 work without root:
 
 ```sh
-sudo cp tools/99-wsdr.rules /etc/udev/rules.d/ && sudo udevadm control --reload   # then replug
+sudo cp tools/70-wsdr.rules /etc/udev/rules.d/ && sudo udevadm control --reload   # then replug
 ```
 
 **3. Pick a front end.**
