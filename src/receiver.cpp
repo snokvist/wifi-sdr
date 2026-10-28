@@ -310,19 +310,26 @@ void Receiver::worker() {
     }
     if (ss.error.empty() || _restart || !_active)
       continue; // settings change or stop
+    // The count and the reason change together: a status() read between them would show a new
+    // restart with the old (or no) text, and the reason is the only record of why.
+    RxState next = RxState::Starting;
+    std::string why = "stream fault (restarting): " + ss.error;
+    if (!_s->reg().alive()) {
+      next = RxState::Lost;
+      why = "adapter lost: " + ss.error;
+    } else if (++consecutive_faults >= 5) {
+      next = RxState::Error;
+      why = "stream keeps failing: " + ss.error;
+    }
     {
       std::lock_guard<std::mutex> l(_m);
       _st.restarts++;
+      _st.state = next;
+      _st.error = why;
+      _st.last_fault = why;
     }
-    if (!_s->reg().alive()) {
-      set_state(RxState::Lost, "adapter lost: " + ss.error);
+    if (next != RxState::Starting)
       break;
-    }
-    if (++consecutive_faults >= 5) {
-      set_state(RxState::Error, "stream keeps failing: " + ss.error);
-      break;
-    }
-    set_state(RxState::Starting, "stream fault (restarting): " + ss.error);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }

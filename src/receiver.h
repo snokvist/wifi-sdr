@@ -79,6 +79,8 @@ struct RxStatus {
   int channel = 0, width = 20;
   double centre_hz = 0, fs = 0;
   std::string error;     // last fault (cleared on a clean run start)
+  std::string last_fault; // why the stream last restarted; kept until the next open (error is cleared
+                          // ~100 ms later by the first clean bank, before a poll can read it)
   uint32_t gen = 0, cfg = 0; // run / settings generation of the current stream (as in BankMeta)
   bool running = false;  // the worker is alive (false after Lost/Error ended it, or stop())
   bool settling = false; // a settings change is waiting to be applied (the run above is about to end)
