@@ -103,8 +103,11 @@ sudo tools/rtw88_guard.sh off     # restore the normal drivers when done
 work without root:
 
 ```sh
-sudo cp tools/70-wsdr.rules /etc/udev/rules.d/ && sudo udevadm control --reload   # then replug
+sudo cp tools/70-wsdr.rules /etc/udev/rules.d/ && sudo rm -f /etc/udev/rules.d/99-wsdr.rules && sudo udevadm control --reload   # then replug
 ```
+
+(`99-wsdr.rules` is the rule's old name: numbered 99 it ran after `73-seat-late.rules`, where `uaccess`
+is turned into an ACL, so only `plugdev` members could open the adapters.)
 
 **3. Pick a front end.**
 
