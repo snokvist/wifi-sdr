@@ -31,6 +31,9 @@ namespace wsdr {
 
 constexpr uint16_t kPid8812bu = 0xb812;
 constexpr uint16_t kPid8812cu = 0xc812;
+constexpr uint16_t kPid8812eu = 0xa81a; // RTL8812EU (RTL8822E): runs the 8822C code unchanged (notes/cu-custom-code.md)
+// The Jaguar3 adapters (8822C, 8822E): the 8822C LA dialect, loader, streamer and gain map throughout.
+inline bool jaguar3_pid(uint16_t pid) { return pid == kPid8812cu || pid == kPid8812eu; }
 
 struct RxSettings {
   double freq = 5180e6; // requested centre
@@ -45,7 +48,7 @@ struct RxSettings {
 
 struct RxCaps {
   uint16_t pid = 0;
-  bool cu = false;          // RTL8822C (path B elsewhere in the LA word), USB 2 rates only
+  bool cu = false;          // Jaguar3 (RTL8822C / RTL8822E: path B elsewhere in the LA word), USB 2 rates only
   bool superspeed = false;
   std::string chip;
   int min_rate_sel = 5;     // fastest rate streamed continuously

@@ -64,3 +64,27 @@ CMake via `cmake/cu.cmake`). [V] = measured here, [I] = inferred.
 - [V] Gapped mode (`--gapped`, DMEM +0x20): arm / wait one bank / stop / ship bank 0 / re-arm; zero
   stale banks at 5/20/40 MS/s; at BW40 the 8822C's filter is flat to ±17 MHz (FINDINGS, gapped section).
 - Open: rtl_tcp front end.
+
+## RTL8812EU (RTL8822E, `0bda:a81a`): the same code, unchanged (2026-10-29)
+
+Measured on an 8812EU (USB 2 only, no 2.4 GHz front end), `--pid 0xa81a`:
+- [V] **Loader:** devourer's 8822E NIC firmware (v1.30) carries the *same* 0x3c-byte IMEM entry stub as the
+  8822C image (byte-identical, FNV 0xc113f9dbb3211775), at the same IMEM address 0x80030000 and DMEM
+  0x80200000, so `Cpu8822c` splices without change. `marker`: magic 0xCAFE0C22, 5.33 M loops/s, REG 0x568
+  = µs (206,620 µs over 206,629 µs wall), ISA quirks identical (`evidence/phase6/eu-marker.jsonl`).
+- [V] **C2H:** `c2hbench` 1024/1024 verified, 363 µs mean per 16 KiB packet, 44.73 MB/s (USB 2 wire limit, as the
+  8812CU; `evidence/phase6/eu-c2hbench.jsonl`). The `--cap 4` EP0 block cap is kept (not re-probed).
+- [V] **Streamer:** `stream --rate 4 --path ab`: 20 s / 12,207 banks, zero faults, 1,484 µs ship, 134 µs
+  margin (`evidence/phase6/eu-stream-5msps.jsonl`). Gapped at 10 / 20 MS/s (BW20) and 20 / 40 MS/s
+  (`--bw 40`): zero stale banks. `Receiver` (wsdr_rxtest): 10 s at 5 MS/s with a retune, gapped 40 MS/s
+  at 40 MHz width, zero restarts (`evidence/phase6/eu-rxtest-*.jsonl`).
+- [V] **Band flatness at BW40 (40 MS/s):** −0.1 / −0.4 dB at ±15–17 MHz (path A), as the 8822C.
+- [V] **Centre notch:** none at 5 MS/s. At 10 and 20 MS/s (BW20) one narrow dip (~100 kHz, −10 to −13 dB)
+  at 0 Hz; at BW40 (20 and 40 MS/s) a ~−10 dB dip over about ±1.5 MHz. Path B carries a DC spike
+  (+16–20 dB in the DC bin at every rate; DC removal takes it out).
+- [V] **2.4 GHz:** devourer tunes it (ch 6 brings up, PA bias, IQK), the stream runs, but both paths sit at
+  the ADC floor (rms 7.5 / 18 against ~150 on 5 GHz): the board has no 2.4 GHz front end (no PA, and
+  the DPDT/eFEM routing is 5 GHz). Front ends should offer 5 GHz only.
+- Gain: `gain_step(cu)` (1.0 dB/step, the 8822C figure) is assumed, not re-measured on the 8822E.
+- The kernel's out-of-tree `rtl88x2eu` driver binds the adapter at plug-in; `Session::open` detaches it.
+  `tools/70-wsdr.rules` grants access to `a81a` as well.

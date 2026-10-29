@@ -6,7 +6,7 @@
 //   export SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy
 //   SoapySDRUtil --find=driver=wsdr
 //   gqrx: device string  soapy=0,driver=wsdr      SDR++: SoapySDR source, device "wsdr"
-//   adapter: pid=0xb812 (8812BU, the default when both are plugged in) or pid=0xc812 (8812CU);
+//   adapter: pid=0xb812 (8812BU, the default when several are plugged in), pid=0xc812 (8812CU) or pid=0xa81a (8812EU);
 //            bus=N [port=P] picks one of several (as SoapySDRUtil --find lists them)
 // The client opens the adapter itself, so it needs USB access: install tools/70-wsdr.rules (udev) or
 // run the client as root. Keep the rtw88 guard ON so the kernel driver does not claim the adapter.
@@ -68,6 +68,7 @@ namespace {
 constexpr uint16_t kVid = 0x0bda;
 constexpr uint16_t kPid8812bu = 0xb812;
 constexpr uint16_t kPid8812cu = 0xc812;
+constexpr uint16_t kPid8812eu = 0xa81a; // RTL8822E: the 8822C path throughout
 // Measured dB per IGI step: 8822B 0.95, 8822C ~1.0 (FINDINGS §4). Range IGI 0x1C..0x50.
 constexpr double kGainStepB = 0.95, kGainStepC = 1.0;
 double gain_step(bool cu) { return cu ? kGainStepC : kGainStepB; }
@@ -194,7 +195,7 @@ public:
     }
     if (args.count("port"))
       o.port = args.at("port");
-    _cu = o.pid == kPid8812cu;
+    _cu = o.pid == kPid8812cu || o.pid == kPid8812eu;
     o.channel = channel_for(_set.freq);
     o.thermal_track = false; // no host register traffic while streaming
     _s = std::make_unique<Session>(std::make_shared<Logger>());
@@ -210,7 +211,7 @@ public:
 
   // ---- identification ----
   std::string getDriverKey() const override { return "wsdr"; }
-  std::string getHardwareKey() const override { return _cu ? "RTL8822C" : "RTL8822B"; }
+  std::string getHardwareKey() const override { return _s->chip(); } // RTL8822B / RTL8822C / RTL8822E
   SoapySDR::Kwargs getHardwareInfo() const override {
     return {{"chip", _s->chip()}, {"usb", _s->superspeed() ? "3" : "2"},
             {"path", std::string("A (ch 0), B (ch 1); B leads A by ") + (_cu ? "~370-400 ns" : "~146 ns")},
@@ -523,7 +524,7 @@ private:
   }
 
   std::unique_ptr<Session> _s;
-  bool _cu = false;              // RTL8812CU (8822C)
+  bool _cu = false;              // RTL8812CU / RTL8812EU (Jaguar3)
   std::vector<size_t> _chans{0}; // channels of the active stream
   int _channel = 36;
   int _width = 20;
@@ -549,9 +550,8 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
   for (ssize_t i = 0; i < n; i++) {
     libusb_device_descriptor d{};
     if (libusb_get_device_descriptor(list[i], &d) != 0 || d.idVendor != kVid ||
-        (d.idProduct != kPid8812bu && d.idProduct != kPid8812cu))
+        (d.idProduct != kPid8812bu && d.idProduct != kPid8812cu && d.idProduct != kPid8812eu))
       continue;
-    const bool cu = d.idProduct == kPid8812cu;
     char pid[8];
     std::snprintf(pid, sizeof pid, "0x%04x", d.idProduct);
     if (args.count("pid") && std::stoul(args.at("pid"), nullptr, 0) != d.idProduct)
@@ -569,7 +569,8 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
       continue;
     SoapySDR::Kwargs k;
     k["driver"] = "wsdr";
-    k["label"] = std::string(cu ? "RTL8812CU (RTL8822C)" : "RTL8812BU (RTL8822B)") + " :: bus " + bus + " port " + port +
+    k["label"] = std::string(d.idProduct == kPid8812cu ? "RTL8812CU (RTL8822C)" : d.idProduct == kPid8812eu ? "RTL8812EU (RTL8822E)" : "RTL8812BU (RTL8822B)") +
+                 " :: bus " + bus + " port " + port +
                  (ss ? " (USB 3)" : " (USB 2)");
     k["pid"] = pid;
     k["bus"] = bus;

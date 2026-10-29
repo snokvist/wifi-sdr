@@ -47,4 +47,4 @@ Newest at the bottom. Resolved entries are marked, never deleted.
 ### N5 — 2026-10-25 — (stretch) an RTL8812EU module
 - **Need:** an RTL8812EU (waybeam air-unit radio) on USB, only when Phases 3–5 are done.
 - **Unblocks:** Phase 6.
-- **Status:** OPEN (not urgent)
+- **Status:** RESOLVED 2026-10-29 — 8812EU (0bda:a81a, 5 GHz only) plugged in; it runs the 8822C code unchanged (notes/cu-custom-code.md, "RTL8812EU").

@@ -19,8 +19,12 @@ The evidence is under [`evidence/`](evidence/), and the details are in [FINDINGS
 | RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 2 | 2.5, 5 MS/s | up to 80 MS/s | A + B² |
 | RTL8812BU `0bda:b812` | RTL8822B (Jaguar2) | USB 3 | 2.5 – 40 MS/s | 80 MS/s | A + B |
 | RTL8812CU `0bda:c812` | RTL8822C (Jaguar3) | USB 2 only¹ | 2.5, 5 MS/s | up to 40 MS/s | A + B, coherent |
+| RTL8812EU `0bda:a81a` | RTL8822E (Jaguar3) | USB 2 | 2.5, 5 MS/s | up to 40 MS/s | A + B |
 
 ¹ The efuse on this 8812CU board disables USB 3.
+The 8812EU runs the 8822C code unchanged (same firmware entry stub, LA ring, C2H map and streamer; 20 s
+runs at 5 MS/s with zero faults, `evidence/phase6/`). Its board has no 2.4 GHz front end: the chip tunes
+there, but streams the ADC floor. Use it on 5 GHz.
 ² Same chip setting as on USB 3; the two-path measurements were made on USB 3.
 
 - **Continuous** means every sample with zero faults over 60 s runs. A separate offline check
@@ -112,7 +116,7 @@ is turned into an ACL, so only `plugdev` members could open the adapters.)
 **3. Pick a front end.**
 
 ```sh
-# gqrx / SDR++ via SoapySDR (pid=0xc812 selects the 8812CU; the 8812BU is the default)
+# gqrx / SDR++ via SoapySDR (pid=0xc812 selects the 8812CU, pid=0xa81a the 8812EU; the 8812BU is the default)
 SOAPY_SDR_PLUGIN_PATH=$PWD/build-soapy gqrx          # device string: soapy=0,driver=wsdr
 
 # rtl_tcp: rtl_tcp sends frequency as a u32, so use an offset and set gqrx's LNB LO to 5000 MHz
@@ -126,7 +130,7 @@ python3 tools/stream_check.py captures/s5m
 sudo build/wsdr_probe stream --pid 0xb812 --channel 36 --bw 40 --rate 1 --dfir 40 --dma 4 --path ab --seconds 3 --out captures/ab
 python3 tools/bu_twopath.py captures/ab; python3 tools/bu_ab_delay.py captures/ab
 
-# 8812CU: both paths, or gapped 40 MS/s at 40 MHz width
+# 8812CU (8812EU: --pid 0xa81a): both paths, or gapped 40 MS/s at 40 MHz width
 sudo build/wsdr_cu stream --pid 0xc812 --rate 4 --seconds 10 --path ab --out captures/cu
 sudo build/wsdr_cu stream --pid 0xc812 --rate 1 --gapped --bw 40 --seconds 5
 

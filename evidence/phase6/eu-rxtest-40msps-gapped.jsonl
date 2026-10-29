@@ -1,0 +1,8 @@
+{"ev":"open","ok":1,"chip":"RTL8822E","cu":1,"superspeed":0,"min_rate_sel":4,"paths":2,"gain_max":52.0}
+{"ev":"status","state":"streaming","banks":493,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"status","state":"streaming","banks":1078,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"status","state":"streaming","banks":1664,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"status","state":"streaming","banks":2249,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"status","state":"streaming","banks":2835,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"status","state":"streaming","banks":3420,"restarts":0,"channel":36,"width":40,"centre":5190000000,"fs":40000000,"error":""}
+{"ev":"rxtest","banks":3421,"msps":4.67,"gens":1,"restarts":0,"sink_mean_us":1.93,"sink_max_us":28.6,"state":"closed","error":""}

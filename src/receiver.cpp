@@ -77,7 +77,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
     _st = {};
     _st.state = RxState::Opening;
   }
-  const bool cu = pid == kPid8812cu;
+  const bool cu = jaguar3_pid(pid); // 8812CU and 8812EU: the 8822C path throughout
   OpenOpts o;
   o.pid = pid;
   o.bus = bus;
@@ -99,7 +99,7 @@ void Receiver::open(uint16_t pid, const RxSettings &initial, int bus, const std:
   _caps.cu = cu;
   _caps.superspeed = s->superspeed();
   _caps.chip = s->chip();
-  // USB 2 carries ~44 MB/s of C2H (5 MS/s); USB 3 carries 40 MS/s. The 8812CU is verified on USB 2 only.
+  // USB 2 carries ~44 MB/s of C2H (5 MS/s); USB 3 carries 40 MS/s. The 8812CU and 8812EU are USB 2 only.
   _caps.min_rate_sel = s->superspeed() && !cu ? 1 : 4;
   // Both streamers can also capture one bank at any rate, stop, ship and re-arm (gapped mode; on the
   // 8812CU measured at 10/20/40 MS/s: zero stale banks, ~36/22/12 % of the time sampled). An 8812BU on
