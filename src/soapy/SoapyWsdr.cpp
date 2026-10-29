@@ -196,6 +196,7 @@ public:
     if (args.count("port"))
       o.port = args.at("port");
     _cu = o.pid == kPid8812cu || o.pid == kPid8812eu;
+    _eu = o.pid == kPid8812eu;
     o.channel = channel_for(_set.freq);
     o.thermal_track = false; // no host register traffic while streaming
     _s = std::make_unique<Session>(std::make_shared<Logger>());
@@ -363,6 +364,8 @@ public:
     return getFrequency(dir, ch);
   }
   SoapySDR::RangeList getFrequencyRange(const int, const size_t) const override {
+    if (_eu) // no 2.4 GHz front end on the 8812EU board (it tunes there, but streams the ADC floor)
+      return {SoapySDR::Range(5.080e9, 6.165e9)};
     return {SoapySDR::Range(2.400e9, 2.500e9), SoapySDR::Range(5.080e9, 6.165e9)};
   }
   SoapySDR::RangeList getFrequencyRange(const int dir, const size_t ch, const std::string &) const override {
@@ -525,6 +528,7 @@ private:
 
   std::unique_ptr<Session> _s;
   bool _cu = false;              // RTL8812CU / RTL8812EU (Jaguar3)
+  bool _eu = false;              // RTL8812EU: 5 GHz only
   std::vector<size_t> _chans{0}; // channels of the active stream
   int _channel = 36;
   int _width = 20;
@@ -581,7 +585,9 @@ SoapySDR::KwargsList find_wsdr(const SoapySDR::Kwargs &args) {
   if (list)
     libusb_free_device_list(list, 1);
   libusb_exit(ctx);
-  std::stable_sort(out.begin(), out.end(), [](const auto &a, const auto &b) { return a.at("pid") < b.at("pid"); });
+  // 8812BU first (the default adapter), then 8812CU, then 8812EU: by rank, not by the pid string
+  const auto rank = [](const SoapySDR::Kwargs &k) { return k.at("pid") == "0xb812" ? 0 : k.at("pid") == "0xc812" ? 1 : 2; };
+  std::stable_sort(out.begin(), out.end(), [&](const auto &a, const auto &b) { return rank(a) < rank(b); });
   return out;
 }
 
