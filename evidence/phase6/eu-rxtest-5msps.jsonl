@@ -1,0 +1,12 @@
+{"ev":"open","ok":1,"chip":"RTL8822E","cu":1,"superspeed":0,"min_rate_sel":4,"paths":2,"gain_max":52.0}
+{"ev":"status","state":"streaming","banks":513,"restarts":0,"channel":38,"width":20,"centre":5190000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":1124,"restarts":0,"channel":38,"width":20,"centre":5190000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":1734,"restarts":0,"channel":38,"width":20,"centre":5190000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":2345,"restarts":0,"channel":38,"width":20,"centre":5190000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":2955,"restarts":0,"channel":38,"width":20,"centre":5190000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":3416,"restarts":0,"channel":46,"width":20,"centre":5230000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":4027,"restarts":0,"channel":46,"width":20,"centre":5230000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":4637,"restarts":0,"channel":46,"width":20,"centre":5230000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":5247,"restarts":0,"channel":46,"width":20,"centre":5230000000,"fs":5000000,"error":""}
+{"ev":"status","state":"streaming","banks":5858,"restarts":0,"channel":46,"width":20,"centre":5230000000,"fs":5000000,"error":""}
+{"ev":"rxtest","banks":5859,"msps":4.80,"gens":2,"restarts":0,"sink_mean_us":1.75,"sink_max_us":35.6,"state":"closed","error":""}

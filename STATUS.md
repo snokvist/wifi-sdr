@@ -7,7 +7,7 @@ _Last updated: 2026-10-25 12:45 CET_
 0000:67:00.3; the other controller, 65:00.3, wedges C2H). USB2 gives 2.5/5 MS/s on any port. Front ends:
 `wsdr_tcp` (rtl_tcp, 2.5/5 MS/s) and the SoapySDR module (2.5/5 MS/s on USB2, up to 40 MS/s on USB3).
 Bandwidth: ~18.4 MHz by default; **40 MHz at 40 MS/s with `--bw 40 --dfir 40`** (streams over USB3);
-80 MHz / 80 MS/s with `--bw 80 --dfir 80 --rate 0` (snapshot only). **8812CU: continuous two-path streaming at 2.5 and 5 MS/s for 60 s, zero faults** (USB2, `build-cu/wsdr_cu stream`). Interim write-up:
+80 MHz / 80 MS/s with `--bw 80 --dfir 80 --rate 0` (snapshot only). **8812CU: continuous two-path streaming at 2.5 and 5 MS/s for 60 s, zero faults** (USB2, `build-cu/wsdr_cu stream`). **8812EU (RTL8822E, 2026-10-29): the same code, unchanged, streams at 5 MS/s with zero faults and runs 40 MS/s gapped** (`--pid 0xa81a`; 5 GHz only, see notes/cu-custom-code.md). Interim write-up:
 [REPORT.md](REPORT.md).
 
 ### Using it

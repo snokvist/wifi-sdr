@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // wsdr_rxtest — hardware check of wsdr::Receiver (the app-facing API):
-//   wsdr_rxtest --pid 0xb812 [--freq 5190e6] [--rate 1] [--seconds 10] [--retune 5230e6] [--gapped]
+//   wsdr_rxtest --pid 0xb812|0xc812|0xa81a [--freq 5190e6] [--rate 1] [--seconds 10] [--retune 5230e6] [--gapped]
 //               [--sweep 5190e6:5830e6:40e6 --dwell-ms 280]   (--sweep replaces --retune)
 //   --gapped allows rates the link cannot stream (RxSettings::allow_gapped), e.g. --rate 0 (80 MS/s).
 // Opens the adapter, streams, optionally retunes half-way, and prints status JSON once a second plus a
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   if (!pid) {
-    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812 [--freq HZ] [--rate 0..5] [--seconds N] [--gapped]\n"
+    std::fprintf(stderr, "usage: wsdr_rxtest --pid 0xb812|0xc812|0xa81a [--freq HZ] [--rate 0..5] [--seconds N] [--gapped]\n"
                          "                   [--retune HZ | --sweep FIRST:LAST:STEP [--dwell-ms MS]]\n");
     return 2;
   }

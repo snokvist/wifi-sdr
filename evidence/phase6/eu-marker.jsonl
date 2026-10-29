@@ -1,0 +1,142 @@
+devourer [I] USB adapter 1-1 locked for exclusive access
+devourer [I] Creating RtlJaguar3Device (PID 0xa81a, chip-id 0x17)
+devourer [I] USB device 0bda:a81a
+devourer [I] Running USB bus at 480MBit/s
+devourer [I] selected USB interface 0
+devourer [I] endpoint[0]: addr=0x84 attrs=0x2 bulk=1 in=1
+devourer [I] selected bulk IN endpoint: 0x84
+devourer [I] endpoint[1]: addr=0x5 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[2]: addr=0x6 attrs=0x2 bulk=1 in=0
+devourer [I] endpoint[3]: addr=0x87 attrs=0x3 bulk=0 in=1
+devourer [I] endpoint[4]: addr=0x8 attrs=0x2 bulk=1 in=0
+devourer [I] bulk OUT endpoints: 0x05 0x06 0x08 
+devourer [I] libusb_clear_halt(bulk IN 0x84) rc=0
+devourer [I] OutEpQueueSel(7), OutEpNumber(3)
+devourer [I] Boot from EFUSE, Autoload OK !
+devourer [I] RtlJaguar3Device constructed (8822E/EU)
+devourer [I] Jaguar3: pre_init_system_cfg done (ported)
+{"ev":"init.timing","stage":"j3hal.pre_init_system_cfg","ms":5,"xfers":15}
+devourer [I] Jaguar3: power-off (card-disable) sequence applied
+devourer [I] Jaguar3: power-on sequence complete (card active)
+{"ev":"init.timing","stage":"j3hal.power_on","ms":26,"xfers":72}
+devourer [I] Jaguar3 chip: 8822C cut=1 (UMC) 2T2R (SYS_CFG1=0x0c491d37)
+{"ev":"init.timing","stage":"j3hal.chip_version","ms":0,"xfers":1}
+devourer [I] Jaguar3(8822e): efuse decoded (0x22=46 0x4c=51 0xca=15)
+devourer [I] Jaguar3(8822e): efuse MAC 84:fc:14:50:bc:de
+{"ev":"init.timing","stage":"j3hal.efuse_cache","ms":448,"xfers":1191}
+devourer [I] Jaguar3: rfe_type=0x15
+{"ev":"init.timing","stage":"j3hal.efuse_rfe","ms":0,"xfers":0}
+devourer [I] Jaguar3: init_system_cfg done (ported, bw=0 cut=1)
+{"ev":"init.timing","stage":"j3hal.init_system_cfg","ms":3,"xfers":9}
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 2176 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 3416 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 4144 bytes
+devourer [I] bulk_send EP 5 OK 1904 bytes
+devourer [I] Jaguar3 DLFW: download OK, CPU enabled — polling FW boot
+devourer [I] Jaguar3 DLFW: FW ready (0x80 = 0xC078)
+devourer [I] Jaguar3: firmware booted (structured)
+{"ev":"init.timing","stage":"j3hal.dlfw","ms":324,"xfers":864}
+devourer [I] Jaguar3: HalMAC init_mac_cfg done (ported, bw=0)
+{"ev":"init.timing","stage":"j3hal.init_mac_cfg","ms":51,"xfers":138}
+devourer [I] Jaguar3: init_usb_cfg (RXDMA_MODE=0x1e, RX-agg EN) — RX DMA to bulk-IN
+{"ev":"init.timing","stage":"j3hal.usb_cfg_bbrf","ms":6,"xfers":18}
+devourer [I] Jaguar3: applying BB phy_reg table (3082 words)
+{"ev":"init.timing","stage":"j3hal.table_phy_reg","ms":484,"xfers":1293}
+devourer [I] Jaguar3: applying AGC table (14628 words)
+{"ev":"init.timing","stage":"j3hal.table_agc","ms":240,"xfers":642}
+devourer [I] Jaguar3: applying RF radioA (10622 words) + radioB (12050 words)
+{"ev":"init.timing","stage":"j3hal.table_rf_ab","ms":588,"xfers":1554}
+devourer [I] Jaguar3: BB/AGC/RF tables applied
+devourer [I] Jaguar3(8822e): PA bias applied (2G A=0x2 B=0x4; 5G A=0x4 B=0x6)
+{"ev":"init.timing","stage":"j3hal.pa_bias","ms":17,"xfers":41}
+{"ev":"init.timing","stage":"j3hal.phydm_param_init","ms":5,"xfers":14}
+devourer [I] Jaguar3: cal_init (2611 pairs) applied
+{"ev":"init.timing","stage":"j3hal.rfk_init","ms":982,"xfers":2619}
+devourer [I] Jaguar3(8822e): DACK complete (retries=0, msbk_to=0/0, dadck_to=0/0, addck_to=0/0)
+{"ev":"init.timing","stage":"j3hal.dack","ms":259,"xfers":686}
+devourer [I] Jaguar3: bf_init (NDPA/MU TX setup) applied
+devourer [I] Jaguar3: monitor RX config applied (accept-all + phystatus)
+devourer [I] Jaguar3: TX path enabled (OFDM/CCK block + AGC/path bits)
+{"ev":"init.timing","stage":"j3hal.bf_rx_tx_cfg","ms":8,"xfers":23}
+{"ev":"init.timing","stage":"j3hal.total","ms":3454,"xfers":9180}
+devourer [I] Jaguar3: bring-up complete
+{"ev":"init.timing","stage":"j3init.hal_init","ms":3454,"xfers":9180}
+devourer [I] Jaguar3: central ch 36 (pri idx 0) RF18=0x13124
+devourer [I] Jaguar3: central ch 36 / 20 MHz set (RF18=0x13124) + BB reset
+{"ev":"init.timing","stage":"j3init.set_channel","ms":53,"xfers":144}
+devourer [I] Jaguar3(8822e): IQK done (times=1 fail_step=0x00)
+devourer [I] Jaguar3(8822e): TXGAPK done (ch=36)
+{"ev":"init.timing","stage":"j3init.iqk","ms":1106,"xfers":2896}
+devourer [I] Jaguar3(8822e): DPK force-bypass applied (rfe 21)
+devourer [I] Jaguar3(8822e): RFE pins set (rfe=21 ch=36 path=3)
+devourer [I] Jaguar3(8822e): channel TX finalize (ch=36 5G tx-scaling+shaping)
+{"ev":"init.timing","stage":"j3init.rx_path_rfe_channel","ms":15,"xfers":42}
+devourer [I] Jaguar3(8822e): efuse 5G ch36 grp0 ref A=0x48 B=0x53
+devourer [I] Jaguar3: applied phy_reg_pg power-by-rate (band 1, 11 rate groups, ref A=0x48 B=0x53, MCS7 anchor 0x40)
+{"ev":"init.timing","stage":"j3init.txpower_pre","ms":18,"xfers":49}
+devourer [I] Jaguar3(8822e): coex WiFi-only init applied (antenna -> WL)
+{"ev":"init.timing","stage":"j3init.coex_wlan_only_init","ms":20,"xfers":56}
+{"ev":"init.timing","stage":"j3init.rfe_pinmux","ms":1,"xfers":4}
+{"ev":"init.timing","stage":"j3init.fw_pwr_mode","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_query","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.fw_coex_tdma_off","ms":1,"xfers":3}
+{"ev":"init.timing","stage":"j3init.filters_cca","ms":1,"xfers":3}
+devourer [I] Jaguar3(8822e): efuse 5G ch36 grp0 ref A=0x48 B=0x53
+devourer [I] Jaguar3: applied phy_reg_pg power-by-rate (band 1, 11 rate groups, ref A=0x48 B=0x53, MCS7 anchor 0x40)
+{"ev":"init.timing","stage":"j3init.txpower_post","ms":18,"xfers":49}
+devourer [I] Jaguar3(8822e): eFEM pin-mux applied (RFE_CTRL 3/5/7/8/9/11 -> RFE engine; DPDT under hardware TX/RX control)
+{"ev":"init.timing","stage":"j3init.dpdt_ack_misc","ms":37,"xfers":99}
+{"ev":"init.timing","stage":"j3init.total","ms":4731,"xfers":12531}
+devourer [I] Jaguar3: coex/phydm runtime thread not started (tuning.j3_runtime_thread)
+devourer [I] Jaguar3: ready for TX (monitor inject)
+{"ev":"session","chip":"RTL8822E","superspeed":0,"channel":36,"r80":"0xc078"}
+{"ev":"cu.cap","block_bytes":4}
+{"ev":"cpu.loaded","bytes":176,"prog":116,"r80_before":"0xc078"}
+{"ev":"cpu.marker","ok":1,"magic":"0xcafe0c22","count_a":111972,"count_b":1213943,"loops_per_s":5333099,"timer_a":3998056,"timer_b":4204676,"timer_delta":206620,"wall_us":206629,"r80":"0x4078","lui_ori":"0x00005678","lui_xori":"0x000000ff","lui_andi":"0xffff0000","alu_probe":"0x5","cpu_r80":"0x80604078"}
+{"ev":"marker.done","alive":1}

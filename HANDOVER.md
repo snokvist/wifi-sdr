@@ -33,6 +33,7 @@ Read this first, then STATUS.md, REPORT.md and FINDINGS.md §4. LOG.md has the c
 |---|---|---|
 | 8812BU 0bda:b812 | port on xHCI **0000:67:00.3** (bus 5/6) | USB3 works only here; 65:00.3 wedges C2H. A plain replug comes back at USB2; USB3 needs a guarded rtw88 probe (LOG 11:05 / 12:40). Currently USB3 (6-1). |
 | 8812CU 0bda:c812 | bus 1 port 1 (xHCI 65:00.3), USB2 | Hangs on ≥4 KiB EP0 block transfers → `wsdr_cu` defaults to `--cap 4`. A hang needs a physical replug. |
+| 8812EU 0bda:a81a | bus 1 port 1 (xHCI 65:00.3), USB2 | Took the 8812CU's port on 2026-10-29. Runs the 8822C code unchanged (`wsdr_cu --pid 0xa81a`); 5 GHz only (no 2.4 GHz front end). The out-of-tree `rtl88x2eu` driver binds it at plug-in; the session detaches it. |
 | MT7612U 0e8d:7612 | usb 8-1, xHCI 67:00.4, USB3 | `mt76x2u` loaded on plug despite the blacklist; unload it before use. Never unload `mt76`/`mt7921e` (host Wi-Fi). |
 
 - **rtw88 guard ON**: blacklists rtw88_8822bu/cu/21cu, 88x2cu, mt76x2u.

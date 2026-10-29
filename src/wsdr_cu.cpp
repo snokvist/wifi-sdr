@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// wsdr_cu — custom on-chip code probes for the RTL8812CU (RTL8822C). See notes/cu-custom-code.md.
+// wsdr_cu — custom on-chip code probes for the RTL8812CU (RTL8822C) and the RTL8812EU (RTL8822E, --pid 0xa81a:
+// the same loader, programs and streamer, verified 2026-10-29). See notes/cu-custom-code.md.
 //
 //   wsdr_cu marker   --pid 0xc812 [--channel 36]
 //       Load marker8822c.S behind the vendor IMEM entry stub, run it, read its DMEM block twice:
