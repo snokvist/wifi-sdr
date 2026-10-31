@@ -27,6 +27,12 @@ runs at 5 MS/s with zero faults, `evidence/phase6/`). Its board has no 2.4 GHz f
 there, but streams the ADC floor. Use it on 5 GHz.
 ² Same chip setting as on USB 3; the two-path measurements were made on USB 3.
 
+Not supported: the **RTL8812AU** (`0bda:8812`, RTL8812A, Jaguar1) and the RTL8821AU have no LA block
+(`0x7c0` never latches the arm bits; devourer reports `no_la_block`, `external/devourer/docs/la-capture.md`),
+and their on-chip CPU is not the MIPS core the streamer is written for. They still work under devourer as
+packet receivers or as a `txdemo` test source. Of the Jaguar1 parts only the RTL8814AU has an LA block
+(64 KB TXFF window); it is not ported. The MT7612U has no raw-IQ path either (`notes/mt7612u-sdr.md`).
+
 - **Continuous** means every sample with zero faults over 60 s runs. A separate offline check
   (`tools/stream_check.py`) confirms this: beacons sit on the 102.4 ms grid, with no slips or duplicate
   banks.
