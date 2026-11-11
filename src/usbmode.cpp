@@ -55,7 +55,7 @@ Usb3Switch request_mode(uint16_t pid, int bus, const std::string &port, bool usb
   libusb_device *dev = nullptr;
   for (ssize_t i = 0; i < n; i++) {
     libusb_device_descriptor dd{};
-    if (libusb_get_device_descriptor(list[i], &dd) == 0 && dd.idVendor == 0x0bda && dd.idProduct == pid &&
+    if (libusb_get_device_descriptor(list[i], &dd) == 0 && usb_id_matches(0x0bda, pid, dd.idVendor, dd.idProduct) &&
         libusb_get_bus_number(list[i]) == bus && port_path(list[i]) == port) {
       dev = libusb_ref_device(list[i]);
       break;

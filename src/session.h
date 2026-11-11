@@ -16,6 +16,14 @@
 
 namespace wsdr {
 
+// Does a USB descriptor (dvid, dpid) correspond to the logical Realtek id (vid, pid)?  Besides the exact
+// match, OEM-branded RTL8812BU dongles are accepted as 0bda:b812: TP-Link Archer T3U Plus = 2357:0138.
+inline bool usb_id_matches(uint16_t vid, uint16_t pid, uint16_t dvid, uint16_t dpid) {
+  if (dvid == vid && dpid == pid)
+    return true;
+  return vid == 0x0bda && pid == 0xb812 && dvid == 0x2357 && dpid == 0x0138;
+}
+
 struct OpenOpts {
   uint16_t vid = 0x0bda;
   uint16_t pid = 0;   // required
